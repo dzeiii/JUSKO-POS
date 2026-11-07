@@ -81,13 +81,15 @@ with st.container(key='site_header'):
         else:
             page=st.radio('Inventory navigation',['Dashboard','Stock Overview','Restock Products'],
                           horizontal=True,key='inventory_page',label_visibility='collapsed')
-st.caption('Demo mode selector only — it is not secure authentication. Add role-based login before public deployment.')
+st.caption('Demo mode selector only — it is not secure authentication.')
 
 # Rebuild the AVL tree from SQLite at each run, keeping the database as source of truth.
 try: product_tree=rebuild_tree()
 except Exception as e:
     safe_error(e); st.stop()
-
+#==================
+### ADMIN MODE 
+#==================
 if mode=='Admin' and page=='Dashboard':
     st.subheader('Business overview')
     today=date.today(); start=datetime.combine(today,time.min).isoformat(); end=datetime.combine(today+timedelta(days=1),time.min).isoformat()
@@ -468,6 +470,9 @@ elif mode=='Admin' and page=='Activity History':
     else:
         st.info('No activity matches this search yet.')
 
+#===================
+### CASHIER MODE
+#==================
 elif mode=='Cashier' and page=='New Sale':
     st.subheader('New sale')
     products=db.list_products(active_only=True)
@@ -592,6 +597,42 @@ elif mode=='Cashier' and page=='Order Queue':
     else:
         st.info('No pending orders. Add a food or drink order above.')
 
+elif mode=='Cashier' and page=='Last Transaction':
+    st.subheader('Last transaction')
+    sale=st.session_state.last_sale
+    if not sale: st.info('Complete a sale in New Sale to display its details here. For historical records, ask the admin to open Sales History.')
+    else:
+        st.success(f"Sale #{sale['transaction_id']} · {sale['created_at'].replace('T',' ')}")
+        st.metric('Total paid',money(sale['total_cents']))
+        st.dataframe(pd.DataFrame([{'Code':x['code'],'Product':x['name'],'Size':(f"{x.get('size_oz')} oz" if x.get('size_oz') else '—'),'Options':x.get('customizations',''),'Qty':x['quantity'],'Unit price':money(x['unit_price_cents']),'Subtotal':money(x['subtotal_cents'])} for x in sale['items']]),use_container_width=True,hide_index=True)
+        st.caption('The database transaction has committed successfully; inventory and transaction history have been updated.')
+
+elif mode=='Cashier' and page=='Sales History':
+    st.subheader('Cashier history')
+    st.caption('Search completed sales and cashier actions. Records remain saved in SQLite after the app is closed.')
+    h1,h2=st.columns([1,2])
+    cashier_history_search=h1.text_input('Search sales / actions',placeholder='sale number, product, customer')
+    cashier_role_filter=h2.selectbox('History type',['All cashier activity','Completed sales','Queue actions'])
+    sales=db.transaction_history()
+    term=cashier_history_search.casefold().strip()
+    if cashier_role_filter!='Queue actions':
+        sale_rows=[]
+        for r in sales:
+            details=db.transaction_items(r['id'])
+            searchable=f"{r['id']} {r['cashier_label']} "+' '.join(x['product_name']+' '+x.get('customizations','') for x in details)
+            if not term or term in searchable.casefold():
+                sale_rows.append({'Sale #':r['id'],'Date/time':r['created_at'].replace('T',' '),'Cashier':r['cashier_label'],'Items':', '.join(f"{x['quantity']}x {x['product_name']}" for x in details),'Total':money(r['total_cents'])})
+        st.markdown('#### Completed sales')
+        if sale_rows: st.dataframe(pd.DataFrame(sale_rows),use_container_width=True,hide_index=True)
+        else: st.info('No sales match this search.')
+    if cashier_role_filter!='Completed sales':
+        activity=db.activity_history('Cashier',cashier_history_search,limit=500)
+        st.markdown('#### Cashier actions and queue history')
+        if activity: st.dataframe(pd.DataFrame([{'Date/time':r['created_at'].replace('T',' '),'Action':r['action'],'Details':r['details']} for r in activity]),use_container_width=True,hide_index=True)
+        else: st.info('No cashier activity matches this search.')
+#=====================
+### INVENTORY MANAGER
+#=====================
 elif mode=='Inventory Manager' and page=='Stock Overview':
     st.subheader('Inventory stock overview')
     products=db.list_products()
@@ -781,39 +822,5 @@ elif mode=='Inventory Manager' and page== 'Dashboard':
                     st.info("No database movements logged yet.")
             except Exception:
                 st.caption("Unable to stream live adjustment logs.")
-elif mode=='Cashier' and page=='Last Transaction':
-    st.subheader('Last transaction')
-    sale=st.session_state.last_sale
-    if not sale: st.info('Complete a sale in New Sale to display its details here. For historical records, ask the admin to open Sales History.')
-    else:
-        st.success(f"Sale #{sale['transaction_id']} · {sale['created_at'].replace('T',' ')}")
-        st.metric('Total paid',money(sale['total_cents']))
-        st.dataframe(pd.DataFrame([{'Code':x['code'],'Product':x['name'],'Size':(f"{x.get('size_oz')} oz" if x.get('size_oz') else '—'),'Options':x.get('customizations',''),'Qty':x['quantity'],'Unit price':money(x['unit_price_cents']),'Subtotal':money(x['subtotal_cents'])} for x in sale['items']]),use_container_width=True,hide_index=True)
-        st.caption('The database transaction has committed successfully; inventory and transaction history have been updated.')
-
-elif mode=='Cashier' and page=='Sales History':
-    st.subheader('Cashier history')
-    st.caption('Search completed sales and cashier actions. Records remain saved in SQLite after the app is closed.')
-    h1,h2=st.columns([1,2])
-    cashier_history_search=h1.text_input('Search sales / actions',placeholder='sale number, product, customer')
-    cashier_role_filter=h2.selectbox('History type',['All cashier activity','Completed sales','Queue actions'])
-    sales=db.transaction_history()
-    term=cashier_history_search.casefold().strip()
-    if cashier_role_filter!='Queue actions':
-        sale_rows=[]
-        for r in sales:
-            details=db.transaction_items(r['id'])
-            searchable=f"{r['id']} {r['cashier_label']} "+' '.join(x['product_name']+' '+x.get('customizations','') for x in details)
-            if not term or term in searchable.casefold():
-                sale_rows.append({'Sale #':r['id'],'Date/time':r['created_at'].replace('T',' '),'Cashier':r['cashier_label'],'Items':', '.join(f"{x['quantity']}x {x['product_name']}" for x in details),'Total':money(r['total_cents'])})
-        st.markdown('#### Completed sales')
-        if sale_rows: st.dataframe(pd.DataFrame(sale_rows),use_container_width=True,hide_index=True)
-        else: st.info('No sales match this search.')
-    if cashier_role_filter!='Completed sales':
-        activity=db.activity_history('Cashier',cashier_history_search,limit=500)
-        st.markdown('#### Cashier actions and queue history')
-        if activity: st.dataframe(pd.DataFrame([{'Date/time':r['created_at'].replace('T',' '),'Action':r['action'],'Details':r['details']} for r in activity]),use_container_width=True,hide_index=True)
-        else: st.info('No cashier activity matches this search.')
-
 st.divider()
 st.caption('Gulps & Grubs POS · SQLite is the persistent source of truth · Prices stored as integer centavos')
