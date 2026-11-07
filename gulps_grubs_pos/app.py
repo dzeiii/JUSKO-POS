@@ -282,7 +282,7 @@ elif mode=='Admin' and page=='Product Management':
                         except Exception as e: safe_error(e)
                 else: st.info('This product is inactive and cannot be sold. Its historic transaction details are preserved.')
         search=st.text_input('Search by code or product name',key='product_search')
-        shown=[p for p in products if search.casefold() in (p['code']+' '+p['name']).casefold()]
+        shown=[p for p in all_products if search.casefold() in (p['code']+' '+p['name']).casefold()]
         if shown:
             st.dataframe(pd.DataFrame([{'Code':p['code'],'Product':p['name'],'Category':p['category'],'Price':(' · '.join(f"{size} oz {money(price)}" for size,price in db.get_product_sizes(p['id']).items()) if db.get_product_sizes(p['id']) else money(p['price_cents'])),'Stock':p['stock'],'Low-stock threshold':p['low_stock_threshold'],'Status':'Active' if p['active'] else 'Inactive'} for p in shown]),use_container_width=True,hide_index=True)
         else: st.info('No products match your search.')
