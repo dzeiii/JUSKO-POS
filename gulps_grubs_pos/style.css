@@ -181,13 +181,13 @@ h2{margin-top:.4rem}
 }
 /* Target checkboxes inside a container with key="danger_zone_box" */
 .st-key-danger_zone_box div[data-testid="stCheckbox"] label p {
-    font-size: 40px !important;
-    font-weight: 1000 !important;
+    font-size: 30px !important;
+    font-weight: 500 !important;
     color: #2b2b2b !important;
 }
 
 /* Also adjust the descriptive text span text sizes inside this module block if desired */
 .st-key-danger_zone_box span {
-    font-size: 40px !important;
+    font-size: 20px !important;
 }
 
