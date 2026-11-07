@@ -155,10 +155,10 @@ elif mode=='Admin' and page=='Product Management':
                 s8, s12, s16 = st.columns(3)
                 
                 # Checkbox states linked directly via session state
-                if 'drink_use_8' not in st.session_state: st.session_state.drink_use_8 = False
+                if 'drink_use_8' not in st.session_state: st.session_state.drink_use_8 = True else: False
                 if 'drink_use_12' not in st.session_state: st.session_state.drink_use_12 = True
                 if 'drink_use_16' not in st.session_state: st.session_state.drink_use_16 = True
-                if 'drink_use_custom' not in st.session_state: st.session_state.drink_use_custom = False
+                if 'drink_use_custom' not in st.session_state: st.session_state.drink_use_custom = True
                 
                 use8 = s8.checkbox('Offer 8 oz', key='drink_use_8')
                 price8 = s8.number_input('8 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not st.session_state.drink_use_8)
