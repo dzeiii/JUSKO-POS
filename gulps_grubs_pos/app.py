@@ -691,6 +691,40 @@ elif mode=='Inventory Manager' and page=='Restock Products':
                     except Exception as exc: 
                         safe_error(exc)
 
+        # --- 📊 DYNAMIC STOCK MOVEMENT SUMMARY LEDGER ---
+        st.markdown("---")
+        st.markdown("#### 📜 Recent Inventory Movement Logs")
+        
+        # Pull movements directly from your database's inventory_movements table
+        try:
+            with db.connection() as conn:
+                movements = conn.execute('''
+                    SELECT m.id, p.code, p.name, m.quantity_change, m.reason, m.created_at 
+                    FROM inventory_movements m
+                    JOIN products p ON m.product_id = p.id
+                    ORDER BY m.created_at DESC LIMIT 10
+                ''').fetchall()
+                
+            if movements:
+                log_data = []
+                for m in movements:
+                    # Clean up timestamps for scannability
+                    clean_time = m['created_at'].replace('T', ' ')[:16]
+                    direction = "➕ Addition" if m['quantity_change'] > 0 else "➖ Deduction"
+                    
+                    log_data.append({
+                        "Timestamp": clean_time,
+                        "Product Code": m['code'],
+                        "Product Name": m['name'],
+                        "Type": direction,
+                        "Quantity": abs(m['quantity_change']),
+                        "Adjustment Context / Reason": m['reason']
+                    })
+                st.dataframe(pd.DataFrame(log_data), use_container_width=True, hide_index=True)
+            else:
+                st.info("No stock adjustments have been recorded in this database session yet.")
+        except Exception as e:
+            st.caption("Unable to load real-time movement history log rows.")
 
 
 elif mode=='Cashier' and page=='Last Transaction':
