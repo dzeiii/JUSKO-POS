@@ -691,7 +691,7 @@ elif mode=='Inventory Manager' and page=='Restock Products':
                     except Exception as exc: 
                         safe_error(exc)
 elif mode=='Inventory Manager' and page== 'Dashboard':
-        st.subheader('📦 Inventory Operations Dashboard')
+    st.subheader('📦 Inventory Operations Dashboard')
         # Load running baseline metrics from your central database
     all_products = db.list_products(active_only=True)
     
