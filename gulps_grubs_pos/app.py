@@ -21,10 +21,11 @@ def safe_error(exc):
     else: st.error('Something went wrong while saving your changes. No incomplete transaction was committed. Check pos.log for technical details.')
 def cents_from_peso(value): return int(round(float(value)*100))
 
-def load_html_template(name, **values):
+def load_html_template(_filename, **values):
     """Load a small HTML fragment from templates/ and safely fill placeholders."""
     from html import escape
-    template_path = APP_DIR / 'templates' / _file_name
+    # Fixed typo: uses _filename which will never collide with product properties
+    template_path = APP_DIR / 'templates' / _filename
     content = template_path.read_text(encoding='utf-8')
     for key, value in values.items():
         content = content.replace('{{ ' + key + ' }}', escape(str(value)))
@@ -527,6 +528,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                     else:
                         price_line = money(p['price_cents'])
 
+                    # Bypasses all keyword collisions completely
                     card_html = load_html_template(
                         'product_card.html',
                         name=str(p['name']),
@@ -538,6 +540,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                         stock=str(int(p['stock']))
                     )
                     st.markdown(card_html, unsafe_allow_html=True)
+
                     
                     with st.form(f"add_cart_{p['id']}"):
                         size_oz = None
