@@ -34,7 +34,7 @@ def init_db(db_path=DB_PATH):
           price_cents INTEGER NOT NULL CHECK(price_cents >= 0),
           stock INTEGER NOT NULL CHECK(stock >= 0),
           low_stock_threshold INTEGER NOT NULL DEFAULT 5 CHECK(low_stock_threshold >= 0),
-          high_stock_threshold INTEGER NOT NULL DEFAULT 50 CHECK(high_stock_threshold >= 0), -- Added column
+          high_stock_threshold INTEGER NOT NULL DEFAULT 50 CHECK(high_stock_threshold >= 0),
           active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
@@ -103,6 +103,29 @@ def init_db(db_path=DB_PATH):
             c.execute('ALTER TABLE transaction_items ADD COLUMN size_oz INTEGER')
         if 'customizations' not in columns:
             c.execute("ALTER TABLE transaction_items ADD COLUMN customizations TEXT NOT NULL DEFAULT ''")
+
+        # --- DYNAMIC MIGRATION: Force old databases to accept 'Inventory Manager' ---
+        try:
+            # Attempt a test insert to see if your old database layout blocks the new role
+            c.execute("INSERT INTO activity_history (actor_mode, action, details, created_at) VALUES ('Inventory Manager', 'MIGRATION_TEST', '', ?)", (datetime.now().isoformat(),))
+            c.execute("DELETE FROM activity_history WHERE action = 'MIGRATION_TEST'")
+        except sqlite3.IntegrityError:
+            # If it blocks, backup data logs, rebuild the table with new rules, and re-insert logs
+            old_logs = c.execute("SELECT actor_mode, action, details, created_at FROM activity_history").fetchall()
+            c.execute("DROP TABLE activity_history")
+            c.execute('''
+                CREATE TABLE activity_history (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  actor_mode TEXT NOT NULL CHECK(actor_mode IN ('Admin','Cashier','Inventory Manager','System')),
+                  action TEXT NOT NULL,
+                  details TEXT NOT NULL DEFAULT '',
+                  created_at TEXT NOT NULL
+                );
+            ''')
+            for log in old_logs:
+                # Map old invalid roles if any exist to safety fallbacks
+                actor = log['actor_mode'] if log['actor_mode'] in ['Admin','Cashier','Inventory Manager','System'] else 'System'
+                c.execute("INSERT INTO activity_history (actor_mode, action, details, created_at) VALUES (?, ?, ?, ?)", (actor, log['action'], log['details'], log['created_at']))
             
         c.execute('''INSERT OR IGNORE INTO product_sizes(product_id,size_oz,price_cents)
                      SELECT id,8,price_cents FROM products WHERE lower(category)='beverage' ''')
@@ -110,6 +133,7 @@ def init_db(db_path=DB_PATH):
                      SELECT id,12,price_cents FROM products WHERE lower(category)='beverage' ''')
         c.execute('''INSERT OR IGNORE INTO product_sizes(product_id,size_oz,price_cents)
                      SELECT id,16,price_cents FROM products WHERE lower(category)='beverage' ''')
+        
         c.executescript('''
         CREATE INDEX IF NOT EXISTS idx_products_active_name ON products(active, name);
         CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at);
