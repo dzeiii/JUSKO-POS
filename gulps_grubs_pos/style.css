@@ -179,3 +179,8 @@ h2{margin-top:.4rem}
   .site-brand-name{font-size:1.2rem}
   .st-key-site_header [data-testid="stImage"] img{max-width:90px}
 }
+/* Change font size ONLY inside your specific danger zone container layout */
+div[data-testid="stElementContainer"]:has(div[data-key="danger_zone_box"]) div[data-testid="stCheckbox"] label p {
+    font-size: 13px !important;
+    font-weight: 400 !important;
+}
