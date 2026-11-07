@@ -336,7 +336,7 @@ elif mode=='Admin' and page=='Product Management':
                                 safe_error(e)
 
                    # --- Permanent Force Hard-Delete Interface Module ---
-                                        st.divider()
+                    st.divider()
                     st.error('### 🚨 DANGER ZONE: PERMANENT PURGE')
                     
                     # HTML and Bold styling fixed to render properly together
