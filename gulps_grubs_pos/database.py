@@ -34,6 +34,7 @@ def init_db(db_path=DB_PATH):
           price_cents INTEGER NOT NULL CHECK(price_cents >= 0),
           stock INTEGER NOT NULL CHECK(stock >= 0),
           low_stock_threshold INTEGER NOT NULL DEFAULT 5 CHECK(low_stock_threshold >= 0),
+          high_stock_threshold INTEGER NOT NULL DEFAULT 50 CHECK(high_stock_threshold >= 0), -- Added column
           active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
@@ -87,8 +88,13 @@ def init_db(db_path=DB_PATH):
           created_at TEXT NOT NULL,
           completed_at TEXT
         );
-        -- Migrate older databases without losing existing transactions.
         ''')
+        
+        # --- Migration: Safely inject high_stock_threshold into existing database ---
+        product_columns = {r['name'] for r in c.execute('PRAGMA table_info(products)').fetchall()}
+        if 'high_stock_threshold' not in product_columns:
+            c.execute("ALTER TABLE products ADD COLUMN high_stock_threshold INTEGER NOT NULL DEFAULT 50 CHECK(high_stock_threshold >= 0)")
+
         order_columns = {r['name'] for r in c.execute('PRAGMA table_info(pending_orders)').fetchall()}
         if 'order_type' not in order_columns:
             c.execute("ALTER TABLE pending_orders ADD COLUMN order_type TEXT NOT NULL DEFAULT 'Food'")
@@ -97,8 +103,7 @@ def init_db(db_path=DB_PATH):
             c.execute('ALTER TABLE transaction_items ADD COLUMN size_oz INTEGER')
         if 'customizations' not in columns:
             c.execute("ALTER TABLE transaction_items ADD COLUMN customizations TEXT NOT NULL DEFAULT ''")
-        # Existing beverage products receive all three sizes at their current price;
-        # the admin can set real size-specific prices in Products & Inventory.
+            
         c.execute('''INSERT OR IGNORE INTO product_sizes(product_id,size_oz,price_cents)
                      SELECT id,8,price_cents FROM products WHERE lower(category)='beverage' ''')
         c.execute('''INSERT OR IGNORE INTO product_sizes(product_id,size_oz,price_cents)
@@ -143,26 +148,38 @@ def generate_product_code(db_path=DB_PATH):
         candidate = f"GG-{next_number:04d}"
     return candidate
 
-def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_PATH, size_prices=None):
-    code, name, category = code.strip().upper(), name.strip(), category.strip()
-    if not code or len(code)>30: raise ValueError('Product code is required and must be at most 30 characters.')
-    if not name or len(name)>100: raise ValueError('Product name is required and must be at most 100 characters.')
-    if not category or len(category)>50: raise ValueError('Choose a valid category (maximum 50 characters).')
+def add_product(name, category, price_cents, size_prices=None, stock=0, low_stock_threshold=5, high_stock_threshold=50, db_path=DB_PATH):
+    # Automatically generate the unique identifier sequence code
+    code = generate_product_code(db_path=db_path)
+    
+    name, category = name.strip(), category.strip()
+    if not name or len(name) > 100: raise ValueError('Product name is required (maximum 100 characters).')
+    if not category or len(category) > 50: raise ValueError('Choose a valid category (maximum 50 characters).')
     if isinstance(price_cents, bool) or not isinstance(price_cents, int) or price_cents < 0: raise ValueError('Price must be a non-negative amount.')
     if isinstance(stock, bool) or not isinstance(stock, int) or stock < 0: raise ValueError('Stock must be a non-negative whole number.')
-    if isinstance(threshold, bool) or not isinstance(threshold, int) or threshold < 0: raise ValueError('Low-stock threshold must be a non-negative whole number.')
-    now = datetime.now().isoformat(timespec='seconds')
-    try:
-        with connection(db_path) as c:
-            cur = c.execute('INSERT INTO products(code,name,category,price_cents,stock,low_stock_threshold,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)', (code,name,category,price_cents,stock,threshold,now,now))
-            pid = cur.lastrowid
-            if stock: c.execute('INSERT INTO inventory_movements(product_id,quantity_change,reason,created_at) VALUES(?,?,?,?)', (pid,stock,'Starting inventory',now))
-            if size_prices is not None or category.casefold() == 'beverage':
-                prices = size_prices or {8: price_cents, 12: price_cents, 16: price_cents}
-                _validate_size_prices(prices, allow_subset=True)
-                for size, size_price in prices.items():
-                    c.execute('INSERT INTO product_sizes(product_id,size_oz,price_cents) VALUES(?,?,?)', (pid,int(size),int(size_price)))
-            return pid
+    if isinstance(low_stock_threshold, bool) or not isinstance(low_stock_threshold, int) or low_stock_threshold < 0: raise ValueError('Low stock threshold must be non-negative.')
+    if isinstance(high_stock_threshold, bool) or not isinstance(high_stock_threshold, int) or high_stock_threshold < 0: raise ValueError('High stock threshold must be non-negative.')
+    
+    now = datetime.now().isoformat()
+    
+    with connection(db_path) as c:
+        # Insert product into SQLite layout
+        res = c.execute('''
+            INSERT INTO products (code, name, category, price_cents, stock, low_stock_threshold, high_stock_threshold, active, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+        ''', (code, name, category, price_cents, stock, low_stock_threshold, high_stock_threshold, now, now))
+        
+        product_id = res.lastrowid
+        
+        # Handle optional dynamic variant structures for Drinks mapping profiles
+        if size_prices:
+            for size_oz, pr_cents in size_prices.items():
+                c.execute('''
+                    INSERT INTO product_sizes (product_id, size_oz, price_cents)
+                    VALUES (?, ?, ?)
+                ''', (product_id, int(size_oz), pr_cents))
+                
+        return product_id
     except sqlite3.IntegrityError as e:
         if 'products.code' in str(e).lower(): raise ValueError('That product code already exists.') from e
         raise
