@@ -605,27 +605,86 @@ elif mode=='Inventory Manager' and page=='Stock Overview':
     st.caption('Inventory Manager monitors physical stock. Admin owns menu names, categories, and prices.')
 
 elif mode=='Inventory Manager' and page=='Restock Products':
-    st.subheader('Restock Menu Products')
-    active_products=db.list_products(active_only=True)
-    if active_products:
-        choices={f"{p['code']} — {p['name']} (current stock: {p['stock']})":p for p in active_products}
-        with st.form('inventory_manager_restock',clear_on_submit=True):
-            selected=st.selectbox('Product', list(choices.keys()), index = None, placeholder="Select a product", key='restock_item_selector')
-            quantity=st.number_input('Quantity received',min_value=1,max_value=1000000,value=1,step=1)
-            submit=st.form_submit_button('Save restock',type='primary')
-        if submit:
-            if selected == placeholder:
-                st.error("Please select a valid menu product")
-            else: 
-                try:
-                    item=choices[selected]
-                    db.restock_product(item['id'],int(quantity))
-                    db.log_activity('Inventory Manager','Product restocked',f"{item['code']} · +{int(quantity)}")
-                    st.success('Stock quantity updated.')
-                    st.rerun()
-                except Exception as exc: safe_error(exc)
+    st.subheader('Inventory Stock Adjustments Dashboard')
+    active_products = db.list_products(active_only=True)
+    
+    if not active_products:
+        st.info('There are no active menu products to manage. Admin must add products first.')
     else:
-        st.info('There are no active menu products to restock. Admin must add products first.')
+        # Build your reusable selectbox mapping matrix
+        choices = {f"{p['code']} — {p['name']} (current stock: {p['stock']})": p for p in active_products}
+        
+        # Split features into clear structural operation tabs
+        itab1, itab2, itab3 = st.tabs(["➕ Add Stock (Restock)", "➖ Deduct Stock (Waste/Spoilage)", "✏️ Direct Edit (Stock Audit)"])
+        
+        # --- TAB 1: ADD STOCK ---
+        with itab1:
+            st.markdown("#### Record Incoming Deliveries")
+            with st.form('inventory_manager_restock', clear_on_submit=True):
+                selected = st.selectbox('Product to Restock', list(choices.keys()), index=None, placeholder="Select product...", key='restock_add_select')
+                quantity = st.number_input('Quantity received (+)', min_value=1, value=1, step=1, key='restock_add_qty')
+                submit = st.form_submit_button('Save Restock Entry', type='primary')
+                
+            if submit:
+                if selected is None: st.error("Please pick a menu product first.")
+                else:
+                    try:
+                        item = choices[selected]
+                        new_total = item['stock'] + int(quantity)
+                        db.update_product_stock_direct(item['id'], new_total, actor="Inventory Manager")
+                        db.log_activity('Inventory Manager', 'Stock Added', f"{item['code']} · +{int(quantity)} units")
+                        st.success(f"Successfully added {quantity} units to '{item['name']}'! New balance: {new_total}")
+                        st.rerun()
+                    except Exception as exc: safe_error(exc)
+
+        # --- TAB 2: DEDUCT STOCK ---
+        with itab2:
+            st.markdown("#### Record Spoilage, Damage, or Waste")
+            with st.form('inventory_manager_deduct', clear_on_submit=True):
+                selected = st.selectbox('Product to Deduct From', list(choices.keys()), index=None, placeholder="Select product...", key='restock_sub_select')
+                quantity = st.number_input('Quantity lost / damaged (-)', min_value=1, value=1, step=1, key='restock_sub_qty')
+                reason = st.text_input('Reason for Deduction *', placeholder='e.g., Expired ingredients, Spilled drink, Counter error').strip()
+                submit = st.form_submit_button('Confirm Stock Deduction', type='primary')
+                
+            if submit:
+                if selected is None: st.error("Please pick a menu product first.")
+                elif not reason: st.error("A validation reason is required to process inventory deductions.")
+                else:
+                    try:
+                        item = choices[selected]
+                        if int(quantity) > item['stock']:
+                            st.error(f"Cannot deduct {quantity} units. Product only has {item['stock']} units currently in stock.")
+                        else:
+                            new_total = item['stock'] - int(quantity)
+                            db.update_product_stock_direct(item['id'], new_total, actor=f"Inventory Manager ({reason})")
+                            db.log_activity('Inventory Manager', 'Stock Deducted', f"{item['code']} · -{int(quantity)} units ({reason})")
+                            st.success(f"Successfully deducted {quantity} units from '{item['name']}'. New balance: {new_total}")
+                            st.rerun()
+                    except Exception as exc: safe_error(exc)
+
+        # --- TAB 3: DIRECT EDIT / AUDIT ---
+        with itab3:
+            st.markdown("#### Direct Physical Inventory Audit Override")
+            st.caption("Use this only during weekly or monthly inventory audits to force correct counts.")
+            
+            selected = st.selectbox('Select Product to Audit', list(choices.keys()), index=None, placeholder="Select product...", key='restock_audit_select')
+            
+            if selected:
+                item = choices[selected]
+                st.info(f"Current recorded database level for **{item['name']}** is **{item['stock']}** units.")
+                
+                with st.form('inventory_manager_audit'):
+                    exact_stock = st.number_input('Actual physical count on shelf', min_value=0, value=int(item['stock']), step=1)
+                    submit = st.form_submit_button('Overwrite Stock Balance Value', type='primary')
+                    
+                if submit:
+                    try:
+                        db.update_product_stock_direct(item['id'], int(exact_stock), actor="Inventory Manager Audit Override")
+                        db.log_activity('Inventory Manager', 'Stock Count Audited', f"{item['code']} · Overwrote to {int(exact_stock)}")
+                        st.success(f"Inventory database successfully calibrated to exactly {exact_stock} units.")
+                        st.rerun()
+                    except Exception as exc: safe_error(exc)
+
 
 elif mode=='Cashier' and page=='Last Transaction':
     st.subheader('Last transaction')
