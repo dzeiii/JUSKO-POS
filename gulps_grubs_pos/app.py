@@ -506,7 +506,6 @@ elif mode == 'Cashier' and page == 'New Sale':
             cols = st.columns(2)
             for col, p in zip(cols, shown[start_idx:start_idx+2]):
                 with col:
-                    # --- FIX: Ensure these two definition lines are right here at the top! ---
                     sizes = db.get_product_sizes(p['id'])
                     is_drink = bool(sizes)
                     if " | Custom:" in p['category']:
@@ -528,7 +527,6 @@ elif mode == 'Cashier' and page == 'New Sale':
                     else:
                         price_line = money(p['price_cents'])
 
-                    # Bypasses all keyword collisions completely
                     card_html = load_html_template(
                         'product_card.html',
                         name=str(p['name']),
@@ -556,111 +554,72 @@ elif mode == 'Cashier' and page == 'New Sale':
                             size_oz = st.radio('Choose cup size', available_sizes, format_func=size_label_formatter, horizontal=True, key=f"size_{p['id']}")
                             unit_price = sizes[size_oz]
                             st.caption(f"Selected size price: {money(unit_price)}")
-
-                        # --- 🧋 DYNAMIC INCLUDED SINKERS, EXCLUSIONS & PAID ADD-ONS ---
+                            
                         chosen_customizations = []
                         addon_premium = 0
                         
-                        # Identify specific product profiles cleanly
                         prod_name_lower = p['name'].lower()
                         cat_lower = display_cat_clean.lower()
                         
                         is_milktea = 'milktea' in cat_lower or 'milktea' in prod_name_lower
                         is_milkshake = 'milkshake' in cat_lower or 'milkshake' in prod_name_lower
-                        is_lemonade = any(l in cat_lower or l in prod_name_lower for l in ['lemonade', 'slushie'])
+                        is_lemonade_slushie = 'slushie' in cat_lower or 'slushie' in prod_name_lower
+                        is_lemonade = ('lemonade' in cat_lower or 'lemonade' in prod_name_lower) and not is_lemonade_slushie
+                        is_coffee = 'coffee' in cat_lower or 'coffee' in prod_name_lower
 
                         if is_drink:
-                            chosen_customizations = []
-                            addon_premium = 0
+                            st.markdown("##### 🎛️ Base Sinker Selection")
                             
-                            # Identify specific product profiles cleanly
-                            prod_name_lower = p['name'].lower()
-                            cat_lower = display_cat_clean.lower()
+                            # 1. FIXED: Radio layouts for your mutually exclusive free preset sinker configurations
+                            if is_milktea:
+                                mt_sinker = st.radio("Included Sinker Options", ["Include Pearls (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                if mt_sinker == "No Sinkers (None)":
+                                    chosen_customizations.append("❌ NO PEARLS")
+    
+                            elif is_milkshake:
+                                ms_sinker = st.radio("Included Sinker Options", ["Include Pearls & Nata (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                if ms_sinker == "No Sinkers (None)":
+                                    chosen_customizations.append("❌ NO SINKERS")
+    
+                            elif is_lemonade:
+                                lem_sinker = st.radio("Included Sinker Options", ["Include Rainbow Jelly (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                if lem_sinker == "No Sinkers (None)":
+                                    chosen_customizations.append("❌ NO RAINBOW JELLY")
+    
+                            elif is_lemonade_slushie:
+                                sl_sinker = st.radio("Included Sinker Options", ["Include Nata (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                if sl_sinker == "No Sinkers (None)":
+                                    chosen_customizations.append("❌ NO NATA")
+    
+                            elif is_coffee:
+                                cf_sinker = st.radio("Included Sinker Options", ["Include Coffee Jelly (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                if cf_sinker == "No Sinkers (None)":
+                                    chosen_customizations.append("❌ NO COFFEE JELLY")
+
+                            # 2. FIXED: Paid Premium Add-on Checkboxes Layout
+                            st.markdown("##### ➕ Premium Add-ons")
+                            sk1, sk2, sk3 = st.columns(3)
                             
-                            is_milktea = 'milktea' in cat_lower or 'milktea' in prod_name_lower
-                            is_milkshake = 'milkshake' in cat_lower or 'milkshake' in prod_name_lower
-                            is_lemonade_slushie = 'slushie' in cat_lower or 'slushie' in prod_name_lower
-                            is_lemonade = ('lemonade' in cat_lower or 'lemonade' in prod_name_lower) and not is_lemonade_slushie
-                            is_coffee = 'coffee' in cat_lower or 'coffee' in prod_name_lower
-    
-                            if is_drink:
-                                st.markdown("Sinker")
-                                # 1. HANDLE BASE-INCLUDED SINKERS / EXCLUSIONS BY TYPE
-                                if is_milktea:
-                                    sk_none = st.checkbox("No Sinkers (None)", value=False, key=f"none_sink_{p['id']}")
-                                    if sk_none:
-                                        chosen_customizations.append("❌ NO SINKERS")
-                                    else:
-                                        keep_pearls = st.checkbox("Include Pearls (Included)", value=True, key=f"base_pearl_{p['id']}")
-                                        if not keep_pearls:
-                                            chosen_customizations.append("❌ NO PEARLS")
-    
-                                elif is_milkshake:
-                                    sk_none = st.checkbox("No Sinkers (None)", value=False, key=f"none_sink_{p['id']}")
-                                    if sk_none:
-                                        chosen_customizations.append("❌ NO SINKERS")
-                                    else:
-                                        # Fixed your unclosed string syntax bug here:
-                                        keep_pearls = st.checkbox("Include Pearls (Included)", value=True, key=f"base_pearl_{p['id']}")
-                                        keep_nata = st.checkbox("Include Nata (Included)", value=True, key=f"base_nata_{p['id']}")
-                                        if not keep_pearls:
-                                            chosen_customizations.append("❌ NO PEARLS")
-                                        if not keep_nata:
-                                            chosen_customizations.append("❌ NO NATA")
-    
-                                elif is_lemonade:
-                                    sk_none = st.checkbox("No Sinkers (None)", value=False, key=f"none_sink_{p['id']}")
-                                    if sk_none:
-                                        chosen_customizations.append("❌ NO SINKERS")
-                                    else:
-                                        keep_jelly = st.checkbox("Include Rainbow Jelly (Included)", value=True, key=f"base_jelly_{p['id']}")
-                                        if not keep_jelly:
-                                            chosen_customizations.append("❌ NO RAINBOW JELLY")
-    
-                                elif is_lemonade_slushie:
-                                    sk_none = st.checkbox("No Sinkers (None)", value=False, key=f"none_sink_{p['id']}")
-                                    if sk_none:
-                                        chosen_customizations.append("❌ NO SINKERS")
-                                    else:
-                                        keep_nata = st.checkbox("Include Nata (Included)", value=True, key=f"base_nata_{p['id']}")
-                                        if not keep_nata:
-                                            chosen_customizations.append("❌ NO NATA")
-    
-                                elif is_coffee:
-                                    sk_none = st.checkbox("No Sinkers (None)", value=False, key=f"none_sink_{p['id']}")
-                                    if sk_none:
-                                        chosen_customizations.append("❌ NO SINKERS")
-                                    else:
-                                        keep_cjelly = st.checkbox("Include Coffee Jelly (Included)", value=True, key=f"base_cjelly_{p['id']}")
-                                        if not keep_cjelly:
-                                            chosen_customizations.append("❌ NO COFFEE JELLY")
-    
-                                # 2. OPTIONAL PAID PREMIUM ADD-ONS (+₱5.00 EACH)
-                                st.markdown("Add-ons (+5)")
-                                sk1, sk2, sk3 = st.columns(3)
+                            add_extra_pearl = sk1.checkbox("Extra Pearls (+₱5)", key=f"add_p_{p['id']}")
+                            add_extra_nata = sk2.checkbox("Extra Nata (+₱5)", key=f"add_n_{p['id']}")
+                            add_extra_jelly = sk3.checkbox("Extra Jelly (+₱5)", key=f"add_j_{p['id']}")
+                            
+                            if add_extra_pearl:
+                                chosen_customizations.append("➕ Extra Pearls")
+                                addon_premium += 500
+                            if add_extra_nata:
+                                chosen_customizations.append("➕ Extra Nata")
+                                addon_premium += 500
+                            if add_extra_jelly:
+                                chosen_customizations.append("➕ Extra Jelly")
+                                addon_premium += 500
                                 
-                                add_extra_pearl = sk1.checkbox("Extra Pearls (+₱5)", key=f"add_p_{p['id']}")
-                                add_extra_nata = sk2.checkbox("Extra Nata (+₱5)", key=f"add_n_{p['id']}")
-                                add_extra_jelly = sk3.checkbox("Extra Jelly (+₱5)", key=f"add_j_{p['id']}")
-                                
-                                if add_extra_pearl:
-                                    chosen_customizations.append("Extra Pearls")
-                                    addon_premium += 500  # FIXED: 500 cents = ₱5.00
-                                if add_extra_nata:
-                                    chosen_customizations.append("Extra Nata")
-                                    addon_premium += 500   # FIXED: 500 cents = ₱5.00
-                                if add_extra_jelly:
-                                    chosen_customizations.append("Extra Jelly")
-                                    addon_premium += 500   # FIXED: 500 cents = ₱5.00
-                                    
-                                # Factor extra topping premium directly into the baseline unit cost calculation
-                                unit_price += addon_premium
+                            unit_price += addon_premium
 
-
-                        # Open customization notes box for custom requests (e.g., Sugar Level)
+                        # 3. Custom Free-text Notes Box (Allergies, Fry Flavors, Meal Comments)
                         custom_note = st.text_input(
-                            'Special Notes / Customization', 
-                            placeholder='e.g., 50% Sugar, Less Ice, Extra Syrup',
+                            'Special Notes / Flavors / Allergies', 
+                            placeholder='e.g., Less Sweet, Barbecue Fries, Egg well-done',
                             key=f"note_input_{p['id']}"
                         ).strip()
 
@@ -679,28 +638,19 @@ elif mode == 'Cashier' and page == 'New Sale':
                             else:
                                 size_display_name = ''
                                 
-                            # Unify free exclusions, premium toppings, and custom text inputs
+                            # Join customizations array together for the transaction logs
                             final_notes_list = chosen_customizations.copy()
                             if custom_note:
                                 final_notes_list.append(custom_note)
                             combined_customizations = '; '.join(final_notes_list)
                                 
-                            # Commit item data configurations cleanly down into the cart linked list structures
-                            st.session_state.cart.add(
-                                p, 
-                                int(qty), 
-                                size_oz=size_oz, 
-                                unit_price_cents=unit_price, 
-                                customizations=combined_customizations
-                            )
-                            
+                            st.session_state.cart.add(p, int(qty), size_oz=size_oz, unit_price_cents=unit_price, customizations=combined_customizations)
                             size_label = f" ({size_display_name})" if size_oz else ''
                             option_label = f" · Options: '{combined_customizations}'" if combined_customizations else ''
-                            st.success(f"Added {qty} × {p['name']}{size_label}{option_label} (Total Unit Price: {money(unit_price)}).")
+                            st.success(f"Added {qty} × {p['name']}{size_label}{option_label}.")
                             st.rerun()
                         except Exception as e: 
                             safe_error(e)
-
 
     with right:
         st.markdown('#### Shopping cart')
