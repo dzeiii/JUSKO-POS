@@ -148,7 +148,7 @@ elif mode=='Admin' and page=='Product Management':
                 category = st.text_input('Category *', placeholder='e.g. Streetfood, Donut and Waffles').strip()
                 price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
                 
-                        elif classification == 'Drinks (Gulps)':
+            elif classification == 'Drinks (Gulps)':
                 base_category = st.text_input('Category Name *', placeholder='e.g. Milkshake, Float, Milktea').strip()
                 
         # --- Break out of the form block temporarily to allow live UI updates ---
