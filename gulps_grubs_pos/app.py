@@ -291,10 +291,10 @@ elif mode=='Admin' and page=='Product Management':
                         
                         new_cat = f"{new_base_cat} | Custom:{edit_custom_label}" if (has_custom and edit_custom_label) else new_base_cat
                         
-                        # Start by copying ALL currently saved database sizes so we don't erase them
-                        updated_sizes = {int(sz): cents_from_peso(pr) for sz, pr in current_sizes.items()}
+                        # FIX: Read baseline sizes directly as raw cents integers from the DB without multiplying again
+                        updated_sizes = {int(sz): int(cents) for sz, cents in current_sizes.items()}
                         
-                        # Update standard sizes ONLY if they are active on the screen layout
+                        # Update standard sizes ONLY if they match what's on the screen layout
                         for sz, pr_val in size_inputs.items():
                             updated_sizes[int(sz)] = cents_from_peso(pr_val)
                         
@@ -302,7 +302,6 @@ elif mode=='Admin' and page=='Product Management':
                         if has_custom and edit_custom_label:
                             updated_sizes[99] = cents_from_peso(edit_custom_price)
                         elif 99 in updated_sizes:
-                            # If the admin unchecks custom, remove it from the dictionary cleanly
                             del updated_sizes[99]
                         
                         new_base_price_cents = next(iter(updated_sizes.values()), p['price_cents'])
@@ -336,7 +335,7 @@ elif mode=='Admin' and page=='Product Management':
                             except Exception as e: 
                                 safe_error(e)
 
-                    # Independent Deactivation Button (Outside the save form context)
+                    # Independent Deactivation Button (Outside the save button block context)
                     st.warning('Products are deactivated instead of deleted so historical sales remain intact.')
                     if st.button('Deactivate selected product', key=f"deact_action_btn_{p['id']}"):
                         try:
