@@ -131,7 +131,7 @@ if mode=='Admin' and page=='Dashboard':
 
 elif mode=='Admin' and page=='Product Management':
     st.subheader('Product Catalog Management')
-    tab1, tab2, tab3 = st.tabs(['Add product', 'Edit / Delete', 'Inactive Products'])
+    tab1, tab2, tab3 = st.tabs(['Add product', 'Edit / Delete', 'View Catalog'])
     
     with tab1:
         classification = st.radio('Product Classification *', 
@@ -337,7 +337,7 @@ elif mode=='Admin' and page=='Product Management':
 
                    # --- Permanent Force Hard-Delete Interface Module ---
                     st.divider()
-                    st.error('###DANGER ZONE: PERMANENT PURGE')
+                    st.error('### DANGER ZONE: PERMANENT PURGE')
                     st.markdown(
                         "Clicking delete below will execute a **HARD DELETE**. This completely wipes the item profile row "
                         "from the database catalog and cannot be undone."
@@ -361,7 +361,7 @@ elif mode=='Admin' and page=='Product Management':
                                 st.error(msg)
                         except Exception as e:
                             safe_error(e)
-
+    with tab3:
         # Global Catalog Search Inventory Matrix View Frames
         st.markdown("---")
         search = st.text_input('Search by code or product name', key='product_search')
