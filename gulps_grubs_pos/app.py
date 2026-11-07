@@ -260,26 +260,90 @@ elif mode=='Admin' and page=='Product Management':
                     if save:
                         try: db.update_product(p['id'],new_code,new_name,new_cat,cents_from_peso(new_price),int(new_threshold)); db.log_activity('Admin','Product updated',f'{new_code} · {new_name}'); st.success('Product updated.'); st.rerun()
                         except Exception as e: safe_error(e)
-                    current_sizes=db.get_product_sizes(p['id'])
-                    if current_sizes:
-                        if not current_sizes: current_sizes={8:p['price_cents'],12:p['price_cents'],16:p['price_cents']}
-                        with st.form(f"size_prices_{p['id']}"):
-                            st.markdown('**Available drink size pricing**')
-                            st.caption('Only sizes currently configured for this menu item are shown.')
-                            size_inputs={}
-                            size_cols=st.columns(max(1,len(current_sizes)))
-                            for size_idx,size in enumerate(current_sizes):
-                                size_inputs[size]=size_cols[size_idx].number_input(f'{size} oz price (₱)',min_value=0.0,max_value=1000000.0,value=current_sizes[size]/100,step=5.0,format='%.2f',key=f'price_{p["id"]}_{size}')
-                            save_sizes=st.form_submit_button('Save drink size prices',type='primary')
-                        if save_sizes:
-                            try:
-                                db.set_product_sizes(p['id'],{size:cents_from_peso(price) for size,price in size_inputs.items()}); db.log_activity('Admin','Drink prices updated',f"{p['code']} · {size_inputs}")
-                                st.success('Drink size prices updated.'); st.rerun()
-                            except Exception as e: safe_error(e)
-                    st.warning('Products are deactivated instead of deleted so historical sales remain intact.')
-                    if st.button('Deactivate selected product',key='deactivate_btn'):
-                        try: db.deactivate_product(p['id']); db.log_activity('Admin','Product deleted / deactivated',f"{p['code']} · {p['name']}"); st.success('Product deactivated. Historical sales are preserved.'); st.rerun()
-                        except Exception as e: safe_error(e)
+                                    # --- Updated Dynamic Size Layout with Custom Size Management ---
+                current_sizes = db.get_product_sizes(p['id'])
+                
+                # Check if an existing custom label is embedded inside the category string
+                orig_category = p['category']
+                is_custom_drink = " | Custom:" in orig_category
+                if is_custom_drink:
+                    base_cat_name, custom_sz_label = orig_category.split(" | Custom:", 1)
+                else:
+                    base_cat_name = orig_category
+                    custom_sz_label = ""
+
+                # Initialize a combined form to save standard and custom sizing rows together
+                with st.form(f"size_prices_custom_{p['id']}"):
+                    st.markdown('**Available drink size pricing**')
+                    st.caption('Configure standard size categories or add a custom variant profile below.')
+                    
+                    # 1. Render standard sizes (8, 12, 16 oz) if they exist
+                    standard_sizes = {k: v for k, v in current_sizes.items() if k in}
+                    size_inputs = {}
+                    
+                    if standard_sizes:
+                        size_cols = st.columns(len(standard_sizes))
+                        for size_idx, size in enumerate(sorted(standard_sizes.keys())):
+                            size_inputs[size] = size_cols[size_idx].number_input(
+                                f'{size} oz price (₱)', 
+                                min_value=0.0, 
+                                value=standard_sizes[size]/100, 
+                                step=5.0, 
+                                format='%.2f', 
+                                key=f'price_{p["id"]}_{size}'
+                            )
+                    else:
+                        st.info("No standard sizes configured yet.")
+                    
+                    st.divider()
+                    st.markdown('**🥤 Other / Custom Size Configuration**')
+                    
+                    # 2. Checkbox and inputs for the Custom Size row
+                    has_custom = st.checkbox("Enable a different custom size profile for this product", value=is_custom_drink, key=f"has_cust_{p['id']}")
+                    
+                    c_col1, c_col2 = st.columns(2)
+                    edit_custom_label = c_col1.text_input(
+                        "Custom Size Description Label", 
+                        value=custom_sz_label, 
+                        placeholder="e.g., 22oz, 1-Liter", 
+                        disabled=not has_custom, 
+                        key=f"lbl_cust_{p['id']}"
+                    ).strip()
+                    
+                    edit_custom_price = c_col2.number_input(
+                        "Custom Size Price (₱)", 
+                        min_value=0.0, 
+                        value=float(current_sizes.get(99, 0.0) / 100), 
+                        step=5.0, 
+                        format='%.2f', 
+                        disabled=not has_custom, 
+                        key=f"val_cust_{p['id']}"
+                    )
+                    
+                    save_sizes = st.form_submit_button('Save all size and price settings', type='primary')
+                
+                if save_sizes:
+                    try:
+                        # Pack standard values back into integer cents mapping layout
+                        updated_sizes = {size: cents_from_peso(price) for size, price in size_inputs.items()}
+                        
+                        # Process and append the custom sizing flag if toggled on submission
+                        if has_custom and edit_custom_label:
+                            updated_sizes[99] = cents_from_peso(edit_custom_price)
+                            updated_category = f"{base_cat_name} | Custom:{edit_custom_label}"
+                        else:
+                            updated_category = base_cat_name
+                        
+                        # Persist values down to the database layers
+                        db.set_product_sizes(p['id'], updated_sizes)
+                        db.update_product(p['id'], p['code'], p['name'], updated_category, p['price_cents'], p['low_stock_threshold'])
+                        
+                        db.log_activity('Admin', 'Drink custom sizing profile updated', f"{p['code']} · Category: {updated_category}")
+                        st.success('Drink sizing configurations and custom labels updated successfully.')
+                        st.rerun()
+                    except Exception as e: 
+                        safe_error(e)
+
                 else: st.info('This product is inactive and cannot be sold. Its historic transaction details are preserved.')
         search=st.text_input('Search by code or product name',key='product_search')
         shown=[p for p in all_products if search.casefold() in (p['code']+' '+p['name']).casefold()]
