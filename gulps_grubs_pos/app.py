@@ -202,7 +202,7 @@ elif mode=='Admin' and page=='Product Management':
                     except Exception as e:
                         safe_error(e)
     with tab2:
-    products = db.list_products(active_only=True)
+        products = db.list_products(active_only=True)
         if not products: st.info('Add your first product to begin.')
         else:
             labels={f"{p['code']} — {p['name']} {'(inactive)' if not p['active'] else ''}":p for p in products}
