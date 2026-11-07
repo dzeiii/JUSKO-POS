@@ -148,7 +148,6 @@ def generate_product_code(db_path=DB_PATH):
         candidate = f"GG-{next_number:04d}"
     return candidate
 
-# Inside database.py - Put this exact function structure back
 def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_PATH, size_prices=None):
     code, name, category = code.strip().upper(), name.strip(), category.strip()
     if not code or len(code)>30: raise ValueError('Product code is required and must be at most 30 characters.')
@@ -161,24 +160,27 @@ def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_
     now = datetime.now().isoformat()
     
     with connection(db_path) as c:
-        res = c.execute('''
-            INSERT INTO products (code, name, category, price_cents, stock, low_stock_threshold, active, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
-        ''', (code, name, category, price_cents, stock, threshold, now, now))
-        
-        product_id = res.lastrowid
-        
-        if size_prices:
-            for size_oz, pr_cents in size_prices.items():
-                c.execute('''
-                    INSERT INTO product_sizes (product_id, size_oz, price_cents)
-                    VALUES (?, ?, ?)
-                ''', (product_id, int(size_oz), pr_cents))
-                
-        return product_id
-    except sqlite3.IntegrityError as e:
-        if 'products.code' in str(e).lower(): raise ValueError('That product code already exists.') from e
-        raise
+        # The code must enter a 'try' block before using an 'except' block below
+        try:
+            res = c.execute('''
+                INSERT INTO products (code, name, category, price_cents, stock, low_stock_threshold, active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+            ''', (code, name, category, price_cents, stock, threshold, now, now))
+            
+            product_id = res.lastrowid
+            
+            if size_prices:
+                for size_oz, pr_cents in size_prices.items():
+                    c.execute('''
+                        INSERT INTO product_sizes (product_id, size_oz, price_cents)
+                        VALUES (?, ?, ?)
+                    ''', (product_id, int(size_oz), pr_cents))
+                    
+            return product_id
+
+        except sqlite3.IntegrityError as e:
+            raise ValueError(f"The product code '{code}' is already taken.")
+
 
 def _validate_size_prices(size_prices, allow_subset=False):
     valid = isinstance(size_prices, dict) and bool(size_prices) and set(size_prices).issubset({8, 12, 16})
