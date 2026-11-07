@@ -593,6 +593,18 @@ elif mode=='Cashier' and page=='Order Queue':
         st.info('No pending orders. Add a food or drink order above.')
 
 elif mode=='Inventory Manager' and page=='Stock Overview':
+    st.subheader('Inventory stock overview')
+    products=db.list_products()
+    search=st.text_input('Search products by name, code, or category')
+    term=search.casefold().strip()
+    shown=[p for p in products if term in (p['name']+' '+p['code']+' '+p['category']).casefold()]
+    if shown:
+        st.dataframe(pd.DataFrame([{'Code':p['code'],'Product':p['name'],'Category':p['category'],'Stock':p['stock'],'Low-stock threshold':p['low_stock_threshold'],'Status':'Active' if p['active'] else 'Inactive','Stock alert':'LOW' if p['stock']<=p['low_stock_threshold'] else 'OK'} for p in shown]),use_container_width=True,hide_index=True)
+    else:
+        st.info('No product records yet. Admin must add menu products first.')
+    st.caption('Inventory Manager monitors physical stock. Admin owns menu names, categories, and prices.')
+
+elif mode=='Inventory Manager' and page=='Restock Products':
     st.subheader('Inventory Stock Adjustments')
     active_products = db.list_products(active_only=True)
     
