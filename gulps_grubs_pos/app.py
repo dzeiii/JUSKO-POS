@@ -148,48 +148,42 @@ elif mode=='Admin' and page=='Product Management':
                 category = st.text_input('Category *', placeholder='e.g. Streetfood, Donut and Waffles').strip()
                 price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
                 
-            elif classification == 'Drinks (Gulps)':
+                        elif classification == 'Drinks (Gulps)':
                 base_category = st.text_input('Category Name *', placeholder='e.g. Milkshake, Float, Milktea').strip()
                 
-                st.caption('Configure your cup sizes and pricing:')
+        # --- Break out of the form block temporarily to allow live UI updates ---
+        # (This section lives directly inside tab1 under your classification radio selector)
+        if classification == 'Drinks (Gulps)':
+            st.caption('Configure your cup sizes and pricing:')
+            
+            # These checkboxes now update the screen instantly upon clicking!
+            use8 = st.checkbox('Offer 8 oz', value=False, key='drink_use_8')
+            price8 = st.number_input('8 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use8)
+            
+            use12 = st.checkbox('Offer 12 oz', value=True, key='drink_use_12')
+            price12 = s12.number_input('12 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use12)
+            
+            use16 = st.checkbox('Offer 16 oz', value=True, key='drink_use_16')
+            price16 = s16.number_input('16 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use16)
+            
+            st.divider()
+            st.markdown("##### 🥤 Other / Custom Size Profile")
+            use_custom = st.checkbox('Offer a different custom size', value=False, key='drink_use_custom')
+            
+            c_size_col, c_price_col = st.columns(2)
+            with c_size_col:
+                custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', disabled=not use_custom).strip()
+            with c_price_col:
+                custom_price = st.number_input('Custom Size Price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use_custom)
                 
-                # 1. Standard Size Layout Matrix
-                use8 = st.checkbox('Offer 8 oz', value=True, key='drink_use_8')
-                # FIX: Change 'disabled' to use the 'use8' variable directly
-                price8 = st.number_input('8 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use8)
-                
-                use12 = st.checkbox('Offer 12 oz', value=True, key='drink_use_12')
-                # FIX: Change 'disabled' to use the 'use12' variable directly
-                price12 = st.number_input('12 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use12)
-                
-                use16 = st.checkbox('Offer 16 oz', value=True, key='drink_use_16')
-                # FIX: Change 'disabled' to use the 'use16' variable directly
-                price16 = st.number_input('16 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use16)
-                
-                # 2. Other / Custom Size Section
+            # Open a small independent action form for the save button below
+            with st.form('save_drink_blueprint_form', clear_on_submit=True):
+                # Inventory Alert Metrics
                 st.divider()
-                st.markdown("##### 🥤 Other / Custom Size Profile")
-                use_custom = st.checkbox('Offer a different custom size', value=True, key='drink_use_custom')
+                low_stock_threshold = st.number_input('Low-stock alert boundary count', min_value=0, value=5, step=1)
+                high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
                 
-                c_size_col, c_price_col = st.columns(2)
-                with c_size_col:
-                    # FIX: Change 'disabled' to use the 'use_custom' variable directly
-                    custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', disabled=not use_custom).strip()
-                with c_price_col:
-                    # FIX: Change 'disabled' to use the 'use_custom' variable directly
-                    custom_price = st.number_input('Custom Size Price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use_custom)
-                
-                # 3. Data Processing Structures matching your SQLite constraints
-                size_prices = {size: cents_from_peso(pr) for size, use, pr in [(8, use8, price8), (12, use12, price12), (16, use16, price16)] if use}
-                
-                if use_custom and custom_label:
-                    # Save the custom size under code flag 99
-                    size_prices[99] = cents_from_peso(custom_price)
-                    category = f"{base_category} | Custom:{custom_label}"
-                else:
-                    category = base_category
-                
-                price = next(iter(size_prices.values()), 0) / 100 if size_prices else 0.0
+                submitted = st.form_submit_button('Add product')
 
                 
             elif classification == 'Others (Combo/Meal Plan)':
