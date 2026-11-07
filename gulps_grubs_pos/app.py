@@ -359,7 +359,7 @@ elif mode=='Admin' and page=='Product Management':
         # Global Catalog Search Inventory Matrix View Frames
         st.markdown("---")
         search = st.text_input('Search by code or product name', key='product_search')
-        shown_items = [prod for prod in all_products if search.casefold() in (prod['code']+' '+prod['name']).casefold()]
+        shown_items = [prod for prod in all_products if search.casefold() in (prod['code']+' '+prod['name']+''+prod['category']).casefold()]
         if shown_items:
             st.dataframe(pd.DataFrame([
                 {
