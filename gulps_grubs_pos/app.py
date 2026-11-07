@@ -473,6 +473,48 @@ elif mode=='Admin' and page=='Activity History':
 #===================
 ### CASHIER MODE
 #==================
+elif mode == 'Cashier' and page == 'New Sale':
+    st.subheader('New Sale')
+    all_products = db.list_products(active_only=True)
+    
+    inventory_categories = [
+        'powder', 'drinking cups', 'food cups', 'square plates', 
+        'takeout boxes big', 'takeout boxes small', 'lids flat', 'lids dome'
+    ]
+
+    # Only show finished menu items to cashiers
+    products = [p for p in all_products if p['category'] not in inventory_categories]
+    
+    left, right = st.columns([1.35, 1], gap='large')
+    with left:
+        st.markdown('#### Available products')
+        query = st.text_input('Find a product', placeholder='Search product name or code')
+        if query.strip():
+            match = product_tree.search(query.strip())
+            if match and match['category'] not in inventory_categories:
+                shown = [match]
+            else:
+                shown = [p for p in products if query.casefold() in (p['name'] + ' ' + p['code']).casefold()]
+        else: 
+            shown = products
+            
+        if not shown: 
+            st.info('No matching active products.')
+            
+        for start_idx in range(0, len(shown), 2):
+            cols = st.columns(2)
+            for col, p in zip(cols, shown[start_idx:start_idx+2]):
+                with col:
+                    # 1. Calculate available servings from raw ingredients/powders
+                    available_servings = calculate_available_servings(p['id'])
+                    
+                    # If a recipe exists, use calculated servings; otherwise fall back to direct stock
+                    if isinstance(available_servings, int):
+                        display_stock = available_servings
+                    else:
+                        display_stock = p['stock']
+
+                    st.markdown(
                         f"<div class='product-card'><b>{p['name']}</b><br>"
                         f"<span class='small-note'>{p['code']} · {p['category']}</span>"
                         f"<h3>{money(p['price_cents'])}</h3>"
