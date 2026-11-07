@@ -522,7 +522,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                         price_line = money(p['price_cents'])
                     
                     cat_parts = p['category'].split(" | Custom:", 1)
-                    display_cat_clean = cat_parts.strip() if cat_parts else p['category']
+                    display_cat_clean = cat_parts[0].strip() if cat_parts else p['category']
                     
                     # 2. FIXED: Pass variables directly by position and explicit names. 
                     # This completely bypasses dictionary keyword unpack collisions!
