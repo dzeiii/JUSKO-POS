@@ -188,19 +188,24 @@ elif mode=='Admin' and page=='Product Management':
                     try:
                         price_cents = cents_from_peso(price)
                         
+                        # 1. Generate the product code profile up front in the app
+                        generated_code = db.generate_product_code()
+                        
+                        # 2. Match your database.py parameters exactly:
                         db.add_product(
+                            code=generated_code,
                             name=name, 
                             category=category, 
                             price_cents=price_cents, 
-                            size_prices=size_prices,
                             stock=starting_stock,
-                            low_stock_threshold=low_stock_threshold,
-                            high_stock_threshold=high_stock_threshold
+                            threshold=low_stock_threshold, # Maps to original low threshold parameter name
+                            size_prices=size_prices
                         )
                         st.success(f"Successfully added '{name}' under '{category}'!")
                         st.rerun()
                     except Exception as e:
                         safe_error(e)
+
     with tab2:
         products = db.list_products(active_only=True)
         if not products: st.info('Add your first product to begin.')
