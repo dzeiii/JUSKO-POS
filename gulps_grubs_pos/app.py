@@ -153,17 +153,34 @@ elif mode=='Admin' and page=='Product Management':
                 
                 st.caption('Configure your cup sizes and pricing:')
                 s8, s12, s16 = st.columns(3)
-                use8 = s8.checkbox('Offer 8 oz', value=True)
-                price8 = s8.number_input('8 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use8)
                 
-                use12 = s12.checkbox('Offer 12 oz', value=True)
-                price12 = s12.number_input('12 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use12)
+                use8 = s8.checkbox('Offer 8 oz', value=False, key='drink_use_8')
+                price8 = s8.number_input('8 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not st.session_state.drink_use_8)
                 
-                use16 = s16.checkbox('Offer 16 oz', value=True)
-                price16 = s16.number_input('16 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use16)
+                use12 = s12.checkbox('Offer 12 oz', value=True, key='drink_use_12')
+                price12 = s12.number_input('12 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not st.session_state.drink_use_12)
                 
-                size_prices = {size: cents_from_peso(pr) for size, use, pr in [(8, use8, price8), (12, use12, price12), (16, use16, price16)] if use}
+                use16 = s16.checkbox('Offer 16 oz', value=True, key='drink_use_16')
+                price16 = s16.number_input('16 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not st.session_state.drink_use_16)
+                
+                # --- Added Dynamic Custom / Other Size Rows ---
+                st.divider()
+                st.markdown("##### 🥤 Custom / Other Size Configuration")
+                use_custom = st.checkbox('Offer a custom size profile', value=False, key='drink_use_custom')
+                
+                c_size_col, c_price_col = st.columns(2)
+                custom_size_text = c_size_col.text_input('Custom Size Description', placeholder='e.g., 22oz, 1-Liter, Large Jar', disabled=not st.session_state.drink_use_custom).strip()
+                custom_price = c_price_col.number_input('Custom Size Price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not st.session_state.drink_use_custom)
+                
+                # Collect standard sizes
+                size_prices = {str(size): cents_from_peso(pr) for size, use, pr in [(8, use8, price8), (12, use12, price12), (16, use16, price16)] if use}
+                
+                # Append custom sizing to metadata mapping matrix safely if checked
+                if use_custom and custom_size_text:
+                    size_prices[custom_size_text] = cents_from_peso(custom_price)
+                
                 price = next(iter(size_prices.values()), 0) / 100 if size_prices else 0.0
+
                 
             elif classification == 'Others (Combo/Meal Plan)':
                 category = st.text_input('Category *', placeholder='e.g. Combo Meal, Promo Bundle').strip()
@@ -253,7 +270,7 @@ elif mode=='Admin' and page=='Product Management':
     if shown:
         st.dataframe(pd.DataFrame([{'Code':p['code'],'Product':p['name'],'Category':p['category'],'Price':(' · '.join(f"{size} oz {money(price)}" for size,price in db.get_product_sizes(p['id']).items()) if db.get_product_sizes(p['id']) else money(p['price_cents'])),'Stock':p['stock'],'Low-stock threshold':p['low_stock_threshold'],'Status':'Active' if p['active'] else 'Inactive'} for p in shown]),use_container_width=True,hide_index=True)
     else: st.info('No products match your search.')
-    with st.expander('AVL Tree diagnostic (product codes sorted by the AVL tree)'):
+    #with st.expander('AVL Tree diagnostic (product codes sorted by the AVL tree)'):
         st.write([p['code'] for p in product_tree.inorder()]); st.caption('The tree is rebuilt from active SQLite products on every app run; product-code search is O(log n) when balanced.')
 
 elif mode=='Admin' and page=='Sales History':
