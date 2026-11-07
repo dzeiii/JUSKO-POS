@@ -238,119 +238,215 @@ elif mode=='Admin' and page=='Product Management':
                 except Exception as e:
                     safe_error(e)
 
-        with tab2:
+                with tab2:
             st.subheader("Edit or Delete Product")
-            # Load all products from your database functions
+            
+            # Load all products using your uniform list call
             all_products = db.list_products(active_only=False)
             if not all_products:
                 st.info("No active products available to edit.")
             else:
-                labels={f"{p['code']} — {p['name']} {'(Inactive)' if not p['active'] else ''}":p for p in all_products}
-                selected_label=st.selectbox('Select product to modify',list(labels),key='edit_select')
-                p=labels[selected_label]
+                labels = {f"{prod['code']} — {prod['name']} {'(Inactive)' if not prod['active'] else ''}": prod for prod in all_products}
+                selected_label = st.selectbox('Select product to modify', list(labels.keys()), key='edit_select')
+                p = labels[selected_label]
+                
                 if p['active']:
-                    with st.form('edit_product_form'):
-                        ec1,ec2=st.columns(2)
-                        ec1.text_input('Product code (automatically assigned)',value=p['code'],disabled=True)
-                        new_code=p['code']  # Keep product codes stable so past sales remain consistent.
-                        new_name=ec2.text_input('Product name',value=p['name']).strip()
-                        new_cat=st.text_input('Category',value=p['category']).strip()
-                        new_threshold=st.number_input('Low-stock alert at',min_value=0,max_value=1000000,value=p['low_stock_threshold'],step=1)
-                        save=st.form_submit_button('Save changes',type='primary')
-                    if save:
-                        try: db.update_product(p['id'],new_code,new_name,new_cat,cents_from_peso(new_price),int(new_threshold)); db.log_activity('Admin','Product updated',f'{new_code} · {new_name}'); st.success('Product updated.'); st.rerun()
-                        except Exception as e: safe_error(e)
-                                    # --- Updated Dynamic Size Layout with Custom Size Management ---
-                current_sizes = db.get_product_sizes(p['id'])
-                
-                # Check if an existing custom label is embedded inside the category string
-                orig_category = p['category']
-                is_custom_drink = " | Custom:" in orig_category
-                if is_custom_drink:
-                    base_cat_name, custom_sz_label = orig_category.split(" | Custom:", 1)
-                else:
-                    base_cat_name = orig_category
-                    custom_sz_label = ""
-
-                # Initialize a combined form to save standard and custom sizing rows together
-                with st.form(f"size_prices_custom_{p['id']}"):
-                    st.markdown('**Available drink size pricing**')
-                    st.caption('Configure standard size categories or add a custom variant profile below.')
+                    # Pull saved size details up front
+                    current_sizes = db.get_product_sizes(p['id'])
                     
-                    # 1. Render standard sizes (8, 12, 16 oz) if they exist
-                    standard_sizes = {k: v for k, v in current_sizes.items() if k in}
-                    size_inputs = {}
-                    
-                    if standard_sizes:
-                        size_cols = st.columns(len(standard_sizes))
-                        for size_idx, size in enumerate(sorted(standard_sizes.keys())):
-                            size_inputs[size] = size_cols[size_idx].number_input(
-                                f'{size} oz price (₱)', 
-                                min_value=0.0, 
-                                value=standard_sizes[size]/100, 
-                                step=5.0, 
-                                format='%.2f', 
-                                key=f'price_{p["id"]}_{size}'
-                            )
+                    # Parse custom descriptions out of the category string
+                    orig_category = p['category']
+                    is_custom_drink = " | Custom:" in orig_category
+                    if is_custom_drink:
+                        base_cat_name, custom_sz_label = orig_category.split(" | Custom:", 1)
                     else:
-                        st.info("No standard sizes configured yet.")
-                    
-                    st.divider()
-                    st.markdown('**🥤 Other / Custom Size Configuration**')
-                    
-                    # 2. Checkbox and inputs for the Custom Size row
-                    has_custom = st.checkbox("Enable a different custom size profile for this product", value=is_custom_drink, key=f"has_cust_{p['id']}")
-                    
-                    c_col1, c_col2 = st.columns(2)
-                    edit_custom_label = c_col1.text_input(
-                        "Custom Size Description Label", 
-                        value=custom_sz_label, 
-                        placeholder="e.g., 22oz, 1-Liter", 
-                        disabled=not has_custom, 
-                        key=f"lbl_cust_{p['id']}"
-                    ).strip()
-                    
-                    edit_custom_price = c_col2.number_input(
-                        "Custom Size Price (₱)", 
-                        min_value=0.0, 
-                        value=float(current_sizes.get(99, 0.0) / 100), 
-                        step=5.0, 
-                        format='%.2f', 
-                        disabled=not has_custom, 
-                        key=f"val_cust_{p['id']}"
-                    )
-                    
-                    save_sizes = st.form_submit_button('Save all size and price settings', type='primary')
-                
-                if save_sizes:
-                    try:
-                        # Pack standard values back into integer cents mapping layout
-                        updated_sizes = {size: cents_from_peso(price) for size, price in size_inputs.items()}
+                        base_cat_name = orig_category
+                        custom_sz_label = ""
+
+                    # UNIFIED FORM: One save button captures name, category, standard sizes, and custom sizes together!
+                    with st.form(f'unified_edit_form_{p["id"]}'):
+                        st.markdown("#### Core Product Details")
+                        ec1, ec2 = st.columns(2)
+                        ec1.text_input('Product code (automatically assigned)', value=p['code'], disabled=True)
+                        new_name = ec2.text_input('Product name', value=p['name']).strip()
                         
-                        # Process and append the custom sizing flag if toggled on submission
-                        if has_custom and edit_custom_label:
-                            updated_sizes[99] = cents_from_peso(edit_custom_price)
-                            updated_category = f"{base_cat_name} | Custom:{edit_custom_label}"
+                        # Identify if item structural layout tracks as a drink type
+                        is_a_drink = is_custom_drink or any(d in base_cat_name.lower() for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage'])
+                        
+                        size_inputs = {}
+                        if is_a_drink:
+                            new_base_cat = st.text_input('Category Name *', value=base_cat_name).strip()
+                            
+                            st.markdown('**Available drink size pricing**')
+                            standard_sizes = {k: v for k, v in current_sizes.items() if k in (8, 12, 16)}
+                            
+                            # If no sizes are configured yet, default open 12 and 16 oz as baselines
+                            if not standard_sizes:
+                                standard_sizes = {12: p['price_cents'], 16: p['price_cents']}
+                                
+                            size_cols = st.columns(len(standard_sizes))
+                            for size_idx, size in enumerate(sorted(standard_sizes.keys())):
+                                size_inputs[size] = size_cols[size_idx].number_input(
+                                    f'{size} oz price (₱)', 
+                                    min_value=0.0, 
+                                    value=float(standard_sizes[size]/100), 
+                                    step=5.0, 
+                                    format='%.2f', 
+                                    key=f'form_price_{p["id"]}_{size}'
+                                )
+                                
+                            st.divider()
+                            st.markdown('**🥤 Other / Custom Size Configuration**')
+                            has_custom = st.checkbox("Enable a different custom size profile for this product", value=is_custom_drink, key=f"form_has_cust_{p['id']}")
+                            
+                            c_col1, c_col2 = st.columns(2)
+                            edit_custom_label = c_col1.text_input("Custom Size Description Label", value=custom_sz_label, placeholder="e.g., 22oz, 1-Liter", disabled=not has_custom, key=f"form_lbl_cust_{p['id']}").strip()
+                            edit_custom_price = c_col2.number_input("Custom Size Price (₱)", min_value=0.0, value=float(current_sizes.get(99, 0.0) / 100), step=5.0, format='%.2f', disabled=not has_custom, key=f"form_val_cust_{p['id']}")
+                            
+                            new_cat = f"{new_base_cat} | Custom:{edit_custom_label}" if (has_custom and edit_custom_label) else new_base_cat
+                            
+                            # Build submission tracking layout dict
+                            updated_sizes = {sz: cents_from_peso(pr) for sz, pr in size_inputs.items()}
+                            if has_custom and edit_custom_label:
+                                updated_sizes[99] = cents_from_peso(edit_custom_price)
+                                
+                            # Baseline single price fallback calculation
+                            new_base_price_cents = next(iter(updated_sizes.values()), p['price_cents'])
                         else:
-                            updated_category = base_cat_name
-                        
-                        # Persist values down to the database layers
-                        db.set_product_sizes(p['id'], updated_sizes)
-                        db.update_product(p['id'], p['code'], p['name'], updated_category, p['price_cents'], p['low_stock_threshold'])
-                        
-                        db.log_activity('Admin', 'Drink custom sizing profile updated', f"{p['code']} · Category: {updated_category}")
-                        st.success('Drink sizing configurations and custom labels updated successfully.')
-                        st.rerun()
-                    except Exception as e: 
-                        safe_error(e)
+                            # Standard Food Processing Workflow Paths
+                            new_cat = st.text_input('Category', value=p['category']).strip()
+                            new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents']/100), step=5.0, format='%.2f')
+                            new_base_price_cents = cents_from_peso(new_price_val)
+                            updated_sizes = None
 
-                else: st.info('This product is inactive and cannot be sold. Its historic transaction details are preserved.')
-        search=st.text_input('Search by code or product name',key='product_search')
-        shown=[p for p in all_products if search.casefold() in (p['code']+' '+p['name']).casefold()]
-        if shown:
-            st.dataframe(pd.DataFrame([{'Code':p['code'],'Product':p['name'],'Category':p['category'],'Price':(' · '.join(f"{size} oz {money(price)}" for size,price in db.get_product_sizes(p['id']).items()) if db.get_product_sizes(p['id']) else money(p['price_cents'])),'Stock':p['stock'],'Low-stock threshold':p['low_stock_threshold'],'Status':'Active' if p['active'] else 'Inactive'} for p in shown]),use_container_width=True,hide_index=True)
-        else: st.info('No products match your search.')
+                        st.divider()
+                        new_threshold = st.number_input('Low-stock alert at', min_value=0, max_value=1000000, value=int(p['low_stock_threshold']), step=1)
+                        
+                        # Form Action Triggers
+                        save_changes = st.form_submit_button('Save All Product Details', type='primary')
+                        
+                    if save_changes:
+                        if not new_name or not new_cat:
+                            st.error("Product name and category definitions cannot be left blank.")
+                        else:
+                            try: 
+                                # 1. Update Core Blueprint Specifications
+                                db.update_product(p['id'], p['code'], new_name, new_cat, int(new_base_price_cents), int(new_threshold))
+                                
+                                # 2. Update Multi-size Arrays if mapping drink layout structures
+                                if is_a_drink and updated_sizes:
+                                    db.set_product_sizes(p['id'], updated_sizes)
+                                    
+                                db.log_activity('Admin', 'Product updated', f"{p['code']} · {new_name}")
+                                st.success('Product and all matching sizing configurations saved successfully!')
+                                st.rerun()
+                            except Exception as e: 
+                                safe_error(e)
+                                
+                    # Independent Deactivation Button (Outside the save form context)
+                    st.warning('Products are deactivated instead of deleted so historical sales remain intact.')
+                    if st.button('Deactivate selected product', key=f"deact_action_btn_{p['id']}"):
+                        try:
+                            # Safe Deletion checking method loop routing
+                            success, return_msg = db.delete_product(p['id'])
+                            db.log_activity('Admin', 'Product deactivation processed', f"{p['code']} · {p['name']}")
+                            st.info(return_msg)
+                            st.rerun()
+                        except Exception as e: safe_error(e)
+                else: 
+                    st.info('This product is inactive and cannot be sold. Its historic transaction details are preserved.')
+                    if st.button('Reactivate product profile', key=f"reactivate_action_{p['id']}", type='secondary'):
+                        try:
+                            with db.connection() as _conn:
+                                _conn.execute('UPDATE products SET active = 1 WHERE id = ?', (p['id'],))
+                            db.log_activity('Admin', 'Product reactivated', f"{p['code']} · {p['name']}")
+                            st.success('Product profile reactivated successfully!')
+                            st.rerun()
+                        except Exception as e: safe_error(e)
 
+        # Global Catalog Search Inventory Matrix View Frames
+        st.markdown("---")
+        search = st.text_input('Search by code or product name', key='product_search')
+        shown_items = [prod for prod in all_products if search.casefold() in (prod['code']+' '+prod['name']).casefold()]
+        if shown_items:
+            st.dataframe(pd.DataFrame([
+                {
+                    'Code': prod['code'],
+                    'Product': prod['name'],
+                    'Category': prod['category'],
+                    'Price': (' · '.join(f"{size if size != 99 else 'Custom'} oz {money(price)}" for size, price in db.get_product_sizes(prod['id']).items()) if db.get_product_sizes(prod['id']) else money(prod['price_cents'])),
+                    'Stock': prod['stock'],
+                    'Low-stock threshold': prod['low_stock_threshold'],
+                    'Status': 'Active' if prod['active'] else 'Inactive'
+                } for prod in shown_items
+            ]), use_container_width=True, hide_index=True)
+        else: 
+            st.info('No products match your search.')
+
+    with tab3:
+            st.subheader("Archived & Deactivated Products")
+            st.markdown(
+                "These products are currently hidden from Cashier ordering screens. "
+                "Their historical transaction records remain completely intact to preserve revenue reporting stability."
+            )
+            
+            # Load all products, filtering for ONLY inactive rows
+            all_items = db.list_products(active_only=False)
+            inactive_items = [p for p in all_items if not p['active']]
+            
+            if not inactive_items:
+                st.success("🎉 Your catalog is clean! There are currently no deactivated or archived items.")
+            else:
+                # Inline search filtering utility built right into the archive tab
+                search_archived = st.text_input('Search archived profiles by code or name', key='archive_search_bar')
+                filtered_archive = [
+                    p for p in inactive_items 
+                    if search_archived.casefold() in (p['code'] + ' ' + p['name']).casefold()
+                ]
+                
+                if not filtered_archive:
+                    st.info("No archived items match your search term.")
+                else:
+                    st.caption(f"Showing {len(filtered_archive)} deactivated menu item blueprints:")
+                    
+                    # Render items in a clean, professional grid matrix with contextual action items
+                    for item in filtered_archive:
+                        with st.container(border=True):
+                            col_details, col_action = st.columns([4, 1.2], vertical_alignment="center")
+                            
+                            with col_details:
+                                st.markdown(f"### {item['name']}")
+                                
+                                # Parse custom size details out of string mapping layers if applicable
+                                display_category = item['category'].split(" | Custom:", 1)[0] if " | Custom:" in item['category'] else item['category']
+                                
+                                # Fetch and display its original pricing configurations
+                                try:
+                                    item_sizes = db.get_product_sizes(item['id'])
+                                except Exception:
+                                    item_sizes = {}
+                                    
+                                if item_sizes:
+                                    price_desc = ' · '.join(f"**{sz if sz != 99 else 'Custom'}oz:** ₱{pr/100:,.2f}" for sz, pr in item_sizes.items())
+                                else:
+                                    price_desc = f"**Base Price:** ₱{item['price_cents']/100:,.2f}"
+                                    
+                                st.markdown(f"**Code:** `{item['code']}`  |  **Category:** *{display_category}*")
+                                st.markdown(f"💰 {price_desc}")
+                            
+                            with col_action:
+                                # Instant programmatic profile recovery action button
+                                if st.button(f"Reactivate", key=f"restore_btn_{item['id']}", type="secondary", use_container_width=True):
+                                    try:
+                                        with db.connection() as _conn:
+                                            _conn.execute('UPDATE products SET active = 1 WHERE id = ?', (item['id'],))
+                                        
+                                        # Log activity trail entries cleanly matching your schema parameters
+                                        db.log_activity('Admin', 'Product reactivated', f"{item['code']} · {item['name']}")
+                                        st.success(f"Successfully restored '{item['name']}' back to active status!")
+                                        st.rerun()
+                                    except Exception as e:
+                                        safe_error(e)
 
 elif mode=='Admin' and page=='Sales History':
     st.subheader('Sales history')
