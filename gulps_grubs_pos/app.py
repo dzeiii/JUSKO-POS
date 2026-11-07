@@ -223,7 +223,6 @@ elif mode=='Admin' and page=='Product Management':
                         size_prices=size_prices if classification == 'Drinks (Gulps)' else None
                     )
                     st.success(f"Successfully registered '{name}' under '{category}' (Code: {generated_code})!")
-                    st.session_state.clear()
                     st.rerun()
                 except Exception as e:
                     safe_error(e)
@@ -338,7 +337,7 @@ elif mode=='Admin' and page=='Product Management':
 
                    # --- Permanent Force Hard-Delete Interface Module ---
                     st.divider()
-                    st.error('### 🚨 DANGER ZONE: PERMANENT PURGE')
+                    st.error('###DANGER ZONE: PERMANENT PURGE')
                     st.markdown(
                         "Clicking delete below will execute a **HARD DELETE**. This completely wipes the item profile row "
                         "from the database catalog and cannot be undone."
