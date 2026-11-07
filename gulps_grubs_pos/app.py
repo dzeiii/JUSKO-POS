@@ -525,6 +525,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                     display_cat_clean = cat_parts[0].strip() if cat_parts else p['category']
                     
                     template_payload = {
+                        'name': str(p['name']),
                         'product_name': str(p['name']),
                         'code': str(p['code']),
                         'category': str(display_cat_clean),
