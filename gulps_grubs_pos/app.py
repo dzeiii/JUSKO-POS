@@ -339,7 +339,7 @@ elif mode=='Admin' and page=='Product Management':
                     st.divider()
                     st.error('### DANGER ZONE: PERMANENT PURGE')
                     st.markdown(
-                        "Clicking delete below will execute a **HARD DELETE**. This completely wipes the item profile row "
+                        "<span style='font-size: 14px;">"Clicking delete below will execute a **HARD DELETE**. This completely wipes the item profile row "
                         "from the database catalog and cannot be undone."
                     )
                     
@@ -364,23 +364,76 @@ elif mode=='Admin' and page=='Product Management':
     with tab3:
         # Global Catalog Search Inventory Matrix View Frames
         st.markdown("---")
-        search = st.text_input('Search by code or product name', key='product_search')
-        shown_items = [prod for prod in all_products if search.casefold() in (prod['code']+' '+prod['name']+''+prod['category']).casefold()]
-        if shown_items:
+        st.markdown("#### 🔍 Filter & Sort Product Catalog")
+        
+        # Split sorting filters into 3 clean, balanced columns
+        search_col, category_col, sort_col = st.columns([2, 1.2, 1.2])
+        
+        with search_col:
+            search = st.text_input('Search by code or product name', key='product_search_input')
+            
+        with category_col:
+            raw_categories = {prod['category'].split(" | Custom:", 1)[0].strip() for prod in all_products}
+            category_options = ["All Categories"] + sorted(list(raw_categories))
+            selected_search_category = st.selectbox("Filter by Category", category_options, key='product_category_filter')
+            
+        with sort_col:
+            # 1. Provide arrangement sorting choices
+            sort_option = st.selectbox(
+                "Arrange Products By",
+                [
+                    "Product Name (A-Z)", 
+                    "Product Name (Z-A)", 
+                    "Product Code (Ascending)", 
+                    "Highest Price First", 
+                    "Lowest Price First",
+                    "Lowest Stock Level First",
+                    "Highest Stock Level First"
+                ],
+                key='catalog_sort_selector'
+            )
+
+        # 2. Filter list by BOTH keyword search AND category selection simultaneously
+        filtered_items = []
+        for prod in all_products:
+            matches_keyword = search.casefold() in (prod['code'] + ' ' + prod['name']).casefold()
+            clean_item_category = prod['category'].split(" | Custom:", 1)[0].strip()
+            matches_category = (selected_search_category == "All Categories") or (clean_item_category == selected_search_category)
+            
+            if matches_keyword and matches_category:
+                filtered_items.append(prod)
+
+        # 3. Dynamic Sorting Execution Logic
+        if sort_option == "Product Name (A-Z)":
+            filtered_items.sort(key=lambda x: x['name'].lower())
+        elif sort_option == "Product Name (Z-A)":
+            filtered_items.sort(key=lambda x: x['name'].lower(), reverse=True)
+        elif sort_option == "Product Code (Ascending)":
+            filtered_items.sort(key=lambda x: x['code'].lower())
+        elif sort_option == "Highest Price First":
+            filtered_items.sort(key=lambda x: x['price_cents'], reverse=True)
+        elif sort_option == "Lowest Price First":
+            filtered_items.sort(key=lambda x: x['price_cents'])
+        elif sort_option == "Lowest Stock Level First":
+            filtered_items.sort(key=lambda x: x['stock'])
+        elif sort_option == "Highest Stock Level First":
+            filtered_items.sort(key=lambda x: x['stock'], reverse=True)
+
+        # 4. Render Sorted Dataframe Results Matrix
+        if filtered_items:
             st.dataframe(pd.DataFrame([
                 {
                     'Code': prod['code'],
                     'Product': prod['name'],
-                    'Category': prod['category'],
+                    'Category': prod['category'].split(" | Custom:", 1)[0], # Display clean category name
                     'Price': (' · '.join(f"{size if size != 99 else 'Custom'} oz {money(price)}" for size, price in db.get_product_sizes(prod['id']).items()) if db.get_product_sizes(prod['id']) else money(prod['price_cents'])),
                     'Stock': prod['stock'],
                     'Low-stock threshold': prod['low_stock_threshold'],
                     'Status': 'Active' if prod['active'] else 'Inactive'
-                } for prod in shown_items
+                } for prod in filtered_items
             ]), use_container_width=True, hide_index=True)
         else: 
-            st.info('No products match your search.')
-    
+            st.info('No catalog products match your search keyword or selected category filter.')
 
 elif mode=='Admin' and page=='Sales History':
     st.subheader('Sales history')
