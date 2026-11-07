@@ -1,0 +1,181 @@
+/* Gulps & Grubs POS stylesheet. Edit this file to customize the visual theme. */
+
+
+/* ===== Original theme section 1 ===== */
+:root{
+  --cream:#fff4d8; --paper:#fffaf0; --orange:#f47b20; --orange-deep:#df5e12;
+  --burgundy:#4b1117; --burgundy-soft:#682027; --gold:#ffc928; --gold-light:#ffe27a;
+  --ink:#42151a; --muted:#815a4a; --line:#f0c777;
+}
+.stApp{
+  background-color:var(--cream); color:var(--ink);
+  background-image:repeating-linear-gradient(90deg,rgba(244,123,32,.055) 0,rgba(244,123,32,.055) 14px,transparent 14px,transparent 165px),
+  linear-gradient(180deg,#fff8e6 0%,#fff0d1 100%);
+}
+[data-testid="stHeader"]{background:rgba(255,244,216,.88)}
+[data-testid="stSidebar"]{
+  background:linear-gradient(180deg,#4b1117 0%,#672027 72%,#4b1117 100%);
+  border-right:5px solid var(--gold); box-shadow:5px 0 18px rgba(75,17,23,.10);
+}
+[data-testid="stSidebar"] *{color:#fff4d8!important}
+[data-testid="stSidebar"] [data-testid="stRadio"] label{
+  padding:9px 11px; border:1px solid rgba(255,201,40,.12); border-radius:10px;
+  background:rgba(255,255,255,.045); margin-bottom:5px; transition:background .15s ease;
+}
+[data-testid="stSidebar"] [data-testid="stRadio"] label:hover{
+  background:rgba(255,201,40,.18); border-color:rgba(255,201,40,.42)
+}
+[data-testid="stSidebar"] [data-testid="stImage"] img{border:3px solid var(--gold);border-radius:13px}
+[data-testid="stSidebar"] hr{border-color:rgba(255,201,40,.35)!important}
+h1,h2,h3{color:var(--burgundy)!important;letter-spacing:-.025em}
+h2{border-bottom:2px solid rgba(244,123,32,.20);padding-bottom:.35rem}
+[data-testid="stMetric"]{
+  background:var(--paper); border:1px solid var(--line); border-top:4px solid var(--orange);
+  border-radius:14px; padding:14px 16px; box-shadow:0 5px 15px rgba(75,17,23,.07)
+}
+[data-testid="stMetricLabel"]{color:var(--muted)!important}
+[data-testid="stMetricValue"]{color:var(--burgundy)!important;font-weight:800}
+.stButton>button,.stDownloadButton>button{
+  border-radius:10px;border:1px solid var(--orange-deep);font-weight:750;min-height:2.55rem;
+  background:#fffaf0;color:var(--burgundy);transition:transform .12s ease,box-shadow .12s ease;
+}
+.stButton>button:hover,.stDownloadButton>button:hover{border-color:var(--burgundy);box-shadow:0 3px 9px rgba(75,17,23,.12);transform:translateY(-1px)}
+.stButton>button[kind="primary"],.stFormSubmitButton>button[kind="primary"]{
+  background:linear-gradient(180deg,#ff9a2e 0%,#ed6b17 100%);color:#fffaf0;border:1px solid #c84d12;
+}
+.stButton>button[kind="primary"]:hover,.stFormSubmitButton>button[kind="primary"]:hover{
+  background:linear-gradient(180deg,#f47b20 0%,#d95312 100%);color:white;border-color:var(--burgundy)
+}
+[data-testid="stForm"]{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px}
+[data-testid="stExpander"]{background:var(--paper);border:1px solid var(--line);border-radius:12px}
+[data-testid="stTabs"] [data-baseweb="tab-list"]{gap:7px}
+[data-testid="stTabs"] [data-baseweb="tab"]{background:#ffefd0;border-radius:9px 9px 0 0;padding:9px 14px;color:var(--burgundy)}
+[data-testid="stTabs"] [aria-selected="true"]{background:var(--orange)!important;color:white!important}
+input,[data-baseweb="select"]>div,textarea{border-radius:8px!important}
+[data-testid="stDataFrame"], [data-testid="stTable"]{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+hr{border-color:var(--line)!important} footer{visibility:hidden}
+.brand-banner{
+  position:relative;overflow:hidden;padding:22px 25px 19px;margin:2px 0 24px;
+  border:4px solid var(--gold);outline:1px solid #d95714;border-radius:15px;
+  background:repeating-linear-gradient(90deg,rgba(213,79,12,.23) 0,rgba(213,79,12,.23) 13px,transparent 13px,transparent 165px),
+  linear-gradient(115deg,#ed7423 0%,#ff9e2e 50%,#ef7923 100%);
+  box-shadow:0 6px 0 rgba(75,17,23,.10),inset 0 0 0 2px rgba(255,245,208,.48);
+}
+.brand-banner:after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 85% 30%,rgba(255,245,208,.30) 0 4px,transparent 5px),radial-gradient(circle at 91% 72%,rgba(255,245,208,.28) 0 7px,transparent 8px);background-size:42px 42px,58px 58px}
+.brand-kicker{position:relative;z-index:1;font-size:.75rem;text-transform:uppercase;letter-spacing:.16em;font-weight:900;color:#fff2c7}
+.brand-title{position:relative;z-index:1;font-size:clamp(1.8rem,3vw,2.7rem);line-height:1.05;font-weight:950;color:var(--burgundy);margin:.25rem 0;text-shadow:1px 2px 0 rgba(255,221,112,.8)}
+.brand-sub{position:relative;z-index:1;color:#fff7df;margin:0;font-weight:600}
+.product-card{background:linear-gradient(145deg,#fffdf6 0%,#fff0d2 100%);border:1px solid #efc36b;border-top:4px solid var(--orange);border-radius:14px;padding:14px;min-height:125px;box-shadow:0 4px 12px rgba(75,17,23,.055)}
+.product-card h3{color:var(--orange-deep)!important;margin:.45rem 0}
+.small-note{font-size:.88rem;color:var(--muted)}
+[data-testid="stAlert"]{border-radius:12px}
+@media (max-width: 768px){.brand-banner{padding:16px}.brand-title{font-size:1.8rem}[data-testid="stMetric"]{padding:10px}}
+
+/* ===== Original theme section 2 ===== */
+/* Keep the retro palette, but improve contrast and reduce visual noise. */
+.block-container{padding-top:1.5rem;padding-bottom:2rem;max-width:1500px}
+.brand-banner{padding:clamp(18px,2.5vw,30px);border-radius:18px;margin-bottom:1.5rem}
+.brand-title{
+  color:#fff5d9!important;font-size:clamp(2rem,4vw,3.15rem);letter-spacing:-.035em;
+  text-shadow:-2px -2px 0 #4b1117,2px -2px 0 #4b1117,-2px 2px 0 #4b1117,2px 2px 0 #4b1117,0 5px 0 #4b1117,0 7px 0 rgba(255,201,40,.95);
+}
+.brand-sub{font-size:1rem;text-shadow:0 1px 2px rgba(75,17,23,.35)}
+.brand-kicker{display:inline-block;background:rgba(75,17,23,.88);padding:5px 10px;border:1px solid rgba(255,226,122,.75);border-radius:999px;margin-bottom:8px}
+h1,h2,h3{line-height:1.2}
+h2{margin-top:.4rem}
+[data-testid="stSidebar"] [data-testid="stRadio"] label{font-weight:650;border-radius:12px;padding:10px 12px}
+[data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked){background:rgba(255,201,40,.24);border-color:#ffc928;box-shadow:inset 3px 0 0 #ffc928}
+[data-testid="stTextInput"] input,[data-testid="stNumberInput"] input,[data-testid="stDateInput"] input,textarea{
+  background:#fffdf7!important;border-color:#e8c88c!important;color:#42151a!important
+}
+[data-baseweb="select"]>div{background:#fffdf7!important;border-color:#e8c88c!important}
+[data-testid="stForm"]{box-shadow:0 4px 14px rgba(75,17,23,.045);margin-bottom:.75rem}
+[data-testid="stExpander"]{box-shadow:0 3px 10px rgba(75,17,23,.035)}
+[data-testid="stMetric"]{min-height:116px;display:flex;flex-direction:column;justify-content:center}
+[data-testid="stMetricLabel"] p{font-size:.9rem;font-weight:700}
+[data-testid="stMetricValue"]{font-size:clamp(1.45rem,2.2vw,2rem)}
+.product-card{min-height:145px;padding:16px;position:relative;transition:transform .15s ease,box-shadow .15s ease}
+.product-card h3{font-size:1.55rem;margin:.55rem 0 .35rem;color:#a83f13!important}
+.product-card b{font-size:1.04rem;color:#4b1117}
+.product-card:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(75,17,23,.10)}
+.small-note{line-height:1.45}
+.stButton>button,.stDownloadButton>button,.stFormSubmitButton>button{font-weight:700;letter-spacing:.005em}
+.stButton>button:focus-visible,.stDownloadButton>button:focus-visible{outline:3px solid #ffc928;outline-offset:2px}
+[data-testid="stDataFrame"]{background:#fffdf7}
+[data-testid="stAlert"]{border:1px solid rgba(75,17,23,.08);box-shadow:0 2px 8px rgba(75,17,23,.025)}
+/* Make tables and metrics fit tablets without adding excessive decoration. */
+@media (max-width:900px){
+  .block-container{padding-left:1rem;padding-right:1rem}
+  [data-testid="stMetric"]{min-height:100px;padding:10px}
+}
+@media (max-width:600px){
+  .brand-title{font-size:1.8rem;line-height:1.1}
+  .brand-sub{font-size:.9rem}
+  .brand-banner{border-width:3px;padding:15px}
+  h2{font-size:1.35rem}
+}
+/* Top navigation replaces the left sidebar for a wider checkout workspace. */
+[data-testid="stSidebar"]{display:none!important}
+[data-testid="stSidebarCollapsedControl"]{display:none!important}
+.st-key-top_navigation{
+  background:linear-gradient(180deg,#fffaf0 0%,#fff0d2 100%);
+  border:1px solid #efc777;border-bottom:4px solid #ffc928;border-radius:14px;
+  padding:12px 16px 7px;margin:0 0 22px;box-shadow:0 4px 12px rgba(75,17,23,.055)
+}
+.st-key-top_navigation [data-testid="stRadio"]>label{display:none}
+.st-key-top_navigation [data-testid="stRadio"] [role="radiogroup"]{gap:8px;flex-wrap:wrap}
+.st-key-top_navigation [data-testid="stRadio"] [role="radio"]{
+  border:1px solid #edc47c;border-radius:999px;padding:7px 14px;
+  background:#fff8e8;color:#4b1117;font-weight:750;min-height:38px
+}
+.st-key-top_navigation [data-testid="stRadio"] [role="radio"][aria-checked="true"]{
+  background:#4b1117;color:#fff4d8;border-color:#ffc928;box-shadow:inset 0 -3px 0 #ffc928
+}
+.st-key-top_navigation [data-testid="stRadio"] [role="radio"] div{color:inherit}
+.nav-eyebrow{font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;font-weight:900;color:#815a4a;margin:0 0 5px 2px}
+@media (max-width:900px){.st-key-top_navigation{padding:10px}.st-key-top_navigation [data-testid="stRadio"] [role="radio"]{padding:6px 10px}}
+
+/* ===== Original theme section 3 ===== */
+[data-testid="stHeader"]{background:rgba(255,244,216,.95)!important}
+.st-key-site_header{
+  background:linear-gradient(105deg,#ef7420 0%,#ff982b 48%,#ed6d19 100%);
+  border:2px solid #ffc928;border-bottom:5px solid #ffc928;border-radius:12px;
+  padding:10px 16px 8px;margin:0 0 20px;box-shadow:0 5px 0 rgba(75,17,23,.10),inset 0 0 0 1px rgba(255,248,220,.5);
+  position:relative;overflow:hidden
+}
+.st-key-site_header:before{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;
+  background-image:radial-gradient(circle,rgba(255,245,210,.55) 0 3px,transparent 4px);
+  background-size:34px 34px
+}
+.st-key-site_header [data-testid="stHorizontalBlock"]{position:relative;z-index:1;align-items:center;gap:.65rem}
+.st-key-site_header [data-testid="stImage"] img{border:2px solid #ffc928;border-radius:8px;display:block}
+.site-brand-name{color:#fff8e7;font-weight:950;font-size:clamp(1.1rem,1.6vw,1.65rem);line-height:1.1;letter-spacing:-.025em;text-shadow:2px 2px 0 #4b1117,-1px -1px 0 #4b1117}
+.site-brand-tag{color:#fff0c9;font-size:.68rem;font-weight:850;letter-spacing:.08em;margin-top:5px;white-space:nowrap}
+.site-nav-label{font-size:.61rem;line-height:1.1;font-weight:950;letter-spacing:.13em;color:#fff0c9;margin:0 0 6px 3px;text-transform:uppercase}
+.st-key-site_header [data-testid="stRadio"]>label{display:none}
+.st-key-site_header [data-testid="stRadio"] [role="radiogroup"]{gap:5px;flex-wrap:wrap;align-items:center}
+.st-key-site_header [data-testid="stRadio"] [role="radio"]{
+  background:rgba(75,17,23,.12);border:1px solid rgba(255,247,220,.38);border-radius:6px;
+  padding:7px 10px;min-height:34px;color:#fff8e7;font-size:.82rem;font-weight:850;white-space:nowrap;
+  transition:background .12s ease,border-color .12s ease
+}
+.st-key-site_header [data-testid="stRadio"] [role="radio"]:hover{background:rgba(75,17,23,.28);border-color:#ffe27a}
+.st-key-site_header [data-testid="stRadio"] [role="radio"][aria-checked="true"]{
+  background:#4b1117;border-color:#ffe27a;box-shadow:inset 0 -3px 0 #ffc928;color:#fff8e7
+}
+.st-key-site_header [data-testid="stRadio"] [role="radio"] div,
+.st-key-site_header [data-testid="stRadio"] [role="radio"] p{color:inherit!important}
+/* The header is the navigation surface, so the old hero banner is no longer needed. */
+.brand-banner{display:none}
+@media (max-width:1100px){
+  .st-key-site_header{padding:10px}
+  .st-key-site_header [data-testid="stHorizontalBlock"]{gap:.35rem}
+  .site-brand-tag{white-space:normal}
+  .st-key-site_header [data-testid="stRadio"] [role="radio"]{padding:6px 8px;font-size:.76rem}
+}
+@media (max-width:760px){
+  .st-key-site_header [data-testid="stHorizontalBlock"]{flex-wrap:wrap}
+  .site-brand-name{font-size:1.2rem}
+  .st-key-site_header [data-testid="stImage"] img{max-width:90px}
+}
