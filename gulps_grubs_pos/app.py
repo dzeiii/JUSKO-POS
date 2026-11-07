@@ -507,8 +507,6 @@ elif mode=='Cashier' and page=='New Sale':
                 with col:
                     sizes=db.get_product_sizes(p['id'])
                     is_drink=bool(sizes)
-                    
-                    # 2. FIXED: Intercept and translate size flag 99 into its text label (e.g. 22oz)
                     if is_drink:
                         price_parts = []
                         for size, price in sizes.items():
@@ -530,7 +528,7 @@ elif mode=='Cashier' and page=='New Sale':
                         if is_drink:
                             available_sizes=list(sizes.keys())
                             
-                            # 4. FIXED: Radio button label formatter translates flag 99 into your custom text label cleanly
+                           
                             def size_label_formatter(z):
                                 if int(z) == 99 and " | Custom:" in p['category']:
                                     return p['category'].split(" | Custom:", 1)[1].strip()
@@ -631,20 +629,19 @@ elif mode=='Cashier' and page=='New Sale':
                         options_text = f" ({line['customizations']})" if line.get('customizations') else ''
                         grouped[kind].append(f"{line['quantity']} × {line['name']}{size_text}{options_text}")
                         
-                # 2. Process and route orders out to separate queues atomically
-                queued = []
-                for kind, lines in grouped.items():
-                    if lines:
-                        oid = db.add_order(customer_label, (f"Sale #{sale['transaction_id']}: " + '; '.join(lines))[:490], int(order_priority), order_type=kind)
-                        queued.append(f"{kind} queue #{oid}")
-                        
-                db.log_activity('Cashier', 'Sale sent to queue', f"Sale #{sale['transaction_id']} · {', '.join(queued)} · Priority {order_priority}")
-                st.session_state.last_sale = sale
-                cart.clear()
-                st.success(f"Sale #{sale['transaction_id']} completed — {money(sale['total_cents'])}. Sent to: {', '.join(queued)}.")
-                st.rerun()
-            except Exception as e: 
-                safe_error(e)
+                    queued = []
+                    for kind, lines in grouped.items():
+                        if lines:
+                            oid = db.add_order(customer_label, (f"Sale #{sale['transaction_id']}: " + '; '.join(lines))[:490], int(order_priority), order_type=kind)
+                            queued.append(f"{kind} queue #{oid}")
+                            
+                    db.log_activity('Cashier', 'Sale sent to queue', f"Sale #{sale['transaction_id']} · {', '.join(queued)} · Priority {order_priority}")
+                    st.session_state.last_sale = sale
+                    cart.clear()
+                    st.success(f"Sale #{sale['transaction_id']} completed — {money(sale['total_cents'])}. Sent to: {', '.join(queued)}.")
+                    st.rerun()
+                except Exception as e: 
+                    safe_error(e)
                 
     st.markdown('---')
     st.markdown('**Cart data structure:** custom singly linked list')
