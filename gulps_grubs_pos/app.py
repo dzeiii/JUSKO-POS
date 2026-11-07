@@ -522,20 +522,23 @@ elif mode == 'Cashier' and page == 'New Sale':
                         price_line = money(p['price_cents'])
                     
                     cat_parts = p['category'].split(" | Custom:", 1)
-                    display_cat_clean = cat_parts[0].strip() if cat_parts else p['category']
+                    display_cat_clean = cat_parts.strip() if cat_parts else p['category']
                     
-                    template_payload = {
-                        'name': str(p['name']),
-                        'product_name': str(p['name']),
-                        'code': str(p['code']),
-                        'category': str(display_cat_clean),
-                        'price': str(price_line),
-                        'price_line': str(price_line),
-                        'stock': str(int(p['stock']))
-                    }
+                    # 2. FIXED: Pass variables directly by position and explicit names. 
+                    # This completely bypasses dictionary keyword unpack collisions!
+                    card_html = load_html_template(
+                        'product_card.html',           # Matches the first argument: name
+                        name=str(p['name']),           # Fills {{ name }} inside your HTML card
+                        product_name=str(p['name']),   # Fills {{ product_name }} if used instead
+                        code=str(p['code']),           # Fills {{ code }}
+                        category=str(display_cat_clean), # Fills {{ category }}
+                        price=str(price_line),         # Fills {{ price }}
+                        price_line=str(price_line),    # Fills {{ price_line }}
+                        stock=str(int(p['stock']))     # Fills {{ stock }}
+                    )
                     
-                    card_html = load_html_template('product_card.html', **template_payload)
                     st.markdown(card_html, unsafe_allow_html=True)
+
                     
                     with st.form(f"add_cart_{p['id']}"):
                         size_oz = None
