@@ -413,3 +413,10 @@ def update_product_stock_direct(product_id, new_stock, actor="Inventory Manager"
             VALUES (?, ?, ?, ?)
         ''', (product_id, diff, f"Direct stock audit/override by {actor}", now))
 
+def calculate_available_servings(product_id, db_path=DB_PATH):
+    """Calculates the available stock volume metrics for a specific product item."""
+    with connection(db_path) as c:
+        row = c.execute('SELECT stock FROM products WHERE id = ?', (product_id,)).fetchone()
+        return row['stock'] if row else 0
+
+
