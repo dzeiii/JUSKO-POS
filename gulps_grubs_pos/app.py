@@ -103,10 +103,7 @@ except Exception as e:
 ### ADMIN MODE 
 #==================
 if mode=='Admin' and page=='Dashboard':
-    if mode == 'Admin' and page == 'Dashboard':
     from datetime import datetime, time, timedelta
-    
-    # Force daily charts to align perfectly with storefront operating shifts
     ph_today = (datetime.utcnow() + timedelta(hours=8)).date()
     start_time = datetime.combine(ph_today, time.min).isoformat()
     end_time = datetime.combine(ph_today + timedelta(days=1), time.min).isoformat()
