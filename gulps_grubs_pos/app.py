@@ -94,7 +94,7 @@ if mode=='Admin' and page=='Dashboard':
     summary=db.sales_summary(start,end)
     all_products=db.list_products(active_only=True)
     low=[p for p in all_products if p['stock']<=p['low_stock_threshold']]
-    
+    high = [p for p in all_products if p['stock'] >= p['high_stock_threshold']]
     a,b,c,d,e=st.columns(5)
     a.metric('Today’s revenue',money(summary['revenue_cents']))
     b.metric('Completed sales',summary['transactions'])
