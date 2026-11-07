@@ -271,7 +271,7 @@ elif mode=='Admin' and page=='Product Management':
         st.dataframe(pd.DataFrame([{'Code':p['code'],'Product':p['name'],'Category':p['category'],'Price':(' · '.join(f"{size} oz {money(price)}" for size,price in db.get_product_sizes(p['id']).items()) if db.get_product_sizes(p['id']) else money(p['price_cents'])),'Stock':p['stock'],'Low-stock threshold':p['low_stock_threshold'],'Status':'Active' if p['active'] else 'Inactive'} for p in shown]),use_container_width=True,hide_index=True)
     else: st.info('No products match your search.')
     #with st.expander('AVL Tree diagnostic (product codes sorted by the AVL tree)'):
-        st.write([p['code'] for p in product_tree.inorder()]); st.caption('The tree is rebuilt from active SQLite products on every app run; product-code search is O(log n) when balanced.')
+    #st.write([p['code'] for p in product_tree.inorder()]); st.caption('The tree is rebuilt from active SQLite products on every app run; product-code search is O(log n) when balanced.')
 
 elif mode=='Admin' and page=='Sales History':
     st.subheader('Sales history')
