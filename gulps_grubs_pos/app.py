@@ -339,11 +339,12 @@ elif mode=='Admin' and page=='Product Management':
                     st.divider()
                     st.error('### DANGER ZONE: PERMANENT PURGE')
                     st.markdown(
-                        "<span style='font-size: 14px;">"Clicking delete below will execute a **HARD DELETE**. This completely wipes the item profile row "
-                        "from the database catalog and cannot be undone."
-                    )
+                        "<span style='font-size: 14px;'>Clicking delete below will execute a **HARD DELETE**." 
+                        "This completely wipes the item profile row from the database catalog and cannot be undone.</span>",unsafe_allow_html=True)
+                    
                     
                     # Double-Confirmation Step to lock out accidental clicks
+                with st.container(key="danger_zone_box"):    
                     check_step1 = st.checkbox("Confirm: I want to permanently delete this product profile, not deactivate it.", key=f"force_del_c1_{p['id']}")
                     check_step2 = st.checkbox("Confirm: I understand this action completely removes it from all search logs.", key=f"force_del_c2_{p['id']}")
                     
