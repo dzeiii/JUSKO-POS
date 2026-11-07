@@ -133,19 +133,19 @@ elif mode=='Admin' and page=='Product Management':
     st.subheader('Product Catalog Management')
     tab1,tab2=st.tabs(['Add product','Edit / Delete'])
     with tab1:
+        classification = st.radio('Product Classification *', 
+                ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], 
+                horizontal=True)
         with st.form('add_product_form', clear_on_submit=True):
             name = st.text_input('Product name *', placeholder='Enter product name').strip()
-            classification = st.radio('Product Classification *', 
-                ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], 
-                horizontal=True
-            )
+            
             # Initialize dynamic variables
             category = ""
             size_prices = None
             price = 0.0
             
             if classification == 'Foods (Grubs)':
-                category = st.text_input('Category *', placeholder='e.g. Streetfood, Pasta, Appetizer').strip()
+                category = st.text_input('Category *', placeholder='e.g. Streetfood, Donut and Waffles').strip()
                 price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
                 
             elif classification == 'Drinks (Gulps)':
@@ -171,7 +171,7 @@ elif mode=='Admin' and page=='Product Management':
 
             # Inventory Threshold Fields
             st.divider()
-            starting_stock = st.number_input('Starting stock', min_value=0, value=0, step=1)
+            starting_stock = 0
             low_stock_threshold = st.number_input('Low-stock alert at', min_value=0, value=5, step=1)
             high_stock_threshold = st.number_input('High-stock alert at', min_value=0, value=50, step=1)
             
