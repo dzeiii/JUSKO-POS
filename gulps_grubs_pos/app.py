@@ -508,7 +508,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                     # --- FIX: Ensure these two definition lines are right here at the top! ---
                     sizes = db.get_product_sizes(p['id'])
                     is_drink = bool(sizes)
-                                        if " | Custom:" in p['category']:
+                    if " | Custom:" in p['category']:
                         cat_parts = p['category'].split(" | Custom:", 1)
                         display_cat_clean = str(cat_parts[0]).strip()
                         custom_size_text = str(cat_parts[1]).strip()
