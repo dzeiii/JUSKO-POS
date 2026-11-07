@@ -223,6 +223,7 @@ elif mode=='Admin' and page=='Product Management':
                         size_prices=size_prices if classification == 'Drinks (Gulps)' else None
                     )
                     st.success(f"Successfully registered '{name}' under '{category}' (Code: {generated_code})!")
+                    st.session_state.clear()
                     st.rerun()
                 except Exception as e:
                     safe_error(e)
@@ -335,26 +336,32 @@ elif mode=='Admin' and page=='Product Management':
                             except Exception as e: 
                                 safe_error(e)
 
-                    # Independent Deactivation Button (Outside the save button block context)
-                    st.warning('Products are deactivated instead of deleted so historical sales remain intact.')
-                    if st.button('Deactivate selected product', key=f"deact_action_btn_{p['id']}"):
+                   # --- Permanent Force Hard-Delete Interface Module ---
+                    st.divider()
+                    st.error('### 🚨 DANGER ZONE: PERMANENT PURGE')
+                    st.markdown(
+                        "Clicking delete below will execute a **HARD DELETE**. This completely wipes the item profile row "
+                        "from the database catalog and cannot be undone."
+                    )
+                    
+                    # Double-Confirmation Step to lock out accidental clicks
+                    check_step1 = st.checkbox("Confirm: I want to permanently delete this product profile, not deactivate it.", key=f"force_del_c1_{p['id']}")
+                    check_step2 = st.checkbox("Confirm: I understand this action completely removes it from all search logs.", key=f"force_del_c2_{p['id']}")
+                    
+                    # Button lights up ONLY when both safety checks are explicitly marked
+                    if st.button('Permanently Delete From Database', key=f"hard_purge_action_{p['id']}", type='primary', disabled=not (check_step1 and check_step2)):
                         try:
-                            # Safe Deletion checking method loop routing
-                            success, return_msg = db.delete_product(p['id'])
-                            db.log_activity('Admin', 'Product deactivation processed', f"{p['code']} · {p['name']}")
-                            st.info(return_msg)
-                            st.rerun()
-                        except Exception as e: safe_error(e)
-                else: 
-                    st.info('This product is inactive and cannot be sold. Its historic transaction details are preserved.')
-                    if st.button('Reactivate product profile', key=f"reactivate_action_{p['id']}", type='secondary'):
-                        try:
-                            with db.connection() as _conn:
-                                _conn.execute('UPDATE products SET active = 1 WHERE id = ?', (p['id'],))
-                            db.log_activity('Admin', 'Product reactivated', f"{p['code']} · {p['name']}")
-                            st.success('Product profile reactivated successfully!')
-                            st.rerun()
-                        except Exception as e: safe_error(e)
+                            # Triggers the forced hard delete execution function method
+                            success, msg = db.delete_product(p['id'])
+                            db.log_activity('Admin', 'Forced hard delete executed', f"{p['code']} · {p['name']}")
+                            
+                            if success:
+                                st.success(msg)
+                                st.rerun()
+                            else:
+                                st.error(msg)
+                        except Exception as e:
+                            safe_error(e)
 
         # Global Catalog Search Inventory Matrix View Frames
         st.markdown("---")
@@ -374,66 +381,7 @@ elif mode=='Admin' and page=='Product Management':
             ]), use_container_width=True, hide_index=True)
         else: 
             st.info('No products match your search.')
-
-        # Tab 3 Configuration with Safe Automated Deletion Logic
-    with tab3:
-        st.subheader("Archived & Deactivated Products")
-        st.markdown(
-            "Manage archived menu item blueprints here. Active item records can be permanently deleted "
-            "or securely deactivated depending on past checkout historical constraints."
-        )
-        
-        # Load absolute checklist inventory matrix
-        all_items = db.list_products(active_only=False)
-        inactive_items = [p for p in all_items if not p['active']]
-        
-        if not inactive_items:
-            st.success("🎉 No archived products found! Your active menu catalog is clean.")
-        else:
-            search_archived = st.text_input('Search archived profiles by code or name', key='archive_search_bar')
-            filtered_archive = [
-                p for p in inactive_items 
-                if search_archived.casefold() in (p['code'] + ' ' + p['name']).casefold()
-            ]
-            
-            if not filtered_archive:
-                st.info("No archived items match your search term.")
-            else:
-                for item in filtered_archive:
-                    with st.container(border=True):
-                        col_details, col_restore, col_purge = st.columns([3.5, 1, 1], vertical_alignment="center")
-                        
-                        with col_details:
-                            st.markdown(f"### {item['name']}")
-                            display_category = item['category'].split(" | Custom:", 1)[0] if " | Custom:" in item['category'] else item['category']
-                            st.markdown(f"**Code:** `{item['code']}`  |  **Category:** *{display_category}*")
-                        
-                        # 1. Action Button 1: Reactivate Product Profile
-                        with col_restore:
-                            if st.button("Reactivate", key=f"rest_btn_{item['id']}", use_container_width=True):
-                                try:
-                                    with db.connection() as _conn:
-                                        _conn.execute('UPDATE products SET active = 1 WHERE id = ?', (item['id'],))
-                                    db.log_activity('Admin', 'Product reactivated', f"{item['code']} · {item['name']}")
-                                    st.success(f"Restored '{item['name']}'!")
-                                    st.rerun()
-                                except Exception as e: safe_error(e)
-                                
-                        # 2. Action Button 2: Delete Row From Database
-                        with col_purge:
-                            if st.button("Delete", key=f"purge_btn_{item['id']}", type="primary", use_container_width=True):
-                                try:
-                                    # Call your dual delete verification method inside database.py
-                                    success, return_msg = db.delete_product(item['id'])
-                                    db.log_activity('Admin', 'Product delete action processed', f"{item['code']} · {item['name']}")
-                                    
-                                    if success:
-                                        st.success(return_msg)
-                                    else:
-                                        st.error(return_msg)
-                                    st.rerun()
-                                except Exception as e: safe_error(e)
-
+    
 
 elif mode=='Admin' and page=='Sales History':
     st.subheader('Sales history')
