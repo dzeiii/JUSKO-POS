@@ -76,7 +76,7 @@ with st.container(key='site_header'):
             page=st.radio('Admin navigation',['Dashboard','Product Management','Sales History','Activity History'],
                           horizontal=True,key='admin_page',label_visibility='collapsed')
         elif mode=='Cashier':
-            page=st.radio('Cashier navigation',['New Sale','Order Queue','Last Transaction','Sales History'],
+            page=st.radio('Cashier navigation',['New Sale','Pickup Queue Priority','Last Transaction','Sales History'],
                           horizontal=True,key='cashier_page',label_visibility='collapsed')
         else:
             page=st.radio('Inventory navigation',['Dashboard','Stock Overview','Restock Products'],
@@ -562,7 +562,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                     'Priority level', 
                     options=[1, 2, 3, 4, 5], 
                     value=3, 
-                    format_func=lambda x: {1: '1 · Urgent', 2: '2 · High', 3: '3 · Normal', 4: '4 · Low', 5: '5 · Flexible'}[x]
+                    format_func=lambda x: {1: '1 · Urgent', 2: '2 · High', 3: '3 · Normal'}[x]
                 )
                 cashier_label = st.text_input('Cashier label (optional)', value='Cashier')
                 confirm = st.form_submit_button('Confirm sale', type='primary', use_container_width=True)
