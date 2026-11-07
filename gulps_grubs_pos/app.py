@@ -541,7 +541,6 @@ elif mode == 'Cashier' and page == 'New Sale':
                     )
                     st.markdown(card_html, unsafe_allow_html=True)
 
-                    
                     with st.form(f"add_cart_{p['id']}"):
                         size_oz = None
                         unit_price = p['price_cents']
@@ -550,18 +549,44 @@ elif mode == 'Cashier' and page == 'New Sale':
                             available_sizes = list(sizes.keys())
                             
                             def size_label_formatter(z):
-                                if int(z) == 99 and " | Custom:" in p['category']:
-                                    return p['category'].split(" | Custom:", 1)[1].strip()
+                                if int(z) == 99 and custom_size_text:
+                                    return custom_size_text
                                 return f"{z} oz"
                                 
                             size_oz = st.radio('Choose cup size', available_sizes, format_func=size_label_formatter, horizontal=True, key=f"size_{p['id']}")
                             unit_price = sizes[size_oz]
                             st.caption(f"Selected size price: {money(unit_price)}")
 
-                        # Open customization notes box
+                        # --- ✨ NEW: CASHIER-ONLY SINKER & ADD-ON SELECTOR ---
+                        is_milktea_or_drink = any(d in display_cat_clean.lower() for d in ['milktea', 'drink', 'coffee', 'beverage', 'tea', 'shake', 'smoothie'])
+                        chosen_sinkers = []
+                        sinker_premium = 0
+                        
+                        if is_milktea_or_drink:
+                            st.markdown("##### 🧋 Add-ons / Sinkers")
+                            sk1, sk2, sk3 = st.columns(3)
+                            
+                            # Simple checkboxes with fixed price premiums (+₱10.00 / +₱15.00)
+                            add_pearls = sk1.checkbox("Pearls (+₱10)", key=f"sink_pearl_{p['id']}")
+                            add_nata = sk2.checkbox("Nata (+₱10)", key=f"sink_nata_{p['id']}")
+                            add_jelly = sk3.checkbox("Jelly (+₱15)", key=f"sink_jelly_{p['id']}")
+                            
+                            if add_pearls:
+                                chosen_sinkers.append("Extra Pearls")
+                                sinker_premium += 1000  # 1000 cents = ₱10.00
+                            if add_nata:
+                                chosen_sinkers.append("Nata de Coco")
+                                sinker_premium += 1000
+                            if add_jelly:
+                                chosen_sinkers.append("Coffee Jelly")
+                                sinker_premium += 1500  # 1500 cents = ₱15.00
+                                
+                            unit_price += sinker_premium
+
+                        # Open customization notes box for allergies/flavors
                         custom_note = st.text_input(
                             'Special Notes / Flavors / Allergies', 
-                            placeholder='e.g., No Ice, Barbecue Fries, Egg well-done',
+                            placeholder='e.g., Less Sweet, No Ice, Barbecue Fries',
                             key=f"note_input_{p['id']}"
                         ).strip()
 
@@ -573,17 +598,31 @@ elif mode == 'Cashier' and page == 'New Sale':
                             if qty > p['stock']: 
                                 raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
                                 
-                            if size_oz and int(size_oz) == 99 and " | Custom:" in p['category']:
-                                size_display_name = p['category'].split(" | Custom:", 1)[1].strip()
+                            if size_oz and int(size_oz) == 99 and custom_size_text:
+                                size_display_name = custom_size_text
                             elif size_oz:
                                 size_display_name = f"{size_oz} oz"
                             else:
                                 size_display_name = ''
                                 
-                            st.session_state.cart.add(p, int(qty), size_oz=size_oz, unit_price_cents=unit_price, customizations=custom_note)
+                            # Combine chosen sinkers with manual text notes cleanly
+                            final_notes_list = chosen_sinkers.copy()
+                            if custom_note:
+                                final_notes_list.append(custom_note)
+                            combined_customizations = '; '.join(final_notes_list)
+                                
+                            # Pass the modified unit price and combined descriptions to your existing cart engine
+                            st.session_state.cart.add(
+                                p, 
+                                int(qty), 
+                                size_oz=size_oz, 
+                                unit_price_cents=unit_price, 
+                                customizations=combined_customizations
+                            )
+                            
                             size_label = f" ({size_display_name})" if size_oz else ''
-                            option_label = f" · Note: '{custom_note}'" if custom_note else ''
-                            st.success(f"Added {qty} × {p['name']}{size_label}{option_label}.")
+                            option_label = f" · Options: '{combined_customizations}'" if combined_customizations else ''
+                            st.success(f"Added {qty} × {p['name']}{size_label}{option_label} (Updated Unit Price: {money(unit_price)}).")
                             st.rerun()
                         except Exception as e: 
                             safe_error(e)
