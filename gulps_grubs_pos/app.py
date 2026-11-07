@@ -479,43 +479,89 @@ elif mode=='Cashier' and page=='New Sale':
     left,right=st.columns([1.35,1],gap='large')
     with left:
         st.markdown('#### Available products')
-        menu_categories=['All categories'] + sorted({p['category'] for p in products})
+        
+        # 1. Clean out the Custom tags from category filters to keep dropdown tidy
+        raw_cats = {p['category'].split(" | Custom:", 1)[0].strip() for p in products}
+        menu_categories=['All categories'] + sorted(list(raw_cats))
         selected_category=st.selectbox('Browse category',menu_categories,key='cashier_category_filter')
         query=st.text_input('Find a product',placeholder='Search product name or code')
-        category_products=products if selected_category=='All categories' else [p for p in products if p['category']==selected_category]
+        
+        # Filter pool and match clean category names
+        category_products = []
+        for p in products:
+            clean_p_cat = p['category'].split(" | Custom:", 1)[0].strip()
+            if selected_category == 'All categories' or clean_p_cat == selected_category:
+                category_products.append(p)
+                
         # Exact-code lookup goes through the manually implemented AVL tree; category/name filtering uses SQLite-backed records.
         if query.strip():
             match=product_tree.search(query.strip())
             shown=[match] if match and match in category_products else [p for p in category_products if query.casefold() in (p['name']+' '+p['code']).casefold()]
         else: shown=category_products
+        
         if not shown: st.info('No matching active products.')
+        
         for start_idx in range(0,len(shown),2):
             cols=st.columns(2)
             for col,p in zip(cols,shown[start_idx:start_idx+2]):
                 with col:
                     sizes=db.get_product_sizes(p['id'])
                     is_drink=bool(sizes)
+                    
+                    # 2. FIXED: Intercept and translate size flag 99 into its text label (e.g. 22oz)
                     if is_drink:
-                        price_line=' · '.join(f"{size} oz {money(price)}" for size,price in sizes.items())
+                        price_parts = []
+                        for size, price in sizes.items():
+                            if int(size) == 99 and " | Custom:" in p['category']:
+                                custom_label = p['category'].split(" | Custom:", 1)[1].strip()
+                                price_parts.append(f"{custom_label} {money(price)}")
+                            else:
+                                price_parts.append(f"{size} oz {money(price)}")
+                        price_line = ' · '.join(price_parts)
                     else:
                         price_line=money(p['price_cents'])
-                    st.markdown(load_html_template('product_card.html', name=p['name'], code=p['code'], category=p['category'], price_line=price_line, stock=p['stock']), unsafe_allow_html=True)
+                        
+                    # 3. FIXED: Clean out metadata tags before displaying category on HTML card
+                    display_cat_clean = p['category'].split(" | Custom:", 1)[0].strip()
+                    st.markdown(load_html_template('product_card.html', name=p['name'], code=p['code'], category=display_cat_clean, price_line=price_line, stock=p['stock']), unsafe_allow_html=True)
+                    
                     with st.form(f"add_cart_{p['id']}"):
                         size_oz=None; unit_price=p['price_cents']; chosen_options=[]
                         if is_drink:
                             available_sizes=list(sizes.keys())
-                            size_oz=st.radio('Choose cup size (oz)',available_sizes,format_func=lambda z:f"{z} oz",horizontal=True,key=f"size_{p['id']}")
+                            
+                            # 4. FIXED: Radio button label formatter translates flag 99 into your custom text label cleanly
+                            def size_label_formatter(z):
+                                if int(z) == 99 and " | Custom:" in p['category']:
+                                    return p['category'].split(" | Custom:", 1)[1].strip()
+                                return f"{z} oz"
+                                
+                            size_oz=st.radio('Choose cup size',available_sizes,format_func=size_label_formatter,horizontal=True,key=f"size_{p['id']}")
                             unit_price=sizes[size_oz]
                             st.caption(f"Selected size price: {money(unit_price)}")
 
                         customizations='; '.join(chosen_options)
                         qty=st.number_input('Qty',min_value=1,max_value=max(1,int(p['stock'])),value=1,step=1,key=f"qty_{p['id']}",disabled=p['stock']<1)
                         add=st.form_submit_button('Add to cart',use_container_width=True,disabled=p['stock']<1)
+                        
                     if add:
                         try:
                             if qty>p['stock']: raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
-                            st.session_state.cart.add(p,int(qty),size_oz=size_oz,unit_price_cents=unit_price,customizations=customizations); size_label=f" ({size_oz} oz)" if size_oz else ''; option_label=f" · {customizations}" if customizations else ''; st.success(f"Added {qty} × {p['name']}{size_label}{option_label}."); st.rerun()
+                            # Assign a descriptive string label if size 99 is selected
+                            if size_oz and int(size_oz) == 99 and " | Custom:" in p['category']:
+                                size_display_name = p['category'].split(" | Custom:", 1)[1].strip()
+                            elif size_oz:
+                                size_display_name = f"{size_oz} oz"
+                            else:
+                                size_display_name = ''
+                                
+                            st.session_state.cart.add(p,int(qty),size_oz=size_oz,unit_price_cents=unit_price,customizations=customizations)
+                            size_label=f" ({size_display_name})" if size_oz else ''
+                            option_label=f" · {customizations}" if customizations else ''
+                            st.success(f"Added {qty} × {p['name']}{size_label}{option_label}.")
+                            st.rerun()
                         except Exception as e: safe_error(e)
+                        
     with right:
         st.markdown('#### Shopping cart')
         cart=st.session_state.cart
@@ -524,10 +570,25 @@ elif mode=='Cashier' and page=='New Sale':
         else:
             for item in items:
                 with st.container(border=True):
-                    c1,c2=st.columns([2,1]); size_label=f" · {item['size_oz']} oz" if item.get('size_oz') else ''; option_label=f"\n\n{item['customizations']}" if item.get('customizations') else ''; c1.markdown(f"**{item['name']}{size_label}**{option_label}\n\n{money(item['unit_price_cents'])} each")
+                    # Fetch product details to check for custom category naming strings
+                    item_prod_ref = db.get_product(item['product_id'])
+                    
+                    # 5. FIXED: Shopping cart row formats size 99 as a custom text label string (e.g. 1-Liter)
+                    if item.get('size_oz') and int(item['size_oz']) == 99 and item_prod_ref and " | Custom:" in item_prod_ref['category']:
+                        custom_size_text = item_prod_ref['category'].split(" | Custom:", 1)[1].strip()
+                        size_label = f" · {custom_size_text}"
+                    elif item.get('size_oz'):
+                        size_label = f" · {item['size_oz']} oz"
+                    else:
+                        size_label = ''
+                        
+                    option_label=f"\n\n{item['customizations']}" if item.get('customizations') else ''
+                    c1,c2=st.columns([2,1])
+                    c1.markdown(f"**{item['name']}{size_label}**{option_label}\n\n{money(item['unit_price_cents'])} each")
                     c2.markdown(f"**{money(item['subtotal_cents'])}**")
                     qcol,rmcol=st.columns([2,1])
                     new_q=qcol.number_input('Quantity',min_value=1,max_value=1000000,value=int(item['quantity']),step=1,key=f"cart_q_{item['product_id']}_{item.get('size_oz') or 'std'}_{abs(hash(item.get('customizations','')))}")
+                    
                     if qcol.button('Update',key=f"update_{item['product_id']}_{item.get('size_oz') or 'std'}_{abs(hash(item.get('customizations','')))}"):
                         try:
                             p=db.get_product(item['product_id'])
@@ -535,42 +596,61 @@ elif mode=='Cashier' and page=='New Sale':
                             if int(new_q)>p['stock']: raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
                             cart.set_quantity(item['product_id'],int(new_q),item.get('size_oz'),item.get('customizations','')); st.rerun()
                         except Exception as e: safe_error(e)
+                        
                     if rmcol.button('Remove',key=f"remove_{item['product_id']}_{item.get('size_oz') or 'std'}_{abs(hash(item.get('customizations','')))}"):
                         cart.remove(item['product_id'],item.get('size_oz'),item.get('customizations','')); st.rerun()
+                        
             st.divider(); st.markdown(f"### Total: {money(cart.total_cents())}")
             st.caption('Inventory is checked again at checkout. No stock is deducted until the sale commits successfully.')
+            
             with st.form('checkout_form'):
                 cashier_label=st.text_input('Cashier name / label',value='Cashier')
                 order_customer=st.text_input('Customer / order label',placeholder='e.g. Walk-in #12 or pickup name')
                 order_priority=st.select_slider('Order priority',options=[1,2,3,4,5],value=3,format_func=lambda x:{1:'1 · Urgent',2:'2 · High',3:'3 · Normal',4:'4 · Low',5:'5 · Flexible'}[x])
                 st.caption('After checkout, food and drink items are sent to the priority queues. Mixed carts are split into both queues.')
                 confirm=st.form_submit_button('Confirm sale + send to queue',type='primary',use_container_width=True)
+                
             if confirm:
                 try:
                     sale=db.checkout(cart.items(),cashier_label.strip() or 'Cashier')
                     customer_label=(order_customer.strip() or f"Sale #{sale['transaction_id']}")[:100]
                     grouped={'Food':[],'Drink':[]}
                     for line in sale['items']:
-                        product=next((p for p in products if p['code']==line['code']),None)
+                        product=next((prod_lookup for prod_lookup in products if prod_lookup['code']==line['code']),None)
                         category=(product or {}).get('category','').casefold()
                         name=line['name'].casefold()
                         is_drink=bool(line.get('size_oz')) or bool(db.get_product_sizes(product['id'])) if product else bool(line.get('size_oz'))
                         kind='Drink' if is_drink else 'Food'
-                        size_text=f" {line['size_oz']} oz" if line.get('size_oz') else ''
-                        options_text=f" ({line['customizations']})" if line.get('customizations') else ''
+                        if line.get('size_oz') and int(line['size_oz']) == 99 and product and " | Custom:" in product['category']:
+                            size_text = f" {product['category'].split(' | Custom:', 1)[1].strip()}"
+                        elif line.get('size_oz'):
+                            size_text = f" {line['size_oz']} oz"
+                        else:
+                            size_text = ''
+                            
+                        options_text = f" ({line['customizations']})" if line.get('customizations') else ''
                         grouped[kind].append(f"{line['quantity']} × {line['name']}{size_text}{options_text}")
-                    queued=[]
-                    for kind,lines in grouped.items():
-                        if lines:
-                            oid=db.add_order(customer_label, (f"Sale #{sale['transaction_id']}: " + '; '.join(lines))[:490], int(order_priority), order_type=kind)
-                            queued.append(f"{kind} queue #{oid}")
-                    db.log_activity('Cashier','Sale sent to queue',f"Sale #{sale['transaction_id']} · {', '.join(queued)} · Priority {order_priority}")
-                    st.session_state.last_sale=sale; cart.clear(); st.success(f"Sale #{sale['transaction_id']} completed — {money(sale['total_cents'])}. Sent to: {', '.join(queued)}."); st.rerun()
-                except Exception as e: safe_error(e)
-        st.markdown('---')
-        st.markdown('**Cart data structure:** custom singly linked list')
-        st.caption(f'{len(cart)} distinct item(s) · item lookup O(n) · cart total O(n)')
-
+                        
+                # 2. Process and route orders out to separate queues atomically
+                queued = []
+                for kind, lines in grouped.items():
+                    if lines:
+                        oid = db.add_order(customer_label, (f"Sale #{sale['transaction_id']}: " + '; '.join(lines))[:490], int(order_priority), order_type=kind)
+                        queued.append(f"{kind} queue #{oid}")
+                        
+                db.log_activity('Cashier', 'Sale sent to queue', f"Sale #{sale['transaction_id']} · {', '.join(queued)} · Priority {order_priority}")
+                st.session_state.last_sale = sale
+                cart.clear()
+                st.success(f"Sale #{sale['transaction_id']} completed — {money(sale['total_cents'])}. Sent to: {', '.join(queued)}.")
+                st.rerun()
+            except Exception as e: 
+                safe_error(e)
+                
+    st.markdown('---')
+    st.markdown('**Cart data structure:** custom singly linked list')
+    st.caption(f'{len(cart)} distinct item(s) · item lookup O(n) · cart total O(n)')
+    Use code with caution.
+    
 elif mode=='Cashier' and page=='Order Queue':
     st.subheader('Cashier order queue')
     st.caption('Cashier assigns priority when sending an order. Priority 1 is most urgent; priority 5 is least urgent. Equal priorities are handled first-in, first-out.')
