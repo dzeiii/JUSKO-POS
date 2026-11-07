@@ -386,7 +386,6 @@ def log_activity(actor_mode, action, details='', db_path=DB_PATH):
         c.execute('INSERT INTO activity_history(actor_mode,action,details,created_at) VALUES(?,?,?,?)',
                   (actor_mode, action, details, datetime.now().isoformat(timespec='seconds')))
 
-
 def activity_history(actor_mode=None, search_text='', limit=500, db_path=DB_PATH):
     sql='SELECT * FROM activity_history WHERE 1=1'; params=[]
     if actor_mode and actor_mode != 'All':
@@ -396,3 +395,21 @@ def activity_history(actor_mode=None, search_text='', limit=500, db_path=DB_PATH
     sql += ' ORDER BY id DESC LIMIT ?'; params.append(max(1,min(int(limit),5000)))
     with connection(db_path) as c:
         return [dict(r) for r in c.execute(sql,params).fetchall()]
+
+def update_product_stock_direct(product_id, new_stock, actor="Inventory Manager", db_path=DB_PATH):
+    """Overwrites a product's stock count directly and logs the change."""
+    now = datetime.now().isoformat()
+    with connection(db_path) as c:
+        # Get original stock for logging details
+        orig = c.execute("SELECT name, stock FROM products WHERE id = ?", (product_id,)).fetchone()
+        if not orig:
+            raise ValueError("Product not found.")
+            
+        c.execute("UPDATE products SET stock = ?, updated_at = ? WHERE id = ?", (new_stock, now, product_id))
+        
+        diff = new_stock - orig['stock']
+        c.execute('''
+            INSERT INTO inventory_movements (product_id, quantity_change, reason, created_at)
+            VALUES (?, ?, ?, ?)
+        ''', (product_id, diff, f"Direct stock audit/override by {actor}", now))
+
