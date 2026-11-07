@@ -336,32 +336,36 @@ elif mode=='Admin' and page=='Product Management':
                                 safe_error(e)
 
                    # --- Permanent Force Hard-Delete Interface Module ---
-                    st.divider()
-                    st.error('### DANGER ZONE: PERMANENT PURGE')
+                                        st.divider()
+                    st.error('### 🚨 DANGER ZONE: PERMANENT PURGE')
+                    
+                    # HTML and Bold styling fixed to render properly together
                     st.markdown(
-                        "<span style='font-size: 14px;'>Clicking delete below will execute a **HARD DELETE**." 
-                        "This completely wipes the item profile row from the database catalog and cannot be undone.</span>",unsafe_allow_html=True)
-                    
-                    
-                    # Double-Confirmation Step to lock out accidental clicks
-                with st.container(key="danger_zone_box"):    
-                    check_step1 = st.checkbox("Confirm: I want to permanently delete this product profile, not deactivate it.", key=f"force_del_c1_{p['id']}")
-                    check_step2 = st.checkbox("Confirm: I understand this action completely removes it from all search logs.", key=f"force_del_c2_{p['id']}")
-                    
-                    # Button lights up ONLY when both safety checks are explicitly marked
-                    if st.button('Permanently Delete From Database', key=f"hard_purge_action_{p['id']}", type='primary', disabled=not (check_step1 and check_step2)):
-                        try:
-                            # Triggers the forced hard delete execution function method
-                            success, msg = db.delete_product(p['id'])
-                            db.log_activity('Admin', 'Forced hard delete executed', f"{p['code']} · {p['name']}")
-                            
-                            if success:
-                                st.success(msg)
-                                st.rerun()
-                            else:
-                                st.error(msg)
-                        except Exception as e:
-                            safe_error(e)
+                        "<span style='font-size: 14px;'>Clicking delete below will execute a <b style='color: #c92a2a;'>HARD DELETE</b>. "
+                        "This completely wipes the item profile row from the database catalog and cannot be undone.</span>", 
+                        unsafe_allow_html=True
+                    )
+                
+                    # FIXED: Indentation aligned correctly inside your active product block
+                    with st.container(key="danger_zone_box"):    
+                        check_step1 = st.checkbox("Confirm: I want to permanently delete this product profile, not deactivate it.", key=f"force_del_c1_{p['id']}")
+                        check_step2 = st.checkbox("Confirm: I understand this action completely removes it from all search logs.", key=f"force_del_c2_{p['id']}")
+                        
+                        # Button lights up ONLY when both safety checks are explicitly marked
+                        if st.button('Permanently Delete From Database', key=f"hard_purge_action_{p['id']}", type='primary', disabled=not (check_step1 and check_step2)):
+                            try:
+                                # Triggers the forced hard delete execution function method
+                                success, msg = db.delete_product(p['id'])
+                                db.log_activity('Admin', 'Forced hard delete executed', f"{p['code']} · {p['name']}")
+                                
+                                if success:
+                                    st.success(msg)
+                                    st.rerun()
+                                else:
+                                    st.error(msg)
+                            except Exception as e:
+                                safe_error(e)
+
     with tab3:
         # Global Catalog Search Inventory Matrix View Frames
         st.markdown("---")
