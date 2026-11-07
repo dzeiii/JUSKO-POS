@@ -473,283 +473,122 @@ elif mode=='Admin' and page=='Activity History':
 #===================
 ### CASHIER MODE
 #==================
-elif mode=='Cashier' and page=='New Sale':
-    st.subheader('New sale')
-    products=db.list_products(active_only=True)
-    left,right=st.columns([1.35,1],gap='large')
-    with left:
-        st.markdown('#### Available products')
-        
-        # 1. Clean out the Custom tags from category filters to keep dropdown tidy
-        raw_cats = {p['category'].split(" | Custom:", 1)[0].strip() for p in products}
-        menu_categories=['All categories'] + sorted(list(raw_cats))
-        selected_category=st.selectbox('Browse category',menu_categories,key='cashier_category_filter')
-        query=st.text_input('Find a product',placeholder='Search product name or code')
-        
-        # Filter pool and match clean category names
-        category_products = []
-        for p in products:
-            clean_p_cat = p['category'].split(" | Custom:", 1)[0].strip()
-            if selected_category == 'All categories' or clean_p_cat == selected_category:
-                category_products.append(p)
-                
-        # Exact-code lookup goes through the manually implemented AVL tree; category/name filtering uses SQLite-backed records.
-        if query.strip():
-            match=product_tree.search(query.strip())
-            shown=[match] if match and match in category_products else [p for p in category_products if query.casefold() in (p['name']+' '+p['code']).casefold()]
-        else: shown=category_products
-        
-        if not shown: st.info('No matching active products.')
-        
-        for start_idx in range(0,len(shown),2):
-            cols=st.columns(2)
-            for col,p in zip(cols,shown[start_idx:start_idx+2]):
-                with col:
-                    sizes=db.get_product_sizes(p['id'])
-                    is_drink=bool(sizes)
-                    if is_drink:
-                        price_parts = []
-                        for size, price in sizes.items():
-                            if int(size) == 99 and " | Custom:" in p['category']:
-                                custom_label = p['category'].split(" | Custom:", 1)[1].strip()
-                                price_parts.append(f"{custom_label} {money(price)}")
-                            else:
-                                price_parts.append(f"{size} oz {money(price)}")
-                        price_line = ' · '.join(price_parts)
-                    else:
-                        price_line=money(p['price_cents'])
-                
-                    cat_parts = p['category'].split(" | Custom:", 1)
-                    display_cat_clean = cat_parts[0].strip() if cat_parts else p['category']
-                    
-                    template_payload = {
-                        'name': str(p['name']),
-                        'code': str(p['code']),
-                        'category': str(display_cat_clean),
-                        'price': str(price_line),          
-                        'stock': str(int(p['stock']))
-                    }
-                    
-                    # 3. Unpack your clean payload safely into the custom template parser function
-                    card_html = load_html_template('product_card.html', **template_payload)
-                    st.markdown(card_html, unsafe_allow_html=True)
-                    
+                        f"<div class='product-card'><b>{p['name']}</b><br>"
+                        f"<span class='small-note'>{p['code']} · {p['category']}</span>"
+                        f"<h3>{money(p['price_cents'])}</h3>"
+                        f"<span class='small-note'>In stock / Servings: {display_stock}</span></div>", 
+                        unsafe_allow_html=True
+                    )
                     with st.form(f"add_cart_{p['id']}"):
-                        size_oz=None; unit_price=p['price_cents']; chosen_options=[]
-                        if is_drink:
-                            available_sizes=list(sizes.keys())
-                            
-                           
-                            def size_label_formatter(z):
-                                if int(z) == 99 and " | Custom:" in p['category']:
-                                    return p['category'].split(" | Custom:", 1)[1].strip()
-                                return f"{z} oz"
-                                
-                            size_oz=st.radio('Choose cup size',available_sizes,format_func=size_label_formatter,horizontal=True,key=f"size_{p['id']}")
-                            unit_price=sizes[size_oz]
-                            st.caption(f"Selected size price: {money(unit_price)}")
-
-                        customizations='; '.join(chosen_options)
-                        qty=st.number_input('Qty',min_value=1,max_value=max(1,int(p['stock'])),value=1,step=1,key=f"qty_{p['id']}",disabled=p['stock']<1)
-                        add=st.form_submit_button('Add to cart',use_container_width=True,disabled=p['stock']<1)
-                        
+                        qty = st.number_input('Qty', min_value=1, max_value=max(1, int(display_stock)), value=1, step=1, key=f"qty_{p['id']}", disabled=display_stock < 1)
+                        add = st.form_submit_button('Add to cart', use_container_width=True, disabled=display_stock < 1)
                     if add:
                         try:
-                            if qty>p['stock']: raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
-                            # Assign a descriptive string label if size 99 is selected
-                            if size_oz and int(size_oz) == 99 and " | Custom:" in p['category']:
-                                size_display_name = p['category'].split(" | Custom:", 1)[1].strip()
-                            elif size_oz:
-                                size_display_name = f"{size_oz} oz"
-                            else:
-                                size_display_name = ''
-                                
-                            st.session_state.cart.add(p,int(qty),size_oz=size_oz,unit_price_cents=unit_price,customizations=customizations)
-                            size_label=f" ({size_display_name})" if size_oz else ''
-                            option_label=f" · {customizations}" if customizations else ''
-                            st.success(f"Added {qty} × {p['name']}{size_label}{option_label}.")
+                            if qty > display_stock: 
+                                raise ValueError(f"Only {display_stock} serving(s) available based on raw ingredients.")
+                            st.session_state.cart.add(p, int(qty))
+                            st.success(f"Added {qty} × {p['name']}.")
                             st.rerun()
-                        except Exception as e: safe_error(e)
-                        
+                        except Exception as e: 
+                            safe_error(e)
     with right:
         st.markdown('#### Shopping cart')
-        cart=st.session_state.cart
-        items=cart.items()
+        cart = st.session_state.cart
+        items = cart.items()
         if not items: st.info('Your cart is empty. Add a product to begin.')
         else:
             for item in items:
                 with st.container(border=True):
-                    # Fetch product details to check for custom category naming strings
-                    item_prod_ref = db.get_product(item['product_id'])
-                    
-                    # 5. FIXED: Shopping cart row formats size 99 as a custom text label string (e.g. 1-Liter)
-                    if item.get('size_oz') and int(item['size_oz']) == 99 and item_prod_ref and " | Custom:" in item_prod_ref['category']:
-                        custom_size_text = item_prod_ref['category'].split(" | Custom:", 1)[1].strip()
-                        size_label = f" · {custom_size_text}"
-                    elif item.get('size_oz'):
-                        size_label = f" · {item['size_oz']} oz"
-                    else:
-                        size_label = ''
-                        
-                    option_label=f"\n\n{item['customizations']}" if item.get('customizations') else ''
-                    c1,c2=st.columns([2,1])
-                    c1.markdown(f"**{item['name']}{size_label}**{option_label}\n\n{money(item['unit_price_cents'])} each")
+                    c1, c2 = st.columns([2, 1]); c1.markdown(f"**{item['name']}**\n\n{money(item['unit_price_cents'])} each")
                     c2.markdown(f"**{money(item['subtotal_cents'])}**")
-                    qcol,rmcol=st.columns([2,1])
-                    new_q=qcol.number_input('Quantity',min_value=1,max_value=1000000,value=int(item['quantity']),step=1,key=f"cart_q_{item['product_id']}_{item.get('size_oz') or 'std'}_{abs(hash(item.get('customizations','')))}")
-                    
-                    if qcol.button('Update',key=f"update_{item['product_id']}_{item.get('size_oz') or 'std'}_{abs(hash(item.get('customizations','')))}"):
+                    qcol, rmcol = st.columns([2, 1])
+                    new_q = qcol.number_input('Quantity', min_value=1, max_value=1000000, value=int(item['quantity']), step=1, key=f"cart_q_{item['product_id']}")
+                    if qcol.button('Update', key=f"update_{item['product_id']}"):
                         try:
-                            p=db.get_product(item['product_id'])
-                            if not p or not p['active']: raise ValueError('This product is no longer available. Remove it from the cart.')
-                            if int(new_q)>p['stock']: raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
-                            cart.set_quantity(item['product_id'],int(new_q),item.get('size_oz'),item.get('customizations','')); st.rerun()
+                            p = db.get_product(item['product_id'])
+                            if not p or not p['active']: raise ValueError('This product is no longer available.')
+                            if int(new_q) > p['stock']: raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
+                            cart.set_quantity(item['product_id'], int(new_q)); st.rerun()
                         except Exception as e: safe_error(e)
-                        
-                    if rmcol.button('Remove',key=f"remove_{item['product_id']}_{item.get('size_oz') or 'std'}_{abs(hash(item.get('customizations','')))}"):
-                        cart.remove(item['product_id'],item.get('size_oz'),item.get('customizations','')); st.rerun()
-                        
+                    if rmcol.button('Remove', key=f"remove_{item['product_id']}"):
+                        cart.remove(item['product_id']); st.rerun()
             st.divider(); st.markdown(f"### Total: {money(cart.total_cents())}")
-            st.caption('Inventory is checked again at checkout. No stock is deducted until the sale commits successfully.')
             
             with st.form('checkout_form'):
-                cashier_label=st.text_input('Cashier name / label',value='Cashier')
-                order_customer=st.text_input('Customer / order label',placeholder='e.g. Walk-in #12 or pickup name')
-                order_priority=st.select_slider('Order priority',options=[1,2,3,4,5],value=3,format_func=lambda x:{1:'1 · Urgent',2:'2 · High',3:'3 · Normal',4:'4 · Low',5:'5 · Flexible'}[x])
-                st.caption('After checkout, food and drink items are sent to the priority queues. Mixed carts are split into both queues.')
-                confirm=st.form_submit_button('Confirm sale + send to queue',type='primary',use_container_width=True)
-                
+                customer_name = st.text_input('Customer name *', placeholder='e.g. John Doe')
+                priority_level = st.select_slider(
+                    'Priority level', 
+                    options=[1, 2, 3, 4, 5], 
+                    value=3, 
+                    format_func=lambda x: {1: '1 · Urgent', 2: '2 · High', 3: '3 · Normal', 4: '4 · Low', 5: '5 · Flexible'}[x]
+                )
+                cashier_label = st.text_input('Cashier label (optional)', value='Cashier')
+                confirm = st.form_submit_button('Confirm sale', type='primary', use_container_width=True)
+
             if confirm:
                 try:
-                    sale=db.checkout(cart.items(),cashier_label.strip() or 'Cashier')
-                    customer_label=(order_customer.strip() or f"Sale #{sale['transaction_id']}")[:100]
-                    grouped={'Food':[],'Drink':[]}
-                    for line in sale['items']:
-                        product=next((prod_lookup for prod_lookup in products if prod_lookup['code']==line['code']),None)
-                        category=(product or {}).get('category','').casefold()
-                        name=line['name'].casefold()
-                        is_drink=bool(line.get('size_oz')) or bool(db.get_product_sizes(product['id'])) if product else bool(line.get('size_oz'))
-                        kind='Drink' if is_drink else 'Food'
-                        if line.get('size_oz') and int(line['size_oz']) == 99 and product and " | Custom:" in product['category']:
-                            size_text = f" {product['category'].split(' | Custom:', 1)[1].strip()}"
-                        elif line.get('size_oz'):
-                            size_text = f" {line['size_oz']} oz"
-                        else:
-                            size_text = ''
-                            
-                        options_text = f" ({line['customizations']})" if line.get('customizations') else ''
-                        grouped[kind].append(f"{line['quantity']} × {line['name']}{size_text}{options_text}")
-                        
-                    queued = []
-                    for kind, lines in grouped.items():
-                        if lines:
-                            oid = db.add_order(customer_label, (f"Sale #{sale['transaction_id']}: " + '; '.join(lines))[:490], int(order_priority), order_type=kind)
-                            queued.append(f"{kind} queue #{oid}")
-                            
-                    db.log_activity('Cashier', 'Sale sent to queue', f"Sale #{sale['transaction_id']} · {', '.join(queued)} · Priority {order_priority}")
+                    if not customer_name.strip():
+                        raise ValueError("Please enter the customer name.")
+
+                    sale = db.checkout(cart.items(), cashier_label.strip() or 'Cashier')
                     st.session_state.last_sale = sale
-                except Exception as e: safe_error(e)
-                # =========================================================================
-            # 📊 INSERT CODE HERE: LIVE QUEUE MANAGEMENT CONTROLS PANEL
-            # =========================================================================
-            st.divider()
-            with st.expander("📋 Active Queue Management Dashboard", expanded=True):
-                st.caption("Inspect, adjust parameters, or update active kitchen tickets below:")
-                
-                try:
-                    with db.connection() as conn:
-                        pending_tickets = conn.execute('''
-                            SELECT id, customer_name, details, order_type, priority, sequence_no, status 
-                            FROM pending_orders 
-                            WHERE status = 'Pending'
-                            ORDER BY priority DESC, sequence_no ASC
-                        ''').fetchall()
-                except Exception:
-                    pending_tickets = []
-                    
-                if not pending_tickets:
-                    st.success("🎉 All clear! No pending items currently remaining in the preparation queues.")
-                else:
-                    for ticket in pending_tickets:
-                        with st.container(border=True):
-                            header_col, action_col = st.columns([2.5, 1.5], vertical_alignment="center")
-                            
-                            with header_col:
-                                type_badge = "🥤" if ticket['order_type'] == 'Drink' else "🍔"
-                                st.markdown(f"**#{ticket['sequence_no']} {type_badge} {ticket['customer_name']}**")
-                                st.markdown(f"<small>{ticket['details']}</small>", unsafe_allow_html=True)
-                                
-                            with action_col:
-                                new_prio = st.select_slider(
-                                    "Priority",
-                                    options=[1, 2, 3, 4, 5],
-                                    value=int(ticket['priority']),
-                                    format_func=lambda x: {1:'1', 2:'2', 3:'3', 4:'4', 5:'5'}[x],
-                                    key=f"queue_prio_slider_{ticket['id']}"
-                                )
-                                
-                                if new_prio != ticket['priority']:
-                                    try:
-                                        with db.connection() as conn:
-                                            conn.execute("UPDATE pending_orders SET priority = ? WHERE id = ?", (int(new_prio), ticket['id']))
-                                        db.log_activity('Cashier', 'Queue Priority Updated', f"Order #{ticket['sequence_no']} set to level {new_prio}")
-                                        st.toast(f"Order #{ticket['sequence_no']} bumped to priority level {new_prio}!")
-                                        st.rerun()
-                                    except Exception as e:
-                                        safe_error(e)
-                                        
-                                if st.button("Cancel Ticket", key=f"cancel_tkt_btn_{ticket['id']}", type="secondary", use_container_width=True):
-                                    try:
-                                        with db.connection() as conn:
-                                            conn.execute("UPDATE pending_orders SET status = 'Cancelled' WHERE id = ?", (ticket['id'],))
-                                        db.log_activity('Cashier', 'Order Cancelled from Queue', f"Order #{ticket['sequence_no']} explicitly cancelled")
-                                        st.toast(f"Ticket #{ticket['sequence_no']} cancelled successfully.")
-                                        st.rerun()
-                                    except Exception as e:
-                                        safe_error(e)
 
-        # =========================================================================
-        # LEAVE THIS FOOTER DIRECTLY AT THE BOTTOM
-        # =========================================================================
-        st.markdown('---')
-        st.markdown('**Cart data structure:** custom singly linked list')
-        st.caption(f'{len(cart)} distinct item(s) · item lookup O(n) · cart total O(n)')
+                    order_details_str = ", ".join([f"{item['quantity']}x {item['name']}" for item in cart.items()])
+                    db.add_order(customer_name.strip(), order_details_str, int(priority_level))
 
-elif mode=='Cashier' and page=='Order Queue':
-    st.subheader('Cashier order queue')
-    st.caption('Cashier assigns priority when sending an order. Priority 1 is most urgent; priority 5 is least urgent. Equal priorities are handled first-in, first-out.')
-    queue_search=st.text_input('Search orders by order number, customer, or details',placeholder='e.g. #12, milkshake, French fries')
-    with st.form('cashier_queue_form', clear_on_submit=True):
-        customer=st.text_input('Customer / order number', placeholder='e.g. Walk-in #12')
-        order_type=st.radio('Send order to', ['Food','Drink'], horizontal=True, help='Food and drink orders are recorded separately in the priority queue.')
-        details=st.text_area('Order details', placeholder='e.g. 2 French fries (cheese), 1 siomai; no onions', max_chars=500)
-        priority=st.select_slider('Priority', options=[1,2,3,4,5], value=3, format_func=lambda x:{1:'1 · Urgent',2:'2 · High',3:'3 · Normal',4:'4 · Low',5:'5 · Flexible'}[x])
-        submit_order=st.form_submit_button('Add to queue', type='primary', use_container_width=True)
-    if submit_order:
-        try:
-            oid=db.add_order(customer,details,int(priority),order_type=order_type)
-            st.success(f'{order_type} order #{oid} added to the queue.')
-            st.rerun()
-        except Exception as e: safe_error(e)
-    orders=db.list_orders(pending_only=True)
-    if queue_search.strip():
-        term=queue_search.casefold()
-        orders=[o for o in orders if term in (str(o['id'])+' '+o['customer_name']+' '+o['details']+' '+o.get('order_type','')).casefold()]
-    if orders:
-        st.markdown('#### Pending orders — priority order')
-        st.dataframe(pd.DataFrame([{'Queue #':o['id'],'Type':o.get('order_type','Food'),'Customer':o['customer_name'],'Order details':o['details'],'Priority':o['priority'],'Queued at':o['created_at'].replace('T',' ')} for o in orders]), use_container_width=True, hide_index=True)
+                    cart.clear()
+                    st.success(f"Sale #{sale['transaction_id']} completed & added to pickup queue — {money(sale['total_cents'])}.")
+                    st.rerun()
+                except Exception as e:
+                    safe_error(e)
+
+elif mode == 'Cashier' and page == 'Pickup Queue Priority':
+    st.subheader('Cashier - Order Priority & Pickup Queue')
+    st.caption('Orders are automatically added to this priority queue upon finalizing sales at checkout.')
+
+    heap = rebuild_heap()
+    next_order = heap.peek()
+    
+    if next_order:
+        st.markdown("### 🔔 Next Priority Order in Queue")
+        st.info(f"**Order #{next_order.order_id}** — {next_order.payload['customer_name']} | **Priority Level:** {next_order.priority} | **Details:** {next_order.payload['details']}")
+        if st.button('Mark Next Order Completed', type='primary'):
+            try:
+                db.update_order_status(next_order.order_id, 'Completed')
+                st.success(f'Order #{next_order.order_id} marked as completed.')
+                st.rerun()
+            except Exception as e: safe_error(e)
     else:
-        st.info('No pending orders. Add a food or drink order above.')
+        st.success('No pending pickup orders in queue.')
 
-elif mode=='Cashier' and page=='Last Transaction':
-    st.subheader('Last transaction')
-    sale=st.session_state.last_sale
-    if not sale: st.info('Complete a sale in New Sale to display its details here. For historical records, ask the admin to open Sales History.')
+    st.markdown("#### All Pending Pickup Orders")
+    all_orders = db.list_orders()
+    if all_orders:
+        st.dataframe(
+            pd.DataFrame([
+                {
+                    'Order #': o['id'], 
+                    'Customer': o['customer_name'], 
+                    'Details': o['details'], 
+                    'Priority': o['priority'], 
+                    'Status': o['status'], 
+                    'Created': o['created_at'].replace('T', ' ')
+                } for o in all_orders
+            ]), 
+            use_container_width=True, 
+            hide_index=True
+        )
     else:
-        st.success(f"Sale #{sale['transaction_id']} · {sale['created_at'].replace('T',' ')}")
-        st.metric('Total paid',money(sale['total_cents']))
-        st.dataframe(pd.DataFrame([{'Code':x['code'],'Product':x['name'],'Size':(f"{x.get('size_oz')} oz" if x.get('size_oz') else '—'),'Options':x.get('customizations',''),'Qty':x['quantity'],'Unit price':money(x['unit_price_cents']),'Subtotal':money(x['subtotal_cents'])} for x in sale['items']]),use_container_width=True,hide_index=True)
-        st.caption('The database transaction has committed successfully; inventory and transaction history have been updated.')
+        st.info('No pickup orders found in the database.')
+
+elif mode == 'Cashier' and page == 'Last Transaction':
+    st.subheader('Last Transaction')
+    sale = st.session_state.last_sale
+    if not sale: st.info('Complete a sale in New Sale to display details here.')
+    else:
+        st.success(f"Sale #{sale['transaction_id']} · {sale['created_at'].replace('T', ' ')}")
+        st.metric('Total Paid', money(sale['total_cents']))
+        st.dataframe(pd.DataFrame([{'Code': x['code'], 'Product': x['name'], 'Qty': x['quantity'], 'Unit price': money(x['unit_price_cents']), 'Subtotal': money(x['subtotal_cents'])} for x in sale['items']]), use_container_width=True, hide_index=True) 
 
 elif mode=='Cashier' and page=='Sales History':
     st.subheader('Cashier history')
