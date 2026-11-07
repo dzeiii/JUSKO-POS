@@ -570,9 +570,6 @@ elif mode == 'Cashier' and page == 'New Sale':
                         is_lemonade = any(l in cat_lower or l in prod_name_lower for l in ['lemonade', 'slushie'])
 
                         if is_drink:
-                            st.markdown("##### 🎛️ Drink Configuration")
-                            
-                                                    # --- 🧋 DYNAMIC INCLUDED SINKERS, EXCLUSIONS & PAID ADD-ONS ---
                         chosen_customizations = []
                         addon_premium = 0
                         
@@ -588,7 +585,6 @@ elif mode == 'Cashier' and page == 'New Sale':
 
                         if is_drink:
                             st.markdown("Sinker")
-                            
                             # 1. HANDLE BASE-INCLUDED SINKERS / EXCLUSIONS BY TYPE
                             if is_milktea:
                                 sk_none = st.checkbox("No Sinkers (None)", value=False, key=f"none_sink_{p['id']}")
@@ -640,7 +636,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                                         chosen_customizations.append("❌ NO COFFEE JELLY")
 
                             # 2. OPTIONAL PAID PREMIUM ADD-ONS (+₱5.00 EACH)
-                            st.markdown("##### ➕ Premium Add-ons")
+                            st.markdown("Add-ons (+5)")
                             sk1, sk2, sk3 = st.columns(3)
                             
                             add_extra_pearl = sk1.checkbox("Extra Pearls (+₱5)", key=f"add_p_{p['id']}")
@@ -648,13 +644,13 @@ elif mode == 'Cashier' and page == 'New Sale':
                             add_extra_jelly = sk3.checkbox("Extra Jelly (+₱5)", key=f"add_j_{p['id']}")
                             
                             if add_extra_pearl:
-                                chosen_customizations.append("➕ Extra Pearls")
+                                chosen_customizations.append("Extra Pearls")
                                 addon_premium += 500  # FIXED: 500 cents = ₱5.00
                             if add_extra_nata:
-                                chosen_customizations.append("➕ Extra Nata")
+                                chosen_customizations.append("Extra Nata")
                                 addon_premium += 500   # FIXED: 500 cents = ₱5.00
                             if add_extra_jelly:
-                                chosen_customizations.append("➕ Extra Jelly")
+                                chosen_customizations.append("Extra Jelly")
                                 addon_premium += 500   # FIXED: 500 cents = ₱5.00
                                 
                             # Factor extra topping premium directly into the baseline unit cost calculation
