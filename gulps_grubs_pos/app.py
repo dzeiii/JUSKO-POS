@@ -291,11 +291,20 @@ elif mode=='Admin' and page=='Product Management':
                         
                         new_cat = f"{new_base_cat} | Custom:{edit_custom_label}" if (has_custom and edit_custom_label) else new_base_cat
                         
-                        # Build submission tracking layout dict
-                        updated_sizes = {sz: cents_from_peso(pr) for sz, pr in size_inputs.items()}
+                        # Start by copying ALL currently saved database sizes so we don't erase them
+                        updated_sizes = {int(sz): cents_from_peso(pr) for sz, pr in current_sizes.items()}
+                        
+                        # Update standard sizes ONLY if they are active on the screen layout
+                        for sz, pr_val in size_inputs.items():
+                            updated_sizes[int(sz)] = cents_from_peso(pr_val)
+                        
+                        # Add or update the custom size (99) profile independently
                         if has_custom and edit_custom_label:
                             updated_sizes[99] = cents_from_peso(edit_custom_price)
-                            
+                        elif 99 in updated_sizes:
+                            # If the admin unchecks custom, remove it from the dictionary cleanly
+                            del updated_sizes[99]
+                        
                         new_base_price_cents = next(iter(updated_sizes.values()), p['price_cents'])
                     else:
                         # Standard Food Processing Workflow Paths
