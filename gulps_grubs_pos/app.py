@@ -131,20 +131,15 @@ if mode=='Admin' and page=='Dashboard':
 
 elif mode=='Admin' and page=='Product Management':
     st.subheader('Product Catalog Management')
-    tab1, tab2 = st.tabs(['Add product', 'Edit / Delete'])
+    tab1, tab2 = st.tabs(['Add product', 'Edit / Delete', 'Inactive Products'])
     
     with tab1:
-        # MOVED OUTSIDE FOR INTERACTIVE REAL-TIME RENDERING
         classification = st.radio('Product Classification *', 
             ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], 
             horizontal=True
         )
-        
-        # We handle EVERYTHING in a single, clean workspace flow
         st.markdown("---")
         name = st.text_input('Product name *', placeholder='Enter product name', key='prod_name_input').strip()
-        
-        # Initialize form baseline tracking containers
         category = ""
         size_prices = {}
         price = 0.0
@@ -154,16 +149,13 @@ elif mode=='Admin' and page=='Product Management':
             category = st.text_input('Category *', placeholder='e.g. Streetfood, Donut and Waffles').strip()
             price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
             
-        # --- PATH 2: DRINKS (Instant Checkbox Disabling Works Perfectly Here) ---
-                # --- PATH 2: DRINKS ---
+        # --- PATH 2: DRINKS ---
         elif classification == 'Drinks (Gulps)':
             base_category = st.text_input('Category Name *', placeholder='e.g. Milkshake, Float, Milktea').strip()
             
             st.caption('Configure your cup sizes and pricing:')
             s8, s12, s16 = st.columns(3)
             
-            # By embedding classification in the key, Streamlit completely unmounts and resets 
-            # the checkboxes to their default values the moment you click a different classification radio!
             with s8:
                 use8 = st.checkbox('Offer 8 oz', value=False, key=f'{classification}_use_8')
                 price8 = st.number_input('8 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use8, key=f'{classification}_val_8')
@@ -184,19 +176,16 @@ elif mode=='Admin' and page=='Product Management':
             with c_price_col:
                 custom_price = st.number_input('Custom Size Price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use_custom, key=f'{classification}_val_custom')
 
-            # Pack active sizes matching structural parameters
             if use8: size_prices[8] = cents_from_peso(price8)
             if use12: size_prices[12] = cents_from_peso(price12)
             if use16: size_prices[16] = cents_from_peso(price16)
-            
-            # Map custom size details into classification string
+
             if use_custom and custom_label:
                 size_prices[99] = cents_from_peso(custom_price)
                 category = f"{base_category} | Custom:{custom_label}"
             else:
                 category = base_category
-                
-            # Base price fallback selection
+        
             if size_prices:
                 price = next(iter(size_prices.values())) / 100
                 
