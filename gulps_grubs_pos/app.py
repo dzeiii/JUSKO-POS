@@ -21,7 +21,6 @@ def safe_error(exc):
     else: st.error('Something went wrong while saving your changes. No incomplete transaction was committed. Check pos.log for technical details.')
 def cents_from_peso(value): return int(round(float(value)*100))
 
-
 def load_html_template(name, **values):
     """Load a small HTML fragment from templates/ and safely fill placeholders."""
     from html import escape
@@ -43,14 +42,7 @@ def rebuild_heap():
         heap.push(HeapEntry(int(o['priority']),int(o['sequence_no']),int(o['id']),o))
     return heap
 
-# Retro orange-and-yellow diner theme inspired by the Gulps & Grubs brand.
 st.markdown(f'<style>{(APP_DIR / "style.css").read_text(encoding="utf-8")}</style>', unsafe_allow_html=True)
-
-# UI polish layer: clearer hierarchy, stronger brand contrast, and friendlier controls.
-
-
-# Storefront-style top header: orange branded background with navigation integrated into it.
-
 
 try:
     db.init_db()
@@ -81,10 +73,10 @@ with st.container(key='site_header'):
     with page_col:
         st.markdown(load_html_template('nav_label.html', label='NAVIGATION'), unsafe_allow_html=True)
         if mode=='Admin':
-            page=st.radio('Admin navigation',['Dashboard','Products & Inventory','Sales History','Activity History','Pickup Queue'],
+            page=st.radio('Admin navigation',['Dashboard','Product Management','Sales History','Activity History'],
                           horizontal=True,key='admin_page',label_visibility='collapsed')
         elif mode=='Cashier':
-            page=st.radio('Cashier navigation',['New Sale','Order Queue','Last Transaction','History'],
+            page=st.radio('Cashier navigation',['New Sale','Order Queue','Last Transaction','Sales History'],
                           horizontal=True,key='cashier_page',label_visibility='collapsed')
         else:
             page=st.radio('Inventory navigation',['Stock Overview','Restock Products'],
@@ -102,12 +94,15 @@ if mode=='Admin' and page=='Dashboard':
     summary=db.sales_summary(start,end)
     all_products=db.list_products(active_only=True)
     low=[p for p in all_products if p['stock']<=p['low_stock_threshold']]
-    a,b,c,d=st.columns(4)
+    
+    a,b,c,d,e=st.columns(5)
     a.metric('Today’s revenue',money(summary['revenue_cents']))
     b.metric('Completed sales',summary['transactions'])
     c.metric('Active products',len(all_products))
     d.metric('Low-stock alerts',len(low),delta='Needs attention' if low else 'Stock looks good',delta_color='inverse' if low else 'normal')
+    e.metric('High-stock alerts',len(high), help='Products at or above their Admin-defined high-stock threshold.')
     st.caption('Revenue is the total value of recorded sales, not profit. Product costs and operating expenses are not tracked.')
+    
     left,right=st.columns([1.15,1])
     with left:
         st.markdown('#### Low-stock watch')
@@ -126,9 +121,9 @@ if mode=='Admin' and page=='Dashboard':
         daily.append({'Date':day.strftime('%b %d'),'Revenue (₱)':sm['revenue_cents']/100})
     st.bar_chart(pd.DataFrame(daily).set_index('Date'))
 
-elif mode=='Admin' and page=='Products & Inventory':
-    st.subheader('Products & inventory')
-    tab1,tab2=st.tabs(['Add product','Edit / deactivate'])
+elif mode=='Admin' and page=='Product Management':
+    st.subheader('Product Catalog Management')
+    tab1,tab2=st.tabs(['Add product','Edit / Delete'])
     with tab1:
         with st.form('add_product_form',clear_on_submit=True):
             name=st.text_input('Product name *',placeholder='Enter product name').strip()
@@ -238,30 +233,6 @@ elif mode=='Admin' and page=='Activity History':
         st.download_button('Download activity history CSV',pd.DataFrame(rows).to_csv(index=False).encode('utf-8'),'activity_history.csv','text/csv')
     else:
         st.info('No activity matches this search yet.')
-
-elif mode=='Admin' and page=='Pickup Queue':
-    st.subheader('Scheduled pickup queue')
-    st.caption('Priority rule: 1 is most urgent, 5 is least urgent. Orders with equal priority are handled first-in, first-out using their unique sequence number.')
-    with st.form('new_order_form',clear_on_submit=True):
-        customer=st.text_input('Customer name')
-        details=st.text_input('Order details',placeholder='e.g. 2 milk teas, pickup at 4:30 PM')
-        priority=st.select_slider('Priority',options=[1,2,3,4,5],value=3,format_func=lambda x:{1:'1 · Urgent',2:'2 · High',3:'3 · Normal',4:'4 · Low',5:'5 · Flexible'}[x])
-        add_order_btn=st.form_submit_button('Add pending pickup order',type='primary')
-    if add_order_btn:
-        try: oid=db.add_order(customer,details,int(priority),order_type='Pickup'); st.success(f'Pickup order #{oid} added.'); st.rerun()
-        except Exception as e: safe_error(e)
-    heap=rebuild_heap(); next_order=heap.peek()
-    if next_order:
-        st.info(f"Next order: #{next_order.order_id} · {next_order.payload['customer_name']} · Priority {next_order.priority}")
-        if st.button('Mark next order completed',type='primary'):
-            try: db.update_order_status(next_order.order_id,'Completed'); st.success(f'Order #{next_order.order_id} completed.'); st.rerun()
-            except Exception as e: safe_error(e)
-    else: st.success('No pending pickup orders.')
-    all_orders=db.list_orders()
-    if all_orders:
-        st.dataframe(pd.DataFrame([{'Order #':o['id'],'Customer':o['customer_name'],'Details':o['details'],'Priority':o['priority'],'Status':o['status'],'Created':o['created_at'].replace('T',' ')} for o in all_orders]),use_container_width=True,hide_index=True)
-    with st.expander('Heap order diagnostic'):
-        st.write([{'order_id':e.order_id,'priority':e.priority,'sequence':e.sequence} for e in heap.ordered_entries()]); st.caption('Heap insert and extract are O(log n); viewing the top item is O(1).')
 
 elif mode=='Cashier' and page=='New Sale':
     st.subheader('New sale')
@@ -429,7 +400,7 @@ elif mode=='Cashier' and page=='Last Transaction':
         st.dataframe(pd.DataFrame([{'Code':x['code'],'Product':x['name'],'Size':(f"{x.get('size_oz')} oz" if x.get('size_oz') else '—'),'Options':x.get('customizations',''),'Qty':x['quantity'],'Unit price':money(x['unit_price_cents']),'Subtotal':money(x['subtotal_cents'])} for x in sale['items']]),use_container_width=True,hide_index=True)
         st.caption('The database transaction has committed successfully; inventory and transaction history have been updated.')
 
-elif mode=='Cashier' and page=='History':
+elif mode=='Cashier' and page=='Sales History':
     st.subheader('Cashier history')
     st.caption('Search completed sales and cashier actions. Records remain saved in SQLite after the app is closed.')
     h1,h2=st.columns([1,2])
