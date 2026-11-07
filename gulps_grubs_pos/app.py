@@ -1,4 +1,4 @@
-rom datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 import logging
 import sqlite3
