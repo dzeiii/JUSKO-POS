@@ -246,27 +246,17 @@ def deactivate_product(product_id, db_path=DB_PATH):
         if cur.rowcount != 1: raise ValueError('Product not found or already inactive.')
 
 def delete_product(product_id, db_path=DB_PATH):
-    """Safely handles product removal by verifying transaction history dependencies.
-    Returns a tuple: (success_bool, message_str)
+    """Executes a permanent hard-delete of the target product profile row.
+    
+    WARNING: This skips deactivation and scrubs the profile completely from the system.
     """
     with connection(db_path) as c:
-        # 1. Check if this product is linked to past sales transactions
-        has_sales = c.execute('''
-            SELECT 1 FROM transaction_items 
-            WHERE product_id = ? LIMIT 1
-        ''', (product_id,)).fetchone()
-        
         try:
-            if not has_sales:
-                # HARD DELETE: Safely wipe it from the database completely since it was never sold!
-                c.execute('DELETE FROM products WHERE id = ?', (product_id,))
-                return True, "Product deleted permanently from the database catalog."
-            else:
-                # SOFT DELETE: Hide it from views so past transactions don't lose their data alignment references
-                c.execute('UPDATE products SET active = 0 WHERE id = ?', (product_id,))
-                return True, "Product has past sales logs. It has been deactivated and hidden to protect transaction history."
+            # Executes a complete, permanent scrub of the matching row identifier index
+            c.execute('DELETE FROM products WHERE id = ?', (product_id,))
+            return True, "Product has been permanently purged from the database catalog files."
         except sqlite3.Error as e:
-            return False, f"Database execution failed: {str(e)}"
+            return False, f"Database deletion failed: {str(e)}"
 
 def restock_product(product_id, quantity, db_path=DB_PATH):
     if isinstance(quantity,bool) or not isinstance(quantity,int) or quantity<1: raise ValueError('Restock quantity must be a positive whole number.')
