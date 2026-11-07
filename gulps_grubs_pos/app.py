@@ -539,8 +539,8 @@ elif mode == 'Cashier' and page == 'Dashboard':
         today + timedelta(days=1),
         time.min
     ).isoformat()
-    shift_summary = db.sales_summary(start_time, end_time)
-    recent_sales = db.transaction_history(start_time, end_time)[:5]
+    shift_summary = db.sales_summary(start, end)
+    recent_sales = db.transaction_history(start, end)[:5]
     
     try:
         with db.connection() as conn:
