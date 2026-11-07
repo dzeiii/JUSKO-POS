@@ -103,6 +103,14 @@ except Exception as e:
 ### ADMIN MODE 
 #==================
 if mode=='Admin' and page=='Dashboard':
+    if mode == 'Admin' and page == 'Dashboard':
+    from datetime import datetime, time, timedelta
+    
+    # Force daily charts to align perfectly with storefront operating shifts
+    ph_today = (datetime.utcnow() + timedelta(hours=8)).date()
+    start_time = datetime.combine(ph_today, time.min).isoformat()
+    end_time = datetime.combine(ph_today + timedelta(days=1), time.min).isoformat()
+    
     st.subheader('Business overview')
     today=date.today(); start=datetime.combine(today,time.min).isoformat(); end=datetime.combine(today+timedelta(days=1),time.min).isoformat()
     summary=db.sales_summary(start,end)
@@ -469,7 +477,14 @@ elif mode=='Admin' and page=='Product Management':
         else: 
             st.info('No catalog products match your search keyword or selected category filter.')
 
-elif mode=='Admin' and page=='Sales History':
+elif mode=='Admin' and page=='Sales Transaction History':
+    st.subheader('📜 Sales Transaction History')
+    from datetime import datetime, timedelta
+    ph_today = (datetime.utcnow() + timedelta(hours=8)).date()
+    # Initialize interactive calendar pickers to use local storefront dates on screen load
+    start_date = st.date_input('Start Date', value=ph_today - timedelta(days=7))
+    end_date = st.date_input('End Date', value=ph_today)
+
     st.subheader('Sales history')
     c1,c2=st.columns(2); start_date=c1.date_input('From date',value=date.today()-timedelta(days=30)); end_date=c2.date_input('To date',value=date.today())
     if start_date>end_date: st.error('The start date must not be after the end date.')
@@ -504,12 +519,10 @@ elif mode=='Admin' and page=='Activity History':
 elif mode == 'Cashier' and page == 'Dashboard':
     st.subheader('📊 Cashier Shift Workspace Dashboard')
     
-    # 1. Fetch running shift parameters filtered for Today only
-    from datetime import date, datetime, time, timedelta
-    today = date.today()
-    start_time = datetime.combine(today, time.min).isoformat()
-    end_time = datetime.combine(today + timedelta(days=1), time.min).isoformat()
-    
+    from datetime import datetime, time, timedelta
+    ph_today = (datetime.utcnow() + timedelta(hours=8)).date()
+    start_time = datetime.combine(ph_today, time.min).isoformat()
+    end_time = datetime.combine(ph_today + timedelta(days=1), time.min).isoformat()
     shift_summary = db.sales_summary(start_time, end_time)
     recent_sales = db.transaction_history(start_time, end_time)[:5]
     
@@ -876,6 +889,13 @@ elif mode == 'Cashier' and page == 'Last Transaction':
         st.dataframe(pd.DataFrame([{'Code': x['code'], 'Product': x['name'], 'Qty': x['quantity'], 'Unit price': money(x['unit_price_cents']), 'Subtotal': money(x['subtotal_cents'])} for x in sale['items']]), use_container_width=True, hide_index=True) 
 
 elif mode=='Cashier' and page=='Sales History':
+    st.subheader('📜 Sales Transaction History')
+    from datetime import datetime, timedelta
+    ph_today = (datetime.utcnow() + timedelta(hours=8)).date()
+    # Initialize interactive calendar pickers to use local storefront dates on screen load
+    start_date = st.date_input('Start Date', value=ph_today - timedelta(days=7))
+    end_date = st.date_input('End Date', value=ph_today)
+
     st.subheader('Cashier history')
     st.caption('Search completed sales and cashier actions. Records remain saved in SQLite after the app is closed.')
     h1,h2=st.columns([1,2])
