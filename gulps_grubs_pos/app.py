@@ -686,8 +686,18 @@ elif mode == 'Cashier' and page == 'New Sale':
         else:
             for item in items:
                 with st.container(border=True):
-                    c1, c2 = st.columns([2, 1]); c1.markdown(f"**{item['name']}**\n\n{money(item['unit_price_cents'])} each")
+                    # --- FIXED: Format size 99 dynamically to '22 oz' in your cart display column ---
+                    if item.get('size_oz'):
+                        size_lbl = "22 oz" if int(item['size_oz']) == 99 else f"{item['size_oz']} oz"
+                        display_title = f"**{item['name']} ({size_lbl})**"
+                    else:
+                        display_title = f"**{item['name']}**"
+                    options_label = f"\n\n<small style='color:gray;'>{item['customizations']}</small>" if item.get('customizations') else ""
+                    
+                    c1, c2 = st.columns([2, 1])
+                    c1.markdown(f"{display_title}{options_label}\n\n{money(item['unit_price_cents'])} each", unsafe_allow_html=True)
                     c2.markdown(f"**{money(item['subtotal_cents'])}**")
+
                     qcol, rmcol = st.columns([2, 1])
                     new_q = qcol.number_input(
                         'Quantity', 
