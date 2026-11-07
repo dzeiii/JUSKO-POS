@@ -132,7 +132,7 @@ if mode=='Admin' and page=='Dashboard':
 elif mode=='Admin' and page=='Product Management':
     st.subheader('Product Catalog Management')
     tab1,tab2=st.tabs(['Add product','Edit / Delete'])
-       with tab1:
+    with tab1:
         with st.form('add_product_form', clear_on_submit=True):
             name = st.text_input('Product name *', placeholder='E
             classification = st.radio('Product Classification *', 
