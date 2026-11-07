@@ -572,40 +572,94 @@ elif mode == 'Cashier' and page == 'New Sale':
                         if is_drink:
                             st.markdown("##### 🎛️ Drink Configuration")
                             
-                            # 1. HANDLE BASE-INCLUDED SINKERS (FREE / REMOVABLE)
-                            if is_milktea:
-                                keep_base = st.checkbox("Include Pearls (Default Sinker Included)", value=True, key=f"base_sink_{p['id']}")
-                                if not keep_base:
-                                    chosen_customizations.append("❌ NO PEARLS")
-                            elif is_milkshake:
-                                keep_base = st.checkbox("Include Ice Cream / Cream (Included)", value=True, key=f"base_sink_{p['id']}")
-                                if not keep_base:
-                                    chosen_customizations.append("❌ NO CREAM")
-                            elif is_lemonade:
-                                keep_base = st.checkbox("Include Nata / Jelly (Default Sinker Included)", value=True, key=f"base_sink_{p['id']}")
-                                if not keep_base:
-                                    chosen_customizations.append("❌ NO NATA/JELLY")
+                                                    # --- 🧋 DYNAMIC INCLUDED SINKERS, EXCLUSIONS & PAID ADD-ONS ---
+                        chosen_customizations = []
+                        addon_premium = 0
+                        
+                        # Identify specific product profiles cleanly
+                        prod_name_lower = p['name'].lower()
+                        cat_lower = display_cat_clean.lower()
+                        
+                        is_milktea = 'milktea' in cat_lower or 'milktea' in prod_name_lower
+                        is_milkshake = 'milkshake' in cat_lower or 'milkshake' in prod_name_lower
+                        is_lemonade_slushie = 'slushie' in cat_lower or 'slushie' in prod_name_lower
+                        is_lemonade = ('lemonade' in cat_lower or 'lemonade' in prod_name_lower) and not is_lemonade_slushie
+                        is_coffee = 'coffee' in cat_lower or 'coffee' in prod_name_lower
 
-                            # 2. OPTIONAL PAID PREMIUM ADD-ONS (+₱10.00 / +₱15.00)
+                        if is_drink:
+                            st.markdown("Sinker")
+                            
+                            # 1. HANDLE BASE-INCLUDED SINKERS / EXCLUSIONS BY TYPE
+                            if is_milktea:
+                                sk_none = st.checkbox("No Sinkers (None)", value=False, key=f"none_sink_{p['id']}")
+                                if sk_none:
+                                    chosen_customizations.append("❌ NO SINKERS")
+                                else:
+                                    keep_pearls = st.checkbox("Include Pearls (Included)", value=True, key=f"base_pearl_{p['id']}")
+                                    if not keep_pearls:
+                                        chosen_customizations.append("❌ NO PEARLS")
+
+                            elif is_milkshake:
+                                sk_none = st.checkbox("No Sinkers (None)", value=False, key=f"none_sink_{p['id']}")
+                                if sk_none:
+                                    chosen_customizations.append("❌ NO SINKERS")
+                                else:
+                                    # Fixed your unclosed string syntax bug here:
+                                    keep_pearls = st.checkbox("Include Pearls (Included)", value=True, key=f"base_pearl_{p['id']}")
+                                    keep_nata = st.checkbox("Include Nata (Included)", value=True, key=f"base_nata_{p['id']}")
+                                    if not keep_pearls:
+                                        chosen_customizations.append("❌ NO PEARLS")
+                                    if not keep_nata:
+                                        chosen_customizations.append("❌ NO NATA")
+
+                            elif is_lemonade:
+                                sk_none = st.checkbox("No Sinkers (None)", value=False, key=f"none_sink_{p['id']}")
+                                if sk_none:
+                                    chosen_customizations.append("❌ NO SINKERS")
+                                else:
+                                    keep_jelly = st.checkbox("Include Rainbow Jelly (Included)", value=True, key=f"base_jelly_{p['id']}")
+                                    if not keep_jelly:
+                                        chosen_customizations.append("❌ NO RAINBOW JELLY")
+
+                            elif is_lemonade_slushie:
+                                sk_none = st.checkbox("No Sinkers (None)", value=False, key=f"none_sink_{p['id']}")
+                                if sk_none:
+                                    chosen_customizations.append("❌ NO SINKERS")
+                                else:
+                                    keep_nata = st.checkbox("Include Nata (Included)", value=True, key=f"base_nata_{p['id']}")
+                                    if not keep_nata:
+                                        chosen_customizations.append("❌ NO NATA")
+
+                            elif is_coffee:
+                                sk_none = st.checkbox("No Sinkers (None)", value=False, key=f"none_sink_{p['id']}")
+                                if sk_none:
+                                    chosen_customizations.append("❌ NO SINKERS")
+                                else:
+                                    keep_cjelly = st.checkbox("Include Coffee Jelly (Included)", value=True, key=f"base_cjelly_{p['id']}")
+                                    if not keep_cjelly:
+                                        chosen_customizations.append("❌ NO COFFEE JELLY")
+
+                            # 2. OPTIONAL PAID PREMIUM ADD-ONS (+₱5.00 EACH)
                             st.markdown("##### ➕ Premium Add-ons")
                             sk1, sk2, sk3 = st.columns(3)
                             
-                            add_extra_pearl = sk1.checkbox("Extra Pearls (+₱10)", key=f"add_p_{p['id']}")
-                            add_extra_nata = sk2.checkbox("Extra Nata (+₱10)", key=f"add_n_{p['id']}")
-                            add_extra_jelly = sk3.checkbox("Extra Jelly (+₱15)", key=f"add_j_{p['id']}")
+                            add_extra_pearl = sk1.checkbox("Extra Pearls (+₱5)", key=f"add_p_{p['id']}")
+                            add_extra_nata = sk2.checkbox("Extra Nata (+₱5)", key=f"add_n_{p['id']}")
+                            add_extra_jelly = sk3.checkbox("Extra Jelly (+₱5)", key=f"add_j_{p['id']}")
                             
                             if add_extra_pearl:
                                 chosen_customizations.append("➕ Extra Pearls")
-                                addon_premium += 1000  # 1000 cents = ₱10.00
+                                addon_premium += 500  # FIXED: 500 cents = ₱5.00
                             if add_extra_nata:
                                 chosen_customizations.append("➕ Extra Nata")
-                                addon_premium += 1000
+                                addon_premium += 500   # FIXED: 500 cents = ₱5.00
                             if add_extra_jelly:
                                 chosen_customizations.append("➕ Extra Jelly")
-                                addon_premium += 1500  # 1500 cents = ₱15.00
+                                addon_premium += 500   # FIXED: 500 cents = ₱5.00
                                 
                             # Factor extra topping premium directly into the baseline unit cost calculation
                             unit_price += addon_premium
+
 
                         # Open customization notes box for custom requests (e.g., Sugar Level)
                         custom_note = st.text_input(
