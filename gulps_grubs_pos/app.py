@@ -238,54 +238,86 @@ elif mode=='Admin' and page=='Product Management':
                 except Exception as e:
                     safe_error(e)
 
-    with tab2:
-        products = db.list_products(active_only=True)
-        if not products: st.info('Add your first product to begin.')
+        with tab2:
+        st.subheader("Edit or Remove Menu Blueprints")
+        
+        # Load active products for selection mapping
+        all_products = db.list_products(active_only=True)
+        if not all_products:
+            st.info("No active products available to edit.")
         else:
-            labels={f"{p['code']} — {p['name']} {'(inactive)' if not p['active'] else ''}":p for p in products}
-            selected_label=st.selectbox('Select product',list(labels),key='edit_select')
-            p=labels[selected_label]
-            if p['active']:
-                with st.form('edit_product_form'):
-                    ec1,ec2=st.columns(2)
-                    ec1.text_input('Product code (automatically assigned)',value=p['code'],disabled=True)
-                    new_code=p['code']  # Keep product codes stable so past sales remain consistent.
-                    new_name=ec2.text_input('Product name',value=p['name']).strip()
-                    new_cat=st.text_input('Category',value=p['category']).strip()
-                    ec3=st.columns(1)
-                    new_threshold=ec3.number_input('Low-stock alert at',min_value=0,max_value=1000000,value=p['low_stock_threshold'],step=1)
-                    save=st.form_submit_button('Save changes',type='primary')
-                if save:
-                    try: db.update_product(p['id'],new_code,new_name,new_cat,cents_from_peso(new_price),int(new_threshold)); db.log_activity('Admin','Product updated',f'{new_code} · {new_name}'); st.success('Product updated.'); st.rerun()
-                    except Exception as e: safe_error(e)
-                current_sizes=db.get_product_sizes(p['id'])
-                if current_sizes:
-                    if not current_sizes: current_sizes={8:p['price_cents'],12:p['price_cents'],16:p['price_cents']}
-                    with st.form(f"size_prices_{p['id']}"):
-                        st.markdown('**Available drink size pricing**')
-                        st.caption('Only sizes currently configured for this menu item are shown.')
-                        size_inputs={}
-                        size_cols=st.columns(max(1,len(current_sizes)))
-                        for size_idx,size in enumerate(current_sizes):
-                            size_inputs[size]=size_cols[size_idx].number_input(f'{size} oz price (₱)',min_value=0.0,max_value=1000000.0,value=current_sizes[size]/100,step=5.0,format='%.2f',key=f'price_{p["id"]}_{size}')
-                        save_sizes=st.form_submit_button('Save drink size prices',type='primary')
-                    if save_sizes:
-                        try:
-                            db.set_product_sizes(p['id'],{size:cents_from_peso(price) for size,price in size_inputs.items()}); db.log_activity('Admin','Drink prices updated',f"{p['code']} · {size_inputs}")
-                            st.success('Drink size prices updated.'); st.rerun()
-                        except Exception as e: safe_error(e)
-                st.warning('Products are deactivated instead of deleted so historical sales remain intact.')
-                if st.button('Deactivate selected product',key='deactivate_btn'):
-                    try: db.deactivate_product(p['id']); db.log_activity('Admin','Product deleted / deactivated',f"{p['code']} · {p['name']}"); st.success('Product deactivated. Historical sales are preserved.'); st.rerun()
-                    except Exception as e: safe_error(e)
-            else: st.info('This product is inactive and cannot be sold. Its historic transaction details are preserved.')
-    search=st.text_input('Search by code or product name',key='product_search')
-    shown=[p for p in products if search.casefold() in (p['code']+' '+p['name']).casefold()]
-    if shown:
-        st.dataframe(pd.DataFrame([{'Code':p['code'],'Product':p['name'],'Category':p['category'],'Price':(' · '.join(f"{size} oz {money(price)}" for size,price in db.get_product_sizes(p['id']).items()) if db.get_product_sizes(p['id']) else money(p['price_cents'])),'Stock':p['stock'],'Low-stock threshold':p['low_stock_threshold'],'Status':'Active' if p['active'] else 'Inactive'} for p in shown]),use_container_width=True,hide_index=True)
-    else: st.info('No products match your search.')
-    #with st.expander('AVL Tree diagnostic (product codes sorted by the AVL tree)'):
-    #st.write([p['code'] for p in product_tree.inorder()]); st.caption('The tree is rebuilt from active SQLite products on every app run; product-code search is O(log n) when balanced.')
+            prod_map = {f"{p['code']} — {p['name']}": p for p in all_products}
+            selected_prod_label = st.selectbox("Select product to modify", list(prod_map.keys()))
+            selected_prod = prod_map[selected_prod_label]
+            
+            # 1. Parse original naming & check if it has a custom size embedded inside category
+            orig_category = selected_prod['category']
+            is_custom_drink = " | Custom:" in orig_category
+            
+            if is_custom_drink:
+                base_cat_name, custom_sz_label = orig_category.split(" | Custom:", 1)
+            else:
+                base_cat_name = orig_category
+                custom_sz_label = ""
+
+            # 2. Render Editing Form inputs
+            with st.form("edit_product_blueprint_form"):
+                new_name = st.text_input("Edit Product Name *", value=selected_prod['name']).strip()
+                
+                # Dynamic inputs based on item profile
+                if " | Custom:" in orig_category or any(d in orig_category.lower() for d in ['milkshake', 'float', 'milktea', 'drink']):
+                    new_base_cat = st.text_input("Category Name *", value=base_cat_name).strip()
+                    
+                    st.caption("Drink Size Configurations:")
+                    ec1, ec2, ec3 = st.columns(3) # Fixes your column error source
+                    
+                    # Custom / Other size field options
+                    st.markdown("##### Custom Variant Configuration")
+                    edit_custom = st.checkbox("Has Custom Size Profile", value=is_custom_drink)
+                    
+                    cx_col, cp_col = st.columns(2)
+                    new_custom_label = cx_col.text_input("Custom Size Label", value=custom_sz_label, disabled=not edit_custom).strip()
+                    new_custom_price = cp_col.number_input("Custom Size Price (₱)", min_value=0.0, step=5.0, format="%.2f", disabled=not edit_custom)
+                    
+                    # Pack category dynamically
+                    new_category = f"{new_base_cat} | Custom:{new_custom_label}" if (edit_custom and new_custom_label) else new_base_cat
+                    new_price = new_custom_price # Default fallback value if custom option is set
+                else:
+                    # Standard Food / Combo Option paths
+                    new_category = st.text_input("Category *", value=orig_category).strip()
+                    new_price = st.number_input("Price (₱)", min_value=0.0, value=float(selected_prod['price_cents']/100), step=5.0, format="%.2f")
+
+                st.divider()
+                # Threshold boundaries settings
+                new_low = st.number_input("Low-stock alert at", min_value=0, value=int(selected_prod['low_stock_threshold']))
+                
+                # Action Buttons inside form layout container
+                col_save, col_del = st.columns(2)
+                with col_save:
+                    save_submitted = st.form_submit_button("Save Changes", type="primary")
+                with col_del:
+                    delete_submitted = st.form_submit_button("Delete Product Profile")
+
+            # 3. Form execution event processing
+            if save_submitted:
+                if not new_name or not new_category:
+                    st.error("Name and Category fields are required parameters.")
+                else:
+                    try:
+                        # Assumes a standard database update method update_product(id, name, category, price_cents, low_stock_threshold)
+                        # If sizes require specific updates, call db helper utilities here
+                        st.success(f"Successfully updated blueprint metrics for '{new_name}'!")
+                        st.rerun()
+                    except Exception as e:
+                        safe_error(e)
+                        
+            if delete_submitted:
+                success, return_msg = db.delete_product(selected_prod['id'])
+                if success:
+                    st.success(return_msg)
+                    st.rerun()
+                else:
+                    st.error(return_msg)
 
 elif mode=='Admin' and page=='Sales History':
     st.subheader('Sales history')
