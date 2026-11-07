@@ -238,7 +238,7 @@ elif mode=='Admin' and page=='Product Management':
                 except Exception as e:
                     safe_error(e)
 
-                with tab2:
+        with tab2:
             st.subheader("Edit or Delete Product")
             
             # Load all products using your uniform list call
@@ -383,70 +383,65 @@ elif mode=='Admin' and page=='Product Management':
         else: 
             st.info('No products match your search.')
 
+        # Tab 3 Configuration with Safe Automated Deletion Logic
     with tab3:
-            st.subheader("Archived & Deactivated Products")
-            st.markdown(
-                "These products are currently hidden from Cashier ordering screens. "
-                "Their historical transaction records remain completely intact to preserve revenue reporting stability."
-            )
+        st.subheader("Archived & Deactivated Products")
+        st.markdown(
+            "Manage archived menu item blueprints here. Active item records can be permanently deleted "
+            "or securely deactivated depending on past checkout historical constraints."
+        )
+        
+        # Load absolute checklist inventory matrix
+        all_items = db.list_products(active_only=False)
+        inactive_items = [p for p in all_items if not p['active']]
+        
+        if not inactive_items:
+            st.success("🎉 No archived products found! Your active menu catalog is clean.")
+        else:
+            search_archived = st.text_input('Search archived profiles by code or name', key='archive_search_bar')
+            filtered_archive = [
+                p for p in inactive_items 
+                if search_archived.casefold() in (p['code'] + ' ' + p['name']).casefold()
+            ]
             
-            # Load all products, filtering for ONLY inactive rows
-            all_items = db.list_products(active_only=False)
-            inactive_items = [p for p in all_items if not p['active']]
-            
-            if not inactive_items:
-                st.success("🎉 Your catalog is clean! There are currently no deactivated or archived items.")
+            if not filtered_archive:
+                st.info("No archived items match your search term.")
             else:
-                # Inline search filtering utility built right into the archive tab
-                search_archived = st.text_input('Search archived profiles by code or name', key='archive_search_bar')
-                filtered_archive = [
-                    p for p in inactive_items 
-                    if search_archived.casefold() in (p['code'] + ' ' + p['name']).casefold()
-                ]
-                
-                if not filtered_archive:
-                    st.info("No archived items match your search term.")
-                else:
-                    st.caption(f"Showing {len(filtered_archive)} deactivated menu item blueprints:")
-                    
-                    # Render items in a clean, professional grid matrix with contextual action items
-                    for item in filtered_archive:
-                        with st.container(border=True):
-                            col_details, col_action = st.columns([4, 1.2], vertical_alignment="center")
-                            
-                            with col_details:
-                                st.markdown(f"### {item['name']}")
-                                
-                                # Parse custom size details out of string mapping layers if applicable
-                                display_category = item['category'].split(" | Custom:", 1)[0] if " | Custom:" in item['category'] else item['category']
-                                
-                                # Fetch and display its original pricing configurations
+                for item in filtered_archive:
+                    with st.container(border=True):
+                        col_details, col_restore, col_purge = st.columns([3.5, 1, 1], vertical_alignment="center")
+                        
+                        with col_details:
+                            st.markdown(f"### {item['name']}")
+                            display_category = item['category'].split(" | Custom:", 1)[0] if " | Custom:" in item['category'] else item['category']
+                            st.markdown(f"**Code:** `{item['code']}`  |  **Category:** *{display_category}*")
+                        
+                        # 1. Action Button 1: Reactivate Product Profile
+                        with col_restore:
+                            if st.button("Reactivate", key=f"rest_btn_{item['id']}", use_container_width=True):
                                 try:
-                                    item_sizes = db.get_product_sizes(item['id'])
-                                except Exception:
-                                    item_sizes = {}
+                                    with db.connection() as _conn:
+                                        _conn.execute('UPDATE products SET active = 1 WHERE id = ?', (item['id'],))
+                                    db.log_activity('Admin', 'Product reactivated', f"{item['code']} · {item['name']}")
+                                    st.success(f"Restored '{item['name']}'!")
+                                    st.rerun()
+                                except Exception as e: safe_error(e)
+                                
+                        # 2. Action Button 2: Delete Row From Database
+                        with col_purge:
+                            if st.button("Delete", key=f"purge_btn_{item['id']}", type="primary", use_container_width=True):
+                                try:
+                                    # Call your dual delete verification method inside database.py
+                                    success, return_msg = db.delete_product(item['id'])
+                                    db.log_activity('Admin', 'Product delete action processed', f"{item['code']} · {item['name']}")
                                     
-                                if item_sizes:
-                                    price_desc = ' · '.join(f"**{sz if sz != 99 else 'Custom'}oz:** ₱{pr/100:,.2f}" for sz, pr in item_sizes.items())
-                                else:
-                                    price_desc = f"**Base Price:** ₱{item['price_cents']/100:,.2f}"
-                                    
-                                st.markdown(f"**Code:** `{item['code']}`  |  **Category:** *{display_category}*")
-                                st.markdown(f"💰 {price_desc}")
-                            
-                            with col_action:
-                                # Instant programmatic profile recovery action button
-                                if st.button(f"Reactivate", key=f"restore_btn_{item['id']}", type="secondary", use_container_width=True):
-                                    try:
-                                        with db.connection() as _conn:
-                                            _conn.execute('UPDATE products SET active = 1 WHERE id = ?', (item['id'],))
-                                        
-                                        # Log activity trail entries cleanly matching your schema parameters
-                                        db.log_activity('Admin', 'Product reactivated', f"{item['code']} · {item['name']}")
-                                        st.success(f"Successfully restored '{item['name']}' back to active status!")
-                                        st.rerun()
-                                    except Exception as e:
-                                        safe_error(e)
+                                    if success:
+                                        st.success(return_msg)
+                                    else:
+                                        st.error(return_msg)
+                                    st.rerun()
+                                except Exception as e: safe_error(e)
+
 
 elif mode=='Admin' and page=='Sales History':
     st.subheader('Sales history')
