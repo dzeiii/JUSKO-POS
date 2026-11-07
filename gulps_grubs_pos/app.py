@@ -24,7 +24,7 @@ def cents_from_peso(value): return int(round(float(value)*100))
 def load_html_template(name, **values):
     """Load a small HTML fragment from templates/ and safely fill placeholders."""
     from html import escape
-    template_path = APP_DIR / 'templates' / name
+    template_path = APP_DIR / 'templates' / templates
     content = template_path.read_text(encoding='utf-8')
     for key, value in values.items():
         content = content.replace('{{ ' + key + ' }}', escape(str(value)))
@@ -508,37 +508,36 @@ elif mode == 'Cashier' and page == 'New Sale':
                     # --- FIX: Ensure these two definition lines are right here at the top! ---
                     sizes = db.get_product_sizes(p['id'])
                     is_drink = bool(sizes)
-                    
+                                        if " | Custom:" in p['category']:
+                        cat_parts = p['category'].split(" | Custom:", 1)
+                        display_cat_clean = str(cat_parts[0]).strip()
+                        custom_size_text = str(cat_parts[1]).strip()
+                    else:
+                        display_cat_clean = str(p['category']).strip()
+                        custom_size_text = ""
+
                     if is_drink:
                         price_parts = []
                         for size, price in sizes.items():
-                            if int(size) == 99 and " | Custom:" in p['category']:
-                                custom_label = p['category'].split(" | Custom:", 1)[1].strip()
-                                price_parts.append(f"{custom_label} {money(price)}")
+                            if int(size) == 99 and custom_size_text:
+                                price_parts.append(f"{custom_size_text} {money(price)}")
                             else:
                                 price_parts.append(f"{size} oz {money(price)}")
                         price_line = ' · '.join(price_parts)
                     else:
                         price_line = money(p['price_cents'])
-                    
-                    cat_parts = p['category'].split(" | Custom:", 1)
-                    display_cat_clean = cat_parts[0].strip() if cat_parts else p['category']
-                    
-                    # 2. FIXED: Pass variables directly by position and explicit names. 
-                    # This completely bypasses dictionary keyword unpack collisions!
-                    card_html = load_html_template(
-                        'product_card.html',           # Matches the first argument: name
-                        name=str(p['name']),           # Fills {{ name }} inside your HTML card
-                        product_name=str(p['name']),   # Fills {{ product_name }} if used instead
-                        code=str(p['code']),           # Fills {{ code }}
-                        category=str(display_cat_clean), # Fills {{ category }}
-                        price=str(price_line),         # Fills {{ price }}
-                        price_line=str(price_line),    # Fills {{ price_line }}
-                        stock=str(int(p['stock']))     # Fills {{ stock }}
-                    )
-                    
-                    st.markdown(card_html, unsafe_allow_html=True)
 
+                    card_html = load_html_template(
+                        'product_card.html',
+                        name=str(p['name']),
+                        product_name=str(p['name']),
+                        code=str(p['code']),
+                        category=str(display_cat_clean),
+                        price=str(price_line),
+                        price_line=str(price_line),
+                        stock=str(int(p['stock']))
+                    )
+                    st.markdown(card_html, unsafe_allow_html=True)
                     
                     with st.form(f"add_cart_{p['id']}"):
                         size_oz = None
