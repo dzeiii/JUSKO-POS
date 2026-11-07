@@ -544,46 +544,24 @@ elif mode == 'Cashier' and page == 'Dashboard':
     
     st.divider()
     
-    # 3. Two-Column Dashboard Information Grid Panels
-    dash_left, dash_right = st.columns([1.2, 1.0], gap="large")
+    # 3. Full-Width Clean Information Ledger
+    st.markdown("#### 📜 Recent Shift Receipts")
+    st.caption("A quick-reference scroll log of your last few completed checkouts:")
     
-    with dash_left:
-        st.markdown("#### 📜 Recent Shift Receipts")
-        st.caption("A quick-reference scroll log of your last few completed checkouts:")
-        
-        if not recent_sales:
-            st.info("No customer transactions have been recorded during your active shift window yet.")
-        else:
-            receipt_ledger = []
-            for r in recent_sales:
-                # Extract short time representation for easy scanning on the terminal
-                short_time = r['created_at'].split('T')[1][:5]
-                receipt_ledger.append({
-                    "Receipt #": f"TX-{r['id']}",
-                    "Timestamp": short_time,
-                    "Cashier Desk": r['cashier_label'],
-                    "Total Bill": money(r['total_cents'])
-                })
-            st.dataframe(pd.DataFrame(receipt_ledger), use_container_width=True, hide_index=True)
-            
-    with dash_right:
-        st.markdown("#### ⚡ Cashier Quick Actions")
-        st.caption("Common shortcuts to navigate your storefront workspace immediately:")
-        
-        act_col1, act_col2 = st.columns(2)
-        
-        with act_col1:
-            # FIXED: Avoid key crashes by passing unique widget keys and wrapping state alterations cleanly
-            if st.button("🛒 Ring Up New Sale\n(Open Menu Grid)", key="btn_shortcut_new_sale", use_container_width=True, type="secondary"):
-                st.session_state['cashier_page'] = 'New Sale'
-                st.rerun()
-            
-        with act_col2:
-            if st.button("📋 Dispatch Orders\n(View Active Tickets)", key="btn_shortcut_dispatch", use_container_width=True, type="secondary"):
-                st.session_state['cashier_page'] = 'Pickup Queue Priority'
-                st.rerun()
-
-
+    if not recent_sales:
+        st.info("No customer transactions have been recorded during your active shift window yet.")
+    else:
+        receipt_ledger = []
+        for r in recent_sales:
+            # Clean up timestamp format for scannability
+            short_time = r['created_at'].replace('T', ' ')[:16]
+            receipt_ledger.append({
+                "Receipt #": f"TX-{r['id']}",
+                "Timestamp": short_time,
+                "Cashier Desk": r['cashier_label'],
+                "Total Bill": money(r['total_cents'])
+            })
+        st.dataframe(pd.DataFrame(receipt_ledger), use_container_width=True, hide_index=True)
 
 elif mode == 'Cashier' and page == 'New Sale':
     st.subheader('New Sale')
