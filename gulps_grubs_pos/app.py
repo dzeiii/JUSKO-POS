@@ -131,7 +131,7 @@ if mode=='Admin' and page=='Dashboard':
 
 elif mode=='Admin' and page=='Product Management':
     st.subheader('Product Catalog Management')
-    tab1, tab2 = st.tabs(['Add product', 'Edit / Delete', 'Inactive Products'])
+    tab1, tab2, tab3 = st.tabs(['Add product', 'Edit / Delete', 'Inactive Products'])
     
     with tab1:
         classification = st.radio('Product Classification *', 
