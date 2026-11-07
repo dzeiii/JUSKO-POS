@@ -614,7 +614,7 @@ elif mode == 'Cashier' and page == 'New Sale':
 
                             # 2. FIXED: Paid Premium Add-on Checkboxes Layout
                             st.markdown("### Add-ons")
-                            sk1, sk2, sk3, sk4 = st.columns(3)
+                            sk1, sk2, sk3, sk4 = st.columns(4)
                             
                             add_extra_pearl = sk1.checkbox("Extra Pearls (+₱5)", key=f"add_p_{p['id']}")
                             add_extra_nata = sk2.checkbox("Extra Nata (+₱5)", key=f"add_n_{p['id']}")
