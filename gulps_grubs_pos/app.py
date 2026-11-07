@@ -522,17 +522,60 @@ elif mode == 'Cashier' and page == 'New Sale':
                         unsafe_allow_html=True
                     )
                     with st.form(f"add_cart_{p['id']}"):
-                        qty = st.number_input('Qty', min_value=1, max_value=max(1, int(display_stock)), value=1, step=1, key=f"qty_{p['id']}", disabled=display_stock < 1)
-                        add = st.form_submit_button('Add to cart', use_container_width=True, disabled=display_stock < 1)
+                        size_oz = None
+                        unit_price = p['price_cents']
+                        
+                        if is_drink:
+                            available_sizes = list(sizes.keys())
+                            
+                            def size_label_formatter(z):
+                                if int(z) == 99 and " | Custom:" in p['category']:
+                                    return p['category'].split(" | Custom:", 1)[1].strip()
+                                return f"{z} oz"
+                                
+                            size_oz = st.radio('Choose cup size', available_sizes, format_func=size_label_formatter, horizontal=True, key=f"size_{p['id']}")
+                            unit_price = sizes[size_oz]
+                            st.caption(f"Selected size price: {money(unit_price)}")
+
+                        # --- 🥤 ADDED: REAL-TIME CUSTOMIZATION / ALLERGY NOTE FIELD ---
+                        # Generates an open-ended specification bar tailored directly to that card
+                        custom_note = st.text_input(
+                            'Special Notes / Flavors / Allergies', 
+                            placeholder='e.g., No Ice, Barbecue Fries, Egg well-done, Peanut Allergy',
+                            key=f"note_input_{p['id']}"
+                        ).strip()
+
+                        qty = st.number_input('Qty', min_value=1, max_value=max(1, int(p['stock'])), value=1, step=1, key=f"qty_{p['id']}", disabled=p['stock'] < 1)
+                        add = st.form_submit_button('Add to cart', use_container_width=True, disabled=p['stock'] < 1)
+                        
                     if add:
                         try:
-                            if qty > display_stock: 
-                                raise ValueError(f"Only {display_stock} serving(s) available based on raw ingredients.")
-                            st.session_state.cart.add(p, int(qty))
-                            st.success(f"Added {qty} × {p['name']}.")
+                            if qty > p['stock']: 
+                                raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
+                                
+                            if size_oz and int(size_oz) == 99 and " | Custom:" in p['category']:
+                                size_display_name = p['category'].split(" | Custom:", 1)[1].strip()
+                            elif size_oz:
+                                size_display_name = f"{size_oz} oz"
+                            else:
+                                size_display_name = ''
+                                
+                            # Pass your text notes directly down into the custom linked list cart state engine
+                            st.session_state.cart.add(
+                                p, 
+                                int(qty), 
+                                size_oz=size_oz, 
+                                unit_price_cents=unit_price, 
+                                customizations=custom_note  # Feeds text to your custom list storage
+                            )
+                            
+                            size_label = f" ({size_display_name})" if size_oz else ''
+                            option_label = f" · Note: '{custom_note}'" if custom_note else ''
+                            st.success(f"Added {qty} × {p['name']}{size_label}{option_label}.")
                             st.rerun()
                         except Exception as e: 
                             safe_error(e)
+
     with right:
         st.markdown('#### Shopping cart')
         cart = st.session_state.cart
