@@ -72,7 +72,7 @@ def init_db(db_path=DB_PATH):
         );
         CREATE TABLE IF NOT EXISTS activity_history (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          actor_mode TEXT NOT NULL CHECK(actor_mode IN ('Admin','Cashier','Kitchen','System')),
+          actor_mode TEXT NOT NULL CHECK(actor_mode IN ('Admin','Cashier','Inventory Manager','System')),
           action TEXT NOT NULL,
           details TEXT NOT NULL DEFAULT '',
           created_at TEXT NOT NULL
