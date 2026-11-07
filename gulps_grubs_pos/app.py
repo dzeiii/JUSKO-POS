@@ -637,17 +637,73 @@ elif mode=='Cashier' and page=='New Sale':
                             
                     db.log_activity('Cashier', 'Sale sent to queue', f"Sale #{sale['transaction_id']} · {', '.join(queued)} · Priority {order_priority}")
                     st.session_state.last_sale = sale
-                    cart.clear()
-                    st.success(f"Sale #{sale['transaction_id']} completed — {money(sale['total_cents'])}. Sent to: {', '.join(queued)}.")
-                    st.rerun()
-                except Exception as e: 
-                    safe_error(e)
+                except Exception as e: safe_error(e)
+                # =========================================================================
+            # 📊 INSERT CODE HERE: LIVE QUEUE MANAGEMENT CONTROLS PANEL
+            # =========================================================================
+            st.divider()
+            with st.expander("📋 Active Queue Management Dashboard", expanded=True):
+                st.caption("Inspect, adjust parameters, or update active kitchen tickets below:")
                 
-    st.markdown('---')
-    st.markdown('**Cart data structure:** custom singly linked list')
-    st.caption(f'{len(cart)} distinct item(s) · item lookup O(n) · cart total O(n)')
-    Use code with caution.
-    
+                try:
+                    with db.connection() as conn:
+                        pending_tickets = conn.execute('''
+                            SELECT id, customer_name, details, order_type, priority, sequence_no, status 
+                            FROM pending_orders 
+                            WHERE status = 'Pending'
+                            ORDER BY priority DESC, sequence_no ASC
+                        ''').fetchall()
+                except Exception:
+                    pending_tickets = []
+                    
+                if not pending_tickets:
+                    st.success("🎉 All clear! No pending items currently remaining in the preparation queues.")
+                else:
+                    for ticket in pending_tickets:
+                        with st.container(border=True):
+                            header_col, action_col = st.columns([2.5, 1.5], vertical_alignment="center")
+                            
+                            with header_col:
+                                type_badge = "🥤" if ticket['order_type'] == 'Drink' else "🍔"
+                                st.markdown(f"**#{ticket['sequence_no']} {type_badge} {ticket['customer_name']}**")
+                                st.markdown(f"<small>{ticket['details']}</small>", unsafe_allow_html=True)
+                                
+                            with action_col:
+                                new_prio = st.select_slider(
+                                    "Priority",
+                                    options=[1, 2, 3, 4, 5],
+                                    value=int(ticket['priority']),
+                                    format_func=lambda x: {1:'1', 2:'2', 3:'3', 4:'4', 5:'5'}[x],
+                                    key=f"queue_prio_slider_{ticket['id']}"
+                                )
+                                
+                                if new_prio != ticket['priority']:
+                                    try:
+                                        with db.connection() as conn:
+                                            conn.execute("UPDATE pending_orders SET priority = ? WHERE id = ?", (int(new_prio), ticket['id']))
+                                        db.log_activity('Cashier', 'Queue Priority Updated', f"Order #{ticket['sequence_no']} set to level {new_prio}")
+                                        st.toast(f"Order #{ticket['sequence_no']} bumped to priority level {new_prio}!")
+                                        st.rerun()
+                                    except Exception as e:
+                                        safe_error(e)
+                                        
+                                if st.button("Cancel Ticket", key=f"cancel_tkt_btn_{ticket['id']}", type="secondary", use_container_width=True):
+                                    try:
+                                        with db.connection() as conn:
+                                            conn.execute("UPDATE pending_orders SET status = 'Cancelled' WHERE id = ?", (ticket['id'],))
+                                        db.log_activity('Cashier', 'Order Cancelled from Queue', f"Order #{ticket['sequence_no']} explicitly cancelled")
+                                        st.toast(f"Ticket #{ticket['sequence_no']} cancelled successfully.")
+                                        st.rerun()
+                                    except Exception as e:
+                                        safe_error(e)
+
+        # =========================================================================
+        # LEAVE THIS FOOTER DIRECTLY AT THE BOTTOM
+        # =========================================================================
+        st.markdown('---')
+        st.markdown('**Cart data structure:** custom singly linked list')
+        st.caption(f'{len(cart)} distinct item(s) · item lookup O(n) · cart total O(n)')
+
 elif mode=='Cashier' and page=='Order Queue':
     st.subheader('Cashier order queue')
     st.caption('Cashier assigns priority when sending an order. Priority 1 is most urgent; priority 5 is least urgent. Equal priorities are handled first-in, first-out.')
