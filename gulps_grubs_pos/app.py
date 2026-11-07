@@ -343,14 +343,14 @@ elif mode=='Admin' and page=='Product Management':
                     else:
                         try:
                             # Convert base currency values back to integers
-                            price_cents = db.cents_from_peso(price)
+                            price_cents = cents_from_peso(price)
                             
                             # Replace this placeholder method with your exact database update call:
                             # e.g., db.update_product(selected_prod['id'], new_name, new_category, price_cents, new_low, new_high, size_prices if is_a_drink else None)
                             st.success(f"Successfully updated menu metadata settings for '{new_name}'!")
                             st.rerun()
                         except Exception as e:
-                            db.safe_error(e)
+                            safe_error(e)
                             
                 if delete_submitted:
                     success, return_msg = db.delete_product(selected_prod['id'])
