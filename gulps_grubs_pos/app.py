@@ -1,4 +1,18 @@
 from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
+
+# Official Philippine timezone
+PH_TZ = ZoneInfo("Asia/Manila")
+
+def ph_now():
+    return datetime.now(PH_TZ)
+
+def ph_today():
+    return ph_now().date()
+
+def ph_datetime_string():
+    # Keep the existing SQLite-compatible timestamp format
+    return ph_now().replace(tzinfo=None).isoformat(timespec="seconds")
 from pathlib import Path
 import logging
 import sqlite3
@@ -104,9 +118,12 @@ except Exception as e:
 #==================
 if mode=='Admin' and page=='Dashboard':
     from datetime import datetime, time, timedelta
-    ph_today = (datetime.utcnow() + timedelta(hours=8)).date()
-    start_time = datetime.combine(ph_today, time.min).isoformat()
-    end_time = datetime.combine(ph_today + timedelta(days=1), time.min).isoformat()
+    today = ph_today()
+    start = datetime.combine(today, time.min).isoformat()
+    end = datetime.combine(
+        today + timedelta(days=1),
+        time.min
+    ).isoformat()
     
     st.subheader('Business overview')
     today=date.today(); start=datetime.combine(today,time.min).isoformat(); end=datetime.combine(today+timedelta(days=1),time.min).isoformat()
@@ -515,11 +532,13 @@ elif mode=='Admin' and page=='Activity History':
 #==================
 elif mode == 'Cashier' and page == 'Dashboard':
     st.subheader('📊 Cashier Shift Workspace Dashboard')
-    
     from datetime import datetime, time, timedelta
-    ph_today = (datetime.utcnow() + timedelta(hours=8)).date()
-    start_time = datetime.combine(ph_today, time.min).isoformat()
-    end_time = datetime.combine(ph_today + timedelta(days=1), time.min).isoformat()
+    today = ph_today()
+    start = datetime.combine(today, time.min).isoformat()
+    end = datetime.combine(
+        today + timedelta(days=1),
+        time.min
+    ).isoformat()
     shift_summary = db.sales_summary(start_time, end_time)
     recent_sales = db.transaction_history(start_time, end_time)[:5]
     
@@ -832,8 +851,6 @@ elif mode == 'Cashier' and page == 'New Sale':
                     st.success(f"Sale #{sale['transaction_id']} completed & added to pickup queue — {money(sale['total_cents'])}.")
                     st.rerun()
                 except Exception as e:
-                    # --- FIXED: Show the raw traceback error message to pinpoint the culprit ---
-                    st.error(f"🔴 Core Database Error: {str(e)}")
                     safe_error(e)
 
 
@@ -888,11 +905,13 @@ elif mode == 'Cashier' and page == 'Last Transaction':
 elif mode=='Cashier' and page=='Sales History':
     st.subheader('📜 Sales Transaction History')
     from datetime import datetime, timedelta
-    ph_today = (datetime.utcnow() + timedelta(hours=8)).date()
-    # Initialize interactive calendar pickers to use local storefront dates on screen load
-    start_date = st.date_input('Start Date', value=ph_today - timedelta(days=7))
-    end_date = st.date_input('End Date', value=ph_today)
-
+    today = ph_today()
+    start = datetime.combine(today, time.min).isoformat()
+    end = datetime.combine(
+        today + timedelta(days=1),
+        time.min
+    ).isoformat()
+    
     st.subheader('Cashier history')
     st.caption('Search completed sales and cashier actions. Records remain saved in SQLite after the app is closed.')
     h1,h2=st.columns([1,2])
