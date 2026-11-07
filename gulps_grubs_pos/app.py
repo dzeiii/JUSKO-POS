@@ -631,7 +631,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                                 chosen_customizations.append("➕ Extra Jelly")
                                 addon_premium += 500
                             if add_extra_coffee_jelly:
-                                chosen_customization.append("➕ Extra Coffee Jelly")
+                                chosen_customizations.append("➕ Extra Coffee Jelly")
                                 addon_premium += 500
                             unit_price += addon_premium
 
