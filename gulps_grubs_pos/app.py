@@ -293,20 +293,37 @@ elif mode=='Admin' and page=='Product Management':
                         edit_custom_price = c_col2.number_input("Custom Size Price (₱)", min_value=0.0, value=float(current_sizes.get(99, 0.0) / 100), step=5.0, format='%.2f', disabled=not has_custom, key=f"form_val_cust_{p['id']}")
                         
                         new_cat = f"{new_base_cat} | Custom:{edit_custom_label}" if (has_custom and edit_custom_label) else new_base_cat
+                
+                        updated_sizes = {}
+                        for sz_key, cents_val in current_sizes.items():
+                            updated_sizes[int(sz_key)] = int(cents_val)
                         
-                        updated_sizes = {int(sz): int(cents) for sz, cents in current_sizes.items()}
-                        
+                        # 2. Layer on screen inputs ONLY if they are active and contain a changed price > 0.0
                         for sz, pr_val in size_inputs.items():
-                            if pr_val > 0.0:
+                            if float(pr_val) > 0.0:
                                 updated_sizes[int(sz)] = cents_from_peso(pr_val)
                         
-                        # Add or update the custom size (99) profile independently
+                        # 3. Add or update the custom size (99) profile completely independently
                         if has_custom and edit_custom_label:
-                            updated_sizes[99] = cents_from_peso(edit_custom_price)
-                        elif 99 in updated_sizes:
-                            del updated_sizes[99]
+                            # If a valid premium price was typed, map it; otherwise, carry over pre-saved custom cents
+                            if float(edit_custom_price) > 0.0:
+                                updated_sizes[99] = cents_from_peso(edit_custom_price)
+                            elif 99 in current_sizes:
+                                updated_sizes[99] = int(current_sizes[99])
+                            else:
+                                updated_sizes[99] = 0 # Default fallback if brand-new and unpriced
+                                
+                            new_cat = f"{new_base_cat} | Custom:{edit_custom_label}"
+                        else:
+                            new_cat = new_base_cat
+                            if 99 in updated_sizes:
+                                del updated_sizes[99]
                         
-                        new_base_price_cents = next(iter(updated_sizes.values()), p['price_cents'])
+                        # Set a stable base price from the first available size to satisfy main database integrity constraints
+                        if updated_sizes:
+                            new_base_price_cents = next(iter(updated_sizes.values()))
+                        else:
+                            new_base_price_cents = p['price_cents']
                     else:
                         # Standard Food Processing Workflow Paths
                         new_cat = st.text_input('Category', value=p['category']).strip()
