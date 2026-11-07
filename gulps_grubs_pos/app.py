@@ -253,8 +253,7 @@ elif mode=='Admin' and page=='Product Management':
                         custom_sz_label = ""
 
                     # UNIFIED FORM: One save button captures name, category, standard sizes, and custom sizes together!
-                    with st.form(f'unified_edit_form_{p["id"]}'):
-                        st.markdown("#### Core Product Details")
+                        st.markdown("#### Product Details")
                         ec1, ec2 = st.columns(2)
                         ec1.text_input('Product code (automatically assigned)', value=p['code'], disabled=True)
                         new_name = ec2.text_input('Product name', value=p['name']).strip()
