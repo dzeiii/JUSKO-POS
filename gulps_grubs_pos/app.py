@@ -227,7 +227,7 @@ elif mode=='Admin' and page=='Product Management':
                 except Exception as e:
                     safe_error(e)
 
-                with tab2:
+        with tab2:
             st.subheader("Edit or Delete Product")
             
             # Load all products using your uniform list call
