@@ -618,8 +618,19 @@ elif mode == 'Cashier' and page == 'New Sale':
 
                         # 3. Custom Free-text Notes Box (Allergies, Fry Flavors, Meal Comments)
                         custom_note = st.text_input(
-                            'Special Notes / Flavors / Allergies', 
-                            placeholder='e.g., Less Sweet, Barbecue Fries, Egg well-done',
+                        if is_drink:
+                            note_hint = "e.g., 50% Sugar, Less Ice, Severe Lactose Allergy"
+                        elif "fries" in display_cat_clean.lower() or "snack" in display_cat_clean.lower():
+                            note_hint = "e.g., Barbecue, Cheese, Sour Cream, No Salt"
+                        elif "donut" in display_cat_clean.lower() or "waffle" in display_cat_clean.lower() or "dessert" in display_cat_clean.lower():
+                            note_hint = "e.g., Chocolate Syrup, Maple, Whipped Cream"
+                        else:
+                            note_hint = "e.g., Add notes, flavors, combos, or allergy alerts here..."
+
+                        # Render the text bar using the adaptive hint text
+                        custom_note = st.text_input(
+                            'Special Notes / Customization', 
+                            placeholder=note_hint,
                             key=f"note_input_{p['id']}"
                         ).strip()
 
