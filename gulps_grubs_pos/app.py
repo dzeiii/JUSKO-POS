@@ -721,16 +721,17 @@ elif mode == 'Cashier' and page == 'New Sale':
                         step=1, 
                         key=f"cart_q_{item['product_id']}_{item.get('size_oz') or 'std'}_{abs(hash(str(item.get('customizations', ''))))}"
                     )
-
-                    if qcol.button('Update', key=f"update_{item['product_id']}"):
+                    if qcol.button('Update', key=f"update_{item['product_id']}_{item.get('size_oz') or 'std'}_{abs(hash(str(item.get('customizations',''))))}"):
                         try:
-                            p = db.get_product(item['product_id'])
-                            if not p or not p['active']: raise ValueError('This product is no longer available.')
-                            if int(new_q) > p['stock']: raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
-                            cart.set_quantity(item['product_id'], int(new_q)); st.rerun()
+                            p=db.get_product(item['product_id'])
+                            if not p or not p['active']: raise ValueError('This product is no longer available. Remove it from the cart.')
+                            if int(new_q)>p['stock']: raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
+                            cart.set_quantity(item['product_id'],int(new_q),item.get('size_oz'),item.get('customizations','')); st.rerun()
                         except Exception as e: safe_error(e)
-                    if rmcol.button('Remove', key=f"remove_{item['product_id']}"):
-                        cart.remove(item['product_id']); st.rerun()
+                    
+                    if rmcol.button('Remove', key=f"remove_{item['product_id']}_{item.get('size_oz') or 'std'}_{abs(hash(str(item.get('customizations',''))))}"):
+                        cart.remove(item['product_id'],item.get('size_oz'),item.get('customizations','')); st.rerun()
+
             st.divider(); st.markdown(f"### Total: {money(cart.total_cents())}")
             
             with st.form('checkout_form'):
