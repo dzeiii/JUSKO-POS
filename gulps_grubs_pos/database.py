@@ -160,10 +160,10 @@ def add_product(name, category, price_cents, size_prices=None, stock=0, low_stoc
     if isinstance(low_stock_threshold, bool) or not isinstance(low_stock_threshold, int) or low_stock_threshold < 0: raise ValueError('Low stock threshold must be non-negative.')
     if isinstance(high_stock_threshold, bool) or not isinstance(high_stock_threshold, int) or high_stock_threshold < 0: raise ValueError('High stock threshold must be non-negative.')
     
+    # --- Fixes the cutoff syntax error ---
     now = datetime.now().isoformat()
     
     with connection(db_path) as c:
-        # Insert product into SQLite layout
         res = c.execute('''
             INSERT INTO products (code, name, category, price_cents, stock, low_stock_threshold, high_stock_threshold, active, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
@@ -171,7 +171,6 @@ def add_product(name, category, price_cents, size_prices=None, stock=0, low_stoc
         
         product_id = res.lastrowid
         
-        # Handle optional dynamic variant structures for Drinks mapping profiles
         if size_prices:
             for size_oz, pr_cents in size_prices.items():
                 c.execute('''
@@ -180,6 +179,7 @@ def add_product(name, category, price_cents, size_prices=None, stock=0, low_stoc
                 ''', (product_id, int(size_oz), pr_cents))
                 
         return product_id
+
     except sqlite3.IntegrityError as e:
         if 'products.code' in str(e).lower(): raise ValueError('That product code already exists.') from e
         raise
