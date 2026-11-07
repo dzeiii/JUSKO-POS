@@ -749,7 +749,10 @@ elif mode == 'Cashier' and page == 'New Sale':
                     st.success(f"Sale #{sale['transaction_id']} completed & added to pickup queue — {money(sale['total_cents'])}.")
                     st.rerun()
                 except Exception as e:
+                    # --- FIXED: Show the raw traceback error message to pinpoint the culprit ---
+                    st.error(f"🔴 Core Database Error: {str(e)}")
                     safe_error(e)
+
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     st.subheader('Cashier - Order Priority & Pickup Queue')
