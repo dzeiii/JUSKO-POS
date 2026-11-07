@@ -304,12 +304,12 @@ def checkout(cart_items, cashier_label='Cashier', db_path=DB_PATH):
         total_cents += int(item['subtotal_cents'])
 
     with connection(db_path) as c:
-        # 1. Insert master invoice record row inside transactions ledger
-        c.execute('''
+        # 1. FIXED: Store execution in a result variable 'res' to read its row ID safely
+        res = c.execute('''
             INSERT INTO transactions (total_cents, created_at, cashier_label)
             VALUES (?, ?, ?)
         ''', (total_cents, now, cashier_label))
-        transaction_id = c.lastrowid
+        transaction_id = res.lastrowid
 
         # 2. Iterate individual items to update stock levels and log item receipts
         for item in cart_items:
