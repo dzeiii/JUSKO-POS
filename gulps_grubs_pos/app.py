@@ -560,7 +560,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                 customer_name = st.text_input('Customer name *', placeholder='e.g. John Doe')
                 priority_level = st.select_slider(
                     'Priority level', 
-                    options=[1, 2, 3, 4, 5], 
+                    options=[1, 2, 3], 
                     value=3, 
                     format_func=lambda x: {1: '1 · Urgent', 2: '2 · High', 3: '3 · Normal'}[x]
                 )
