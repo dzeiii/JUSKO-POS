@@ -605,22 +605,27 @@ elif mode=='Inventory Manager' and page=='Stock Overview':
     st.caption('Inventory Manager monitors physical stock. Admin owns menu names, categories, and prices.')
 
 elif mode=='Inventory Manager' and page=='Restock Products':
-    st.subheader('Restock menu products')
+    st.subheader('Restock Menu Products')
     active_products=db.list_products(active_only=True)
     if active_products:
         choices={f"{p['code']} — {p['name']} (current stock: {p['stock']})":p for p in active_products}
+        placeholder = "Select a product to restock"
+        dropdown_options= [placeholder] + list(choices.keys())
         with st.form('inventory_manager_restock',clear_on_submit=True):
             selected=st.selectbox('Product',list(choices),key='restock_item_selector')
             quantity=st.number_input('Quantity received',min_value=1,max_value=1000000,value=1,step=1)
             submit=st.form_submit_button('Save restock',type='primary')
         if submit:
-            try:
-                item=choices[selected]
-                db.restock_product(item['id'],int(quantity))
-                db.log_activity('Inventory Manager','Product restocked',f"{item['code']} · +{int(quantity)}")
-                st.success('Stock quantity updated.')
-                st.rerun()
-            except Exception as exc: safe_error(exc)
+            if selected == placeholder:
+                st.error("Please select a valid menu product")
+            else: 
+                try:
+                    item=choices[selected]
+                    db.restock_product(item['id'],int(quantity))
+                    db.log_activity('Inventory Manager','Product restocked',f"{item['code']} · +{int(quantity)}")
+                    st.success('Stock quantity updated.')
+                    st.rerun()
+                except Exception as exc: safe_error(exc)
     else:
         st.info('There are no active menu products to restock. Admin must add products first.')
 
