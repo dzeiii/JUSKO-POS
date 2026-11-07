@@ -557,36 +557,60 @@ elif mode == 'Cashier' and page == 'New Sale':
                             unit_price = sizes[size_oz]
                             st.caption(f"Selected size price: {money(unit_price)}")
 
-                        # --- ✨ NEW: CASHIER-ONLY SINKER & ADD-ON SELECTOR ---
-                        is_milktea_or_drink = any(d in display_cat_clean.lower() for d in ['milktea', 'drink', 'coffee', 'beverage', 'tea', 'shake', 'smoothie'])
-                        chosen_sinkers = []
-                        sinker_premium = 0
+                        # --- 🧋 DYNAMIC INCLUDED SINKERS, EXCLUSIONS & PAID ADD-ONS ---
+                        chosen_customizations = []
+                        addon_premium = 0
                         
-                        if is_milktea_or_drink:
-                            st.markdown("##### 🧋 Add-ons / Sinkers")
+                        # Identify specific product profiles cleanly
+                        prod_name_lower = p['name'].lower()
+                        cat_lower = display_cat_clean.lower()
+                        
+                        is_milktea = 'milktea' in cat_lower or 'milktea' in prod_name_lower
+                        is_milkshake = 'milkshake' in cat_lower or 'milkshake' in prod_name_lower
+                        is_lemonade = any(l in cat_lower or l in prod_name_lower for l in ['lemonade', 'slushie'])
+
+                        if is_drink:
+                            st.markdown("##### 🎛️ Drink Configuration")
+                            
+                            # 1. HANDLE BASE-INCLUDED SINKERS (FREE / REMOVABLE)
+                            if is_milktea:
+                                keep_base = st.checkbox("Include Pearls (Default Sinker Included)", value=True, key=f"base_sink_{p['id']}")
+                                if not keep_base:
+                                    chosen_customizations.append("❌ NO PEARLS")
+                            elif is_milkshake:
+                                keep_base = st.checkbox("Include Ice Cream / Cream (Included)", value=True, key=f"base_sink_{p['id']}")
+                                if not keep_base:
+                                    chosen_customizations.append("❌ NO CREAM")
+                            elif is_lemonade:
+                                keep_base = st.checkbox("Include Nata / Jelly (Default Sinker Included)", value=True, key=f"base_sink_{p['id']}")
+                                if not keep_base:
+                                    chosen_customizations.append("❌ NO NATA/JELLY")
+
+                            # 2. OPTIONAL PAID PREMIUM ADD-ONS (+₱10.00 / +₱15.00)
+                            st.markdown("##### ➕ Premium Add-ons")
                             sk1, sk2, sk3 = st.columns(3)
                             
-                            # Simple checkboxes with fixed price premiums (+₱10.00 / +₱15.00)
-                            add_pearls = sk1.checkbox("Pearls (+₱10)", key=f"sink_pearl_{p['id']}")
-                            add_nata = sk2.checkbox("Nata (+₱10)", key=f"sink_nata_{p['id']}")
-                            add_jelly = sk3.checkbox("Jelly (+₱15)", key=f"sink_jelly_{p['id']}")
+                            add_extra_pearl = sk1.checkbox("Extra Pearls (+₱10)", key=f"add_p_{p['id']}")
+                            add_extra_nata = sk2.checkbox("Extra Nata (+₱10)", key=f"add_n_{p['id']}")
+                            add_extra_jelly = sk3.checkbox("Extra Jelly (+₱15)", key=f"add_j_{p['id']}")
                             
-                            if add_pearls:
-                                chosen_sinkers.append("Extra Pearls")
-                                sinker_premium += 1000  # 1000 cents = ₱10.00
-                            if add_nata:
-                                chosen_sinkers.append("Nata de Coco")
-                                sinker_premium += 1000
-                            if add_jelly:
-                                chosen_sinkers.append("Coffee Jelly")
-                                sinker_premium += 1500  # 1500 cents = ₱15.00
+                            if add_extra_pearl:
+                                chosen_customizations.append("➕ Extra Pearls")
+                                addon_premium += 1000  # 1000 cents = ₱10.00
+                            if add_extra_nata:
+                                chosen_customizations.append("➕ Extra Nata")
+                                addon_premium += 1000
+                            if add_extra_jelly:
+                                chosen_customizations.append("➕ Extra Jelly")
+                                addon_premium += 1500  # 1500 cents = ₱15.00
                                 
-                            unit_price += sinker_premium
+                            # Factor extra topping premium directly into the baseline unit cost calculation
+                            unit_price += addon_premium
 
-                        # Open customization notes box for allergies/flavors
+                        # Open customization notes box for custom requests (e.g., Sugar Level)
                         custom_note = st.text_input(
-                            'Special Notes / Flavors / Allergies', 
-                            placeholder='e.g., Less Sweet, No Ice, Barbecue Fries',
+                            'Special Notes / Customization', 
+                            placeholder='e.g., 50% Sugar, Less Ice, Extra Syrup',
                             key=f"note_input_{p['id']}"
                         ).strip()
 
@@ -605,13 +629,13 @@ elif mode == 'Cashier' and page == 'New Sale':
                             else:
                                 size_display_name = ''
                                 
-                            # Combine chosen sinkers with manual text notes cleanly
-                            final_notes_list = chosen_sinkers.copy()
+                            # Unify free exclusions, premium toppings, and custom text inputs
+                            final_notes_list = chosen_customizations.copy()
                             if custom_note:
                                 final_notes_list.append(custom_note)
                             combined_customizations = '; '.join(final_notes_list)
                                 
-                            # Pass the modified unit price and combined descriptions to your existing cart engine
+                            # Commit item data configurations cleanly down into the cart linked list structures
                             st.session_state.cart.add(
                                 p, 
                                 int(qty), 
@@ -622,10 +646,11 @@ elif mode == 'Cashier' and page == 'New Sale':
                             
                             size_label = f" ({size_display_name})" if size_oz else ''
                             option_label = f" · Options: '{combined_customizations}'" if combined_customizations else ''
-                            st.success(f"Added {qty} × {p['name']}{size_label}{option_label} (Updated Unit Price: {money(unit_price)}).")
+                            st.success(f"Added {qty} × {p['name']}{size_label}{option_label} (Total Unit Price: {money(unit_price)}).")
                             st.rerun()
                         except Exception as e: 
                             safe_error(e)
+
 
     with right:
         st.markdown('#### Shopping cart')
@@ -638,7 +663,15 @@ elif mode == 'Cashier' and page == 'New Sale':
                     c1, c2 = st.columns([2, 1]); c1.markdown(f"**{item['name']}**\n\n{money(item['unit_price_cents'])} each")
                     c2.markdown(f"**{money(item['subtotal_cents'])}**")
                     qcol, rmcol = st.columns([2, 1])
-                    new_q = qcol.number_input('Quantity', min_value=1, max_value=1000000, value=int(item['quantity']), step=1, key=f"cart_q_{item['product_id']}")
+                    new_q = qcol.number_input(
+                        'Quantity', 
+                        min_value=1, 
+                        max_value=1000000, 
+                        value=int(item['quantity']), 
+                        step=1, 
+                        key=f"cart_q_{item['product_id']}_{item.get('size_oz') or 'std'}_{abs(hash(str(item.get('customizations', ''))))}"
+                    )
+
                     if qcol.button('Update', key=f"update_{item['product_id']}"):
                         try:
                             p = db.get_product(item['product_id'])
