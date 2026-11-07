@@ -501,7 +501,7 @@ elif mode=='Cashier' and page=='New Sale':
         
         if not shown: st.info('No matching active products.')
         
-        for start_idx in range(0,len(shown),2):
+                for start_idx in range(0,len(shown),2):
             cols=st.columns(2)
             for col,p in zip(cols,shown[start_idx:start_idx+2]):
                 with col:
@@ -518,10 +518,22 @@ elif mode=='Cashier' and page=='New Sale':
                         price_line = ' · '.join(price_parts)
                     else:
                         price_line=money(p['price_cents'])
-                        
-                    # 3. FIXED: Clean out metadata tags before displaying category on HTML card
+                    
+                    # Clean out metadata custom tags for the template to view it nicely
                     display_cat_clean = p['category'].split(" | Custom:", 1)[0].strip()
-                    st.markdown(load_html_template('product_card.html', name=p['name'], code=p['code'], category=display_cat_clean, price_line=price_line, stock=p['stock']), unsafe_allow_html=True)
+                    
+                    # --- FIXED: Use exactly price_line=price_line inside the arguments list ---
+                    st.markdown(
+                        load_html_template(
+                            'product_card.html', 
+                            name=p['name'], 
+                            code=p['code'], 
+                            category=display_cat_clean, 
+                            price_line=price_line,  # Matches the variable name exactly
+                            stock=p['stock']
+                        ), 
+                        unsafe_allow_html=True
+                    )
                     
                     with st.form(f"add_cart_{p['id']}"):
                         size_oz=None; unit_price=p['price_cents']; chosen_options=[]
