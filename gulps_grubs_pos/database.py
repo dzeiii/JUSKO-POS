@@ -60,7 +60,7 @@ def init_db(db_path=DB_PATH):
           unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),
           quantity INTEGER NOT NULL CHECK(quantity > 0),
           subtotal_cents INTEGER NOT NULL CHECK(subtotal_cents >= 0),
-          size_oz INTEGER CHECK(size_oz IN (8,12,16) OR size_oz IS NULL),
+          size_oz INTEGER CHECK(size_oz IN (8,12,16,99) OR size_oz IS NULL),
           customizations TEXT NOT NULL DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS inventory_movements (
@@ -104,38 +104,41 @@ def init_db(db_path=DB_PATH):
             c.execute('ALTER TABLE transaction_items ADD COLUMN size_oz INTEGER')
         if 'customizations' not in columns:
             c.execute("ALTER TABLE transaction_items ADD COLUMN customizations TEXT NOT NULL DEFAULT ''")
-
-                # --- DYNAMIC MIGRATION: Alter product_sizes constraints to allow custom size 99 ---
         try:
-            # Execute a swift test insert to verify if the live database file accepts 99 yet
-            # Using an emergency subquery fallback to avoid triggering foreign key breaks if products are empty
-            c.execute("INSERT INTO product_sizes (product_id, size_oz, price_cents) VALUES ((SELECT id FROM products LIMIT 1), 99, 0)")
-            c.execute("DELETE FROM product_sizes WHERE size_oz = 99 AND price_cents = 0")
-        except sqlite3.IntegrityError:
-            # If it throws an IntegrityError, it means the old constraints are blocking it.
-            # We migrate the structural data safely behind the scenes without breaking your menu list rows:
-            
-            # a. Temporarily extract all active pricing records currently saved in the table
-            old_sizes = c.execute("SELECT product_id, size_oz, price_cents FROM product_sizes").fetchall()
-            
-            # b. Drop the old restricted database table module
-            c.execute("DROP TABLE product_sizes")
-            
-            # c. Re-initialize the table blueprint structure with your open constraint guidelines (including 99)
+            c.execute("SAVEPOINT tx_items_check;")
             c.execute('''
-                CREATE TABLE product_sizes (
-                  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-                  size_oz INTEGER NOT NULL CHECK(size_oz IN (8,12,16,99)),
-                  price_cents INTEGER NOT NULL CHECK(price_cents >= 0),
-                  PRIMARY KEY(product_id, size_oz)
+                INSERT INTO transaction_items (transaction_id, product_id, product_code, product_name, unit_price_cents, quantity, subtotal_cents, size_oz, customizations)
+                VALUES (0, 0, 'MIG_TEST', 'Migration Test', 0, 1, 0, 99, '');
+            ''')
+            c.execute("ROLLBACK TO tx_items_check;")
+            c.execute("RELEASE tx_items_check;")
+        except sqlite3.IntegrityError:
+            c.execute("ROLLBACK TO tx_items_check;")
+            c.execute("RELEASE tx_items_check;")
+            
+            old_items = c.execute("SELECT id, transaction_id, product_id, product_code, product_name, unit_price_cents, quantity, subtotal_cents, size_oz, customizations FROM transaction_items").fetchall()
+            
+            c.execute("DROP TABLE transaction_items")
+            c.execute('''
+                CREATE TABLE transaction_items (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  transaction_id INTEGER NOT NULL REFERENCES transactions(id),
+                  product_id INTEGER REFERENCES products(id),
+                  product_code TEXT NOT NULL,
+                  product_name TEXT NOT NULL,
+                  unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),
+                  quantity INTEGER NOT NULL CHECK(quantity > 0),
+                  subtotal_cents INTEGER NOT NULL CHECK(subtotal_cents >= 0),
+                  size_oz INTEGER CHECK(size_oz IN (8,12,16,99) OR size_oz IS NULL),
+                  customizations TEXT NOT NULL DEFAULT ''
                 );
             ''')
             
-            # d. Restore every single pre-existing pricing record back into place smoothly
-            for row in old_sizes:
-                c.execute("INSERT INTO product_sizes (product_id, size_oz, price_cents) VALUES (?, ?, ?)", 
-                          (row['product_id'], row['size_oz'], row['price_cents']))
-
+            for r in old_items:
+                c.execute('''
+                    INSERT INTO transaction_items (id, transaction_id, product_id, product_code, product_name, unit_price_cents, quantity, subtotal_cents, size_oz, customizations)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (r['id'], r['transaction_id'], r['product_id'], r['product_code'], r['product_name'], r['unit_price_cents'], r['quantity'], r['subtotal_cents'], r['size_oz'], r['customizations']))
 
 def rowdict(row): return dict(row) if row is not None else None
 
