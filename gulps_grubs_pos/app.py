@@ -131,40 +131,45 @@ if mode=='Admin' and page=='Dashboard':
 
 elif mode=='Admin' and page=='Product Management':
     st.subheader('Product Catalog Management')
-    tab1,tab2=st.tabs(['Add product','Edit / Delete'])
+    tab1, tab2 = st.tabs(['Add product', 'Edit / Delete'])
+    
     with tab1:
+        # MOVED OUTSIDE FOR INTERACTIVE REAL-TIME RENDERING
         classification = st.radio('Product Classification *', 
-                ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], 
-                horizontal=True)
-        with st.form('add_product_form', clear_on_submit=True):
-            name = st.text_input('Product name *', placeholder='Enter product name').strip()
+            ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], 
+            horizontal=True
+        )
+        
+        # We handle EVERYTHING in a single, clean workspace flow
+        st.markdown("---")
+        name = st.text_input('Product name *', placeholder='Enter product name', key='prod_name_input').strip()
+        
+        # Initialize form baseline tracking containers
+        category = ""
+        size_prices = {}
+        price = 0.0
+        
+        # --- PATH 1: FOODS ---
+        if classification == 'Foods (Grubs)':
+            category = st.text_input('Category *', placeholder='e.g. Streetfood, Donut and Waffles').strip()
+            price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
             
-            # Initialize dynamic variables
-            category = ""
-            size_prices = None
-            price = 0.0
+        # --- PATH 2: DRINKS (Instant Checkbox Disabling Works Perfectly Here) ---
+        elif classification == 'Drinks (Gulps)':
+            base_category = st.text_input('Category Name *', placeholder='e.g. Milkshake, Float, Milktea').strip()
             
-            if classification == 'Foods (Grubs)':
-                category = st.text_input('Category *', placeholder='e.g. Streetfood, Donut and Waffles').strip()
-                price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
-                
-            elif classification == 'Drinks (Gulps)':
-                base_category = st.text_input('Category Name *', placeholder='e.g. Milkshake, Float, Milktea').strip()
-                
-        # --- Break out of the form block temporarily to allow live UI updates ---
-        # (This section lives directly inside tab1 under your classification radio selector)
-        if classification == 'Drinks (Gulps)':
             st.caption('Configure your cup sizes and pricing:')
+            s8, s12, s16 = st.columns(3)
             
-            # These checkboxes now update the screen instantly upon clicking!
-            use8 = st.checkbox('Offer 8 oz', value=False, key='drink_use_8')
-            price8 = st.number_input('8 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use8)
-            
-            use12 = st.checkbox('Offer 12 oz', value=True, key='drink_use_12')
-            price12 = s12.number_input('12 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use12)
-            
-            use16 = st.checkbox('Offer 16 oz', value=True, key='drink_use_16')
-            price16 = s16.number_input('16 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use16)
+            with s8:
+                use8 = st.checkbox('Offer 8 oz', value=False, key='drink_use_8')
+                price8 = st.number_input('8 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use8)
+            with s12:
+                use12 = st.checkbox('Offer 12 oz', value=True, key='drink_use_12')
+                price12 = st.number_input('12 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use12)
+            with s16:
+                use16 = st.checkbox('Offer 16 oz', value=True, key='drink_use_16')
+                price16 = st.number_input('16 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use16)
             
             st.divider()
             st.markdown("##### 🥤 Other / Custom Size Profile")
@@ -175,57 +180,60 @@ elif mode=='Admin' and page=='Product Management':
                 custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', disabled=not use_custom).strip()
             with c_price_col:
                 custom_price = st.number_input('Custom Size Price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use_custom)
-                
-            # Open a small independent action form for the save button below
-            with st.form('save_drink_blueprint_form', clear_on_submit=True):
-                # Inventory Alert Metrics
-                st.divider()
-                low_stock_threshold = st.number_input('Low-stock alert boundary count', min_value=0, value=5, step=1)
-                high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
-                
-                submitted = st.form_submit_button('Add product')
-
-                
-            elif classification == 'Others (Combo/Meal Plan)':
-                category = st.text_input('Category *', placeholder='e.g. Combo Meal, Promo Bundle').strip()
-                price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
-
-            # Inventory Threshold Fields
-            st.divider()
-            starting_stock = 0
-            low_stock_threshold = st.number_input('Low-stock alert at', min_value=0, value=5, step=1)
-            high_stock_threshold = st.number_input('High-stock alert at', min_value=0, value=50, step=1)
             
-            # Form Submission Button
-            submitted = st.form_submit_button('Add product')
-            if submitted:
-                if not name:
-                    st.error("Product name is required.")
-                elif not category:
-                    st.error("Category is required.")
-                elif classification == 'Drinks (Gulps)' and not size_prices:
-                    st.error("Please enable at least one cup size for drinks.")
-                else:
-                    try:
-                        price_cents = cents_from_peso(price)
-                        
-                        # 1. Generate the product code profile up front in the app
-                        generated_code = db.generate_product_code()
-                        
-                        # 2. Match your database.py parameters exactly:
-                        db.add_product(
-                            code=generated_code,
-                            name=name, 
-                            category=category, 
-                            price_cents=price_cents, 
-                            stock=starting_stock,
-                            threshold=low_stock_threshold, # Maps to original low threshold parameter name
-                            size_prices=size_prices
-                        )
-                        st.success(f"Successfully added '{name}' under '{category}'!")
-                        st.rerun()
-                    except Exception as e:
-                        safe_error(e)
+            # Pack active sizes matching structural parameters
+            if use8: size_prices[8] = cents_from_peso(price8)
+            if use12: size_prices[12] = cents_from_peso(price12)
+            if use16: size_prices[16] = cents_from_peso(price16)
+            
+            # Map custom size details into classification string
+            if use_custom and custom_label:
+                size_prices[99] = cents_from_peso(custom_price)
+                category = f"{base_category} | Custom:{custom_label}"
+            else:
+                category = base_category
+                
+            # Base price fallback selection
+            if size_prices:
+                price = next(iter(size_prices.values())) / 100
+                
+        # --- PATH 3: OTHERS ---
+        elif classification == 'Others (Combo/Meal Plan)':
+            category = st.text_input('Category *', placeholder='e.g. Combo Meal, Promo Bundle').strip()
+            price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
+
+        # System Administration Settings & Threshold Counts
+        st.divider()
+        low_stock_threshold = st.number_input('Low-stock alert boundary count', min_value=0, value=5, step=1)
+        high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
+        
+        # Submit Button Action Block
+        if st.button('Add product to Catalog', type='primary'):
+            if not name:
+                st.error("Product name is required.")
+            elif not category:
+                st.error("Category structure specification is required.")
+            elif classification == 'Drinks (Gulps)' and not size_prices:
+                st.error("Please enable at least one size configuration option for drink catalog items.")
+            else:
+                try:
+                    price_cents = cents_from_peso(price)
+                    generated_code = db.generate_product_code()
+                    starting_stock = 0 # Default to 0, Managed via Inventory Manager Workspace
+                    
+                    db.add_product(
+                        code=generated_code,
+                        name=name, 
+                        category=category, 
+                        price_cents=price_cents, 
+                        stock=starting_stock,
+                        threshold=low_stock_threshold,
+                        size_prices=size_prices if classification == 'Drinks (Gulps)' else None
+                    )
+                    st.success(f"Successfully registered '{name}' under '{category}' (Code: {generated_code})!")
+                    st.rerun()
+                except Exception as e:
+                    safe_error(e)
 
     with tab2:
         products = db.list_products(active_only=True)
