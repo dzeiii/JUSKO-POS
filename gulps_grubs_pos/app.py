@@ -269,7 +269,6 @@ elif mode=='Admin' and page=='Product Management':
                             st.markdown('**Available drink size pricing**')
                             standard_sizes = {k: v for k, v in current_sizes.items() if k in (8, 12, 16)}
                             
-                            # If no sizes are configured yet, default open 12 and 16 oz as baselines
                             if not standard_sizes:
                                 standard_sizes = {12: p['price_cents'], 16: p['price_cents']}
                                 
@@ -284,6 +283,7 @@ elif mode=='Admin' and page=='Product Management':
                                     key=f'form_price_{p["id"]}_{size}'
                                 )
                                 
+                            # --- MOVED OUTSIDE OF st.form FOR INSTANT REAL-TIME UNLOCKING ---
                             st.divider()
                             st.markdown('**🥤 Other / Custom Size Configuration**')
                             has_custom = st.checkbox("Enable a different custom size profile for this product", value=is_custom_drink, key=f"form_has_cust_{p['id']}")
@@ -299,7 +299,6 @@ elif mode=='Admin' and page=='Product Management':
                             if has_custom and edit_custom_label:
                                 updated_sizes[99] = cents_from_peso(edit_custom_price)
                                 
-                            # Baseline single price fallback calculation
                             new_base_price_cents = next(iter(updated_sizes.values()), p['price_cents'])
                         else:
                             # Standard Food Processing Workflow Paths
@@ -311,9 +310,9 @@ elif mode=='Admin' and page=='Product Management':
                         st.divider()
                         new_threshold = st.number_input('Low-stock alert at', min_value=0, max_value=1000000, value=int(p['low_stock_threshold']), step=1)
                         
-                        # Form Action Triggers
-                        save_changes = st.form_submit_button('Save All Product Details', type='primary')
-                        
+                        # Use a clean standalone button instead of st.form_submit_button
+                        save_changes = st.button('Save All Product Details', type='primary', key=f"unified_save_btn_{p['id']}")
+
                     if save_changes:
                         if not new_name or not new_cat:
                             st.error("Product name and category definitions cannot be left blank.")
