@@ -130,22 +130,32 @@ def get_product(product_id, db_path=DB_PATH):
     with connection(db_path) as c: return rowdict(c.execute('SELECT * FROM products WHERE id=?', (product_id,)).fetchone())
 
 def generate_product_code(db_path=DB_PATH):
-    """Generate the next unused GG-#### code, including codes of inactive products."""
+    """Generate the next unused GG-#### code, ensuring absolute freedom from database row collisions."""
     pattern = re.compile(r"^GG-(\d+)$", re.IGNORECASE)
+    
     with connection(db_path) as c:
+        # Retrieve ALL codes (both active and inactive) from the SQLite source table
         existing_codes = [r['code'] for r in c.execute('SELECT code FROM products').fetchall()]
+    
     used_numbers = []
     for existing_code in existing_codes:
         match = pattern.fullmatch(existing_code.strip())
         if match:
             used_numbers.append(int(match.group(1)))
+            
+    # Start sequence calculation from the highest recorded sequential value
     next_number = max(used_numbers, default=0) + 1
     candidate = f"GG-{next_number:04d}"
-    # Also avoid a collision if a product already uses this code in another format.
+    
+    # CASE SENSITIVITY LOCK: Force an uppercase comparison dictionary layout
     existing_upper = {code.upper() for code in existing_codes}
+    
+    # DOUBLE VERIFICATION LOOP: If the candidate code sequence exists anywhere in the database layout, 
+    # keep incrementing it upward until it finds a completely unassigned, open index.
     while candidate.upper() in existing_upper:
         next_number += 1
         candidate = f"GG-{next_number:04d}"
+        
     return candidate
 
 def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_PATH, size_prices=None):
