@@ -31,8 +31,8 @@ class LinkedListCart:
     def add(self, product: dict, quantity: int = 1, size_oz: Optional[int] = None, unit_price_cents: Optional[int] = None, customizations: str = ''):
         if isinstance(quantity, bool) or not isinstance(quantity, int) or quantity < 1:
             raise ValueError('Quantity must be a positive whole number.')
-        if size_oz is not None and size_oz not in (8, 12, 16):
-            raise ValueError('Drink size must be 8 oz, 12 oz, or 16 oz.')
+        if size_oz is not None and int(size_oz) not in (8, 12, 16, 99):
+            raise ValueError("Drink size must be 8 oz, 12 oz, or 16 oz.")
         price = int(product['price_cents'] if unit_price_cents is None else unit_price_cents)
         existing = self.find(int(product['id']), size_oz, customizations)
         if existing:
