@@ -227,7 +227,7 @@ elif mode=='Admin' and page=='Product Management':
                 except Exception as e:
                     safe_error(e)
 
-        with tab2:
+                with tab2:
             st.subheader("Edit or Delete Product")
             
             # Load all products using your uniform list call
@@ -252,65 +252,62 @@ elif mode=='Admin' and page=='Product Management':
                         base_cat_name = orig_category
                         custom_sz_label = ""
 
-                    # UNIFIED FORM: One save button captures name, category, standard sizes, and custom sizes together!
-                        st.markdown("#### Product Details")
-                        ec1, ec2 = st.columns(2)
-                        ec1.text_input('Product code (automatically assigned)', value=p['code'], disabled=True)
-                        new_name = ec2.text_input('Product name', value=p['name']).strip()
+                    st.markdown("#### Product Details")
+                    ec1, ec2 = st.columns(2)
+                    ec1.text_input('Product code (automatically assigned)', value=p['code'], disabled=True)
+                    new_name = ec2.text_input('Product name', value=p['name']).strip()
+                    
+                    # Identify if item structural layout tracks as a drink type
+                    is_a_drink = is_custom_drink or any(d in base_cat_name.lower() for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage'])
+                    
+                    size_inputs = {}
+                    if is_a_drink:
+                        new_base_cat = st.text_input('Category Name *', value=base_cat_name).strip()
                         
-                        # Identify if item structural layout tracks as a drink type
-                        is_a_drink = is_custom_drink or any(d in base_cat_name.lower() for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage'])
+                        st.markdown('**Available drink size pricing**')
+                        standard_sizes = {k: v for k, v in current_sizes.items() if k in (8, 12, 16)}
                         
-                        size_inputs = {}
-                        if is_a_drink:
-                            new_base_cat = st.text_input('Category Name *', value=base_cat_name).strip()
+                        if not standard_sizes:
+                            standard_sizes = {12: p['price_cents'], 16: p['price_cents']}
                             
-                            st.markdown('**Available drink size pricing**')
-                            standard_sizes = {k: v for k, v in current_sizes.items() if k in (8, 12, 16)}
+                        size_cols = st.columns(len(standard_sizes))
+                        for size_idx, size in enumerate(sorted(standard_sizes.keys())):
+                            size_inputs[size] = size_cols[size_idx].number_input(
+                                f'{size} oz price (₱)', 
+                                min_value=0.0, 
+                                value=float(standard_sizes[size]/100), 
+                                step=5.0, 
+                                format='%.2f', 
+                                key=f'form_price_{p["id"]}_{size}'
+                            )
                             
-                            if not standard_sizes:
-                                standard_sizes = {12: p['price_cents'], 16: p['price_cents']}
-                                
-                            size_cols = st.columns(len(standard_sizes))
-                            for size_idx, size in enumerate(sorted(standard_sizes.keys())):
-                                size_inputs[size] = size_cols[size_idx].number_input(
-                                    f'{size} oz price (₱)', 
-                                    min_value=0.0, 
-                                    value=float(standard_sizes[size]/100), 
-                                    step=5.0, 
-                                    format='%.2f', 
-                                    key=f'form_price_{p["id"]}_{size}'
-                                )
-                                
-                            # --- MOVED OUTSIDE OF st.form FOR INSTANT REAL-TIME UNLOCKING ---
-                            st.divider()
-                            st.markdown('**🥤 Other / Custom Size Configuration**')
-                            has_custom = st.checkbox("Enable a different custom size profile for this product", value=is_custom_drink, key=f"form_has_cust_{p['id']}")
-                            
-                            c_col1, c_col2 = st.columns(2)
-                            edit_custom_label = c_col1.text_input("Custom Size Description Label", value=custom_sz_label, placeholder="e.g., 22oz, 1-Liter", disabled=not has_custom, key=f"form_lbl_cust_{p['id']}").strip()
-                            edit_custom_price = c_col2.number_input("Custom Size Price (₱)", min_value=0.0, value=float(current_sizes.get(99, 0.0) / 100), step=5.0, format='%.2f', disabled=not has_custom, key=f"form_val_cust_{p['id']}")
-                            
-                            new_cat = f"{new_base_cat} | Custom:{edit_custom_label}" if (has_custom and edit_custom_label) else new_base_cat
-                            
-                            # Build submission tracking layout dict
-                            updated_sizes = {sz: cents_from_peso(pr) for sz, pr in size_inputs.items()}
-                            if has_custom and edit_custom_label:
-                                updated_sizes[99] = cents_from_peso(edit_custom_price)
-                                
-                            new_base_price_cents = next(iter(updated_sizes.values()), p['price_cents'])
-                        else:
-                            # Standard Food Processing Workflow Paths
-                            new_cat = st.text_input('Category', value=p['category']).strip()
-                            new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents']/100), step=5.0, format='%.2f')
-                            new_base_price_cents = cents_from_peso(new_price_val)
-                            updated_sizes = None
-
                         st.divider()
-                        new_threshold = st.number_input('Low-stock alert at', min_value=0, max_value=1000000, value=int(p['low_stock_threshold']), step=1)
+                        st.markdown('**🥤 Other / Custom Size Configuration**')
+                        has_custom = st.checkbox("Enable a different custom size profile for this product", value=is_custom_drink, key=f"form_has_cust_{p['id']}")
                         
-                        # Use a clean standalone button instead of st.form_submit_button
-                        save_changes = st.button('Save All Product Details', type='primary', key=f"unified_save_btn_{p['id']}")
+                        c_col1, c_col2 = st.columns(2)
+                        edit_custom_label = c_col1.text_input("Custom Size Description Label", value=custom_sz_label, placeholder="e.g., 22oz, 1-Liter", disabled=not has_custom, key=f"form_lbl_cust_{p['id']}").strip()
+                        edit_custom_price = c_col2.number_input("Custom Size Price (₱)", min_value=0.0, value=float(current_sizes.get(99, 0.0) / 100), step=5.0, format='%.2f', disabled=not has_custom, key=f"form_val_cust_{p['id']}")
+                        
+                        new_cat = f"{new_base_cat} | Custom:{edit_custom_label}" if (has_custom and edit_custom_label) else new_base_cat
+                        
+                        # Build submission tracking layout dict
+                        updated_sizes = {sz: cents_from_peso(pr) for sz, pr in size_inputs.items()}
+                        if has_custom and edit_custom_label:
+                            updated_sizes[99] = cents_from_peso(edit_custom_price)
+                            
+                        new_base_price_cents = next(iter(updated_sizes.values()), p['price_cents'])
+                    else:
+                        # Standard Food Processing Workflow Paths
+                        new_cat = st.text_input('Category', value=p['category']).strip()
+                        new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents']/100), step=5.0, format='%.2f')
+                        new_base_price_cents = cents_from_peso(new_price_val)
+                        updated_sizes = None
+
+                    st.divider()
+                    new_threshold = st.number_input('Low-stock alert at', min_value=0, max_value=1000000, value=int(p['low_stock_threshold']), step=1)
+                    
+                    save_changes = st.button('Save All Product Details', type='primary', key=f"unified_save_btn_{p['id']}")
 
                     if save_changes:
                         if not new_name or not new_cat:
@@ -329,7 +326,7 @@ elif mode=='Admin' and page=='Product Management':
                                 st.rerun()
                             except Exception as e: 
                                 safe_error(e)
-                                
+
                     # Independent Deactivation Button (Outside the save form context)
                     st.warning('Products are deactivated instead of deleted so historical sales remain intact.')
                     if st.button('Deactivate selected product', key=f"deact_action_btn_{p['id']}"):
