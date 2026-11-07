@@ -347,9 +347,10 @@ elif mode=='Admin' and page=='Product Management':
                     )
                 
                     # FIXED: Indentation aligned correctly inside your active product block
-                    with st.container(key="danger_zone_box"):    
-                        check_step1 = st.checkbox("Confirm: I want to permanently delete this product profile, not deactivate it.", key=f"force_del_c1_{p['id']}")
-                        check_step2 = st.checkbox("Confirm: I understand this action completely removes it from all search logs.", key=f"force_del_c2_{p['id']}")
+                   with st.container(key="danger_zone_box"):    
+                       check_step1 = st.checkbox("Confirm: I want to permanently delete this product profile, not deactivate it.", key=f"force_del_c1_{p['id']}")
+                       check_step2 = st.checkbox("Confirm: I understand this action completely removes it from all search logs.", key=f"force_del_c2_{p['id']}")
+
                         
                         # Button lights up ONLY when both safety checks are explicitly marked
                         if st.button('Permanently Delete From Database', key=f"hard_purge_action_{p['id']}", type='primary', disabled=not (check_step1 and check_step2)):
