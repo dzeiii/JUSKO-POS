@@ -617,7 +617,6 @@ elif mode == 'Cashier' and page == 'New Sale':
                             unit_price += addon_premium
 
                         # 3. Custom Free-text Notes Box (Allergies, Fry Flavors, Meal Comments)
-                        custom_note = st.text_input(
                         if is_drink:
                             note_hint = "e.g., 50% Sugar, Less Ice, Severe Lactose Allergy"
                         elif "fries" in display_cat_clean.lower() or "snack" in display_cat_clean.lower():
@@ -633,7 +632,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                             placeholder=note_hint,
                             key=f"note_input_{p['id']}"
                         ).strip()
-
+                
                         qty = st.number_input('Qty', min_value=1, max_value=max(1, int(p['stock'])), value=1, step=1, key=f"qty_{p['id']}", disabled=p['stock'] < 1)
                         add = st.form_submit_button('Add to cart', use_container_width=True, disabled=p['stock'] < 1)
                         
