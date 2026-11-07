@@ -100,7 +100,7 @@ if mode=='Admin' and page=='Dashboard':
     b.metric('Completed sales',summary['transactions'])
     c.metric('Active products',len(all_products))
     d.metric('Low-stock alerts',len(low),delta='Needs attention' if low else 'Stock looks good',delta_color='inverse' if low else 'normal')
-    e.metric('High-stock alerts',len(high), help='Products at or above their Admin-defined high-stock threshold.')
+    e.metric('High-stock alerts',len(high), delta='Overstocked' if high else 'Stock looks good', delta_color='inverse' if high else 'nomral', help='Products at or above their Admin-defined high-stock threshold.')
     st.caption('Revenue is the total value of recorded sales, not profit. Product costs and operating expenses are not tracked.')
     
     left,right=st.columns([1.15,1])
