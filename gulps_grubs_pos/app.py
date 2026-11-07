@@ -132,38 +132,76 @@ if mode=='Admin' and page=='Dashboard':
 elif mode=='Admin' and page=='Product Management':
     st.subheader('Product Catalog Management')
     tab1,tab2=st.tabs(['Add product','Edit / Delete'])
-    with tab1:
-        with st.form('add_product_form',clear_on_submit=True):
-            name=st.text_input('Product name *',placeholder='Enter product name').strip()
-            category=st.text_input('Category *',placeholder='e.g. Milkshake, Milktea, Fries, Streetfoods').strip()
-            has_size_prices=st.checkbox('This is a drink with separate cup-size prices')
-            if has_size_prices:
-                st.caption('Enter only the cup sizes that this drink actually offers.')
-                s8,s12,s16=st.columns(3)
-                use8=s8.checkbox('Offer 8 oz',value=False)
-                price8=s8.number_input('8 oz price (₱)',min_value=0.0,max_value=1000000.0,value=0.0,step=5.0,format='%.2f',disabled=not use8)
-                use12=s12.checkbox('Offer 12 oz',value=True)
-                price12=s12.number_input('12 oz price (₱)',min_value=0.0,max_value=1000000.0,value=0.0,step=5.0,format='%.2f',disabled=not use12)
-                use16=s16.checkbox('Offer 16 oz',value=True)
-                price16=s16.number_input('16 oz price (₱)',min_value=0.0,max_value=1000000.0,value=0.0,step=5.0,format='%.2f',disabled=not use16)
-                size_prices={size:cents_from_peso(price) for size,use,price in [(8,use8,price8),(12,use12,price12),(16,use16,price16)] if use}
-                price=next(iter(size_prices.values()),0)/100
-            else:
-                size_prices=None
-                price=st.number_input('Price (₱)',min_value=0.0,max_value=1000000.0,value=0.0,step=0.5,format='%.2f')
-            stock=st.number_input('Starting stock',min_value=0,max_value=1000000,value=0,step=1)
-            threshold=st.number_input('Low-stock alert at',min_value=0,max_value=1000000,value=5,step=1)
-            submitted=st.form_submit_button('Add product',type='primary',use_container_width=True)
-        if submitted:
-            try:
-                if not name or not category: raise ValueError('Enter both a product name and a category.')
-                if has_size_prices and not size_prices: raise ValueError('Select at least one drink size.')
-                if has_size_prices and any(v <= 0 for v in size_prices.values()): raise ValueError('Drink size prices must be greater than zero.')
-                code=db.generate_product_code()
-                pid=db.add_product(code,name,category,cents_from_peso(price),int(stock),int(threshold),size_prices=size_prices); db.log_activity('Admin','Product added',f'{code} · {name} · Stock {int(stock)}'); st.success(f'{name} added successfully with product code {code}.'); st.rerun()
-            except Exception as e: safe_error(e)
-    products=db.list_products()
-    active=[p for p in products if p['active']]
+       with tab1:
+        with st.form('add_product_form', clear_on_submit=True):
+            name = st.text_input('Product name *', placeholder='E
+            classification = st.radio('Product Classification *', 
+                ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], 
+                horizontal=True
+            )
+            # Initialize dynamic variables
+            category = ""
+            size_prices = None
+            price = 0.0
+            
+            if classification == 'Foods (Grubs)':
+                category = st.text_input('Category *', placeholder='e.g. Streetfood, Pasta, Appetizer').strip()
+                price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
+                
+            elif classification == 'Drinks (Gulps)':
+                category = st.text_input('Category *', placeholder='e.g. Milkshake, Float, Milktea').strip()
+                
+                st.caption('Configure your cup sizes and pricing:')
+                s8, s12, s16 = st.columns(3)
+                use8 = s8.checkbox('Offer 8 oz', value=False)
+                price8 = s8.number_input('8 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use8)
+                
+                use12 = s12.checkbox('Offer 12 oz', value=True)
+                price12 = s12.number_input('12 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use12)
+                
+                use16 = s16.checkbox('Offer 16 oz', value=True)
+                price16 = s16.number_input('16 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use16)
+                
+                size_prices = {size: cents_from_peso(pr) for size, use, pr in [(8, use8, price8), (12, use12, price12), (16, use16, price16)] if use}
+                price = next(iter(size_prices.values()), 0) / 100 if size_prices else 0.0
+                
+            elif classification == 'Others (Combo/Meal Plan)':
+                category = st.text_input('Category *', placeholder='e.g. Combo Meal, Promo Bundle').strip()
+                price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
+
+            # Inventory Threshold Fields
+            st.divider()
+            starting_stock = st.number_input('Starting stock', min_value=0, value=0, step=1)
+            low_stock_threshold = st.number_input('Low-stock alert at', min_value=0, value=5, step=1)
+            high_stock_threshold = st.number_input('High-stock alert at', min_value=0, value=50, step=1)
+            
+            # Form Submission Button
+            submitted = st.form_submit_button('Add product')
+            if submitted:
+                if not name:
+                    st.error("Product name is required.")
+                elif not category:
+                    st.error("Category is required.")
+                elif classification == 'Drinks (Gulps)' and not size_prices:
+                    st.error("Please enable at least one cup size for drinks.")
+                else:
+                    try:
+                        price_cents = cents_from_peso(price)
+                        
+                        db.add_product(
+                            name=name, 
+                            category=category, 
+                            price_cents=price_cents, 
+                            size_prices=size_prices,
+                            stock=starting_stock,
+                            low_stock_threshold=low_stock_threshold,
+                            high_stock_threshold=high_stock_threshold
+                        )
+                        st.success(f"Successfully added '{name}' under '{category}'!")
+                        st.rerun()
+                    except Exception as e:
+                        safe_error(e)
+=
     with tab2:
         if not products: st.info('Add your first product to begin.')
         else:
