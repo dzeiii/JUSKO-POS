@@ -153,7 +153,7 @@ elif mode=='Admin' and page=='Product Management':
                 
                 st.caption('Configure your cup sizes and pricing:')
                 s8, s12, s16 = st.columns(3)
-                use8 = s8.checkbox('Offer 8 oz', value=False)
+                use8 = s8.checkbox('Offer 8 oz', value=True)
                 price8 = s8.number_input('8 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use8)
                 
                 use12 = s12.checkbox('Offer 12 oz', value=True)
