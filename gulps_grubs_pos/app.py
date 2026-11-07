@@ -134,7 +134,7 @@ elif mode=='Admin' and page=='Product Management':
     tab1,tab2=st.tabs(['Add product','Edit / Delete'])
     with tab1:
         with st.form('add_product_form', clear_on_submit=True):
-            name = st.text_input('Product name *', placeholder='E
+            name = st.text_input('Product name *', placeholder='Enter product name').strip()
             classification = st.radio('Product Classification *', 
                 ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], 
                 horizontal=True
