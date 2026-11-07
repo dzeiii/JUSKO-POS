@@ -47,7 +47,7 @@ def init_db(db_path=DB_PATH):
         );
         CREATE TABLE IF NOT EXISTS product_sizes (
           product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-          size_oz INTEGER NOT NULL CHECK(size_oz IN (8,12,16)),
+          size_oz INTEGER NOT NULL CHECK(size_oz IN (8,12,16,99)), 
           price_cents INTEGER NOT NULL CHECK(price_cents >= 0),
           PRIMARY KEY(product_id, size_oz)
         );
@@ -105,44 +105,37 @@ def init_db(db_path=DB_PATH):
         if 'customizations' not in columns:
             c.execute("ALTER TABLE transaction_items ADD COLUMN customizations TEXT NOT NULL DEFAULT ''")
 
-        # --- DYNAMIC MIGRATION: Force old databases to accept 'Inventory Manager' ---
+                # --- DYNAMIC MIGRATION: Alter product_sizes constraints to allow custom size 99 ---
         try:
-            # Attempt a test insert to see if your old database layout blocks the new role
-            c.execute("INSERT INTO activity_history (actor_mode, action, details, created_at) VALUES ('Inventory Manager', 'MIGRATION_TEST', '', ?)", (datetime.now().isoformat(),))
-            c.execute("DELETE FROM activity_history WHERE action = 'MIGRATION_TEST'")
+            # Execute a swift test insert to verify if the live database file accepts 99 yet
+            # Using an emergency subquery fallback to avoid triggering foreign key breaks if products are empty
+            c.execute("INSERT INTO product_sizes (product_id, size_oz, price_cents) VALUES ((SELECT id FROM products LIMIT 1), 99, 0)")
+            c.execute("DELETE FROM product_sizes WHERE size_oz = 99 AND price_cents = 0")
         except sqlite3.IntegrityError:
-            # If it blocks, backup data logs, rebuild the table with new rules, and re-insert logs
-            old_logs = c.execute("SELECT actor_mode, action, details, created_at FROM activity_history").fetchall()
-            c.execute("DROP TABLE activity_history")
+            # If it throws an IntegrityError, it means the old constraints are blocking it.
+            # We migrate the structural data safely behind the scenes without breaking your menu list rows:
+            
+            # a. Temporarily extract all active pricing records currently saved in the table
+            old_sizes = c.execute("SELECT product_id, size_oz, price_cents FROM product_sizes").fetchall()
+            
+            # b. Drop the old restricted database table module
+            c.execute("DROP TABLE product_sizes")
+            
+            # c. Re-initialize the table blueprint structure with your open constraint guidelines (including 99)
             c.execute('''
-                CREATE TABLE activity_history (
-                  id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  actor_mode TEXT NOT NULL CHECK(actor_mode IN ('Admin','Cashier','Inventory Manager','System')),
-                  action TEXT NOT NULL,
-                  details TEXT NOT NULL DEFAULT '',
-                  created_at TEXT NOT NULL
+                CREATE TABLE product_sizes (
+                  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+                  size_oz INTEGER NOT NULL CHECK(size_oz IN (8,12,16,99)),
+                  price_cents INTEGER NOT NULL CHECK(price_cents >= 0),
+                  PRIMARY KEY(product_id, size_oz)
                 );
             ''')
-            for log in old_logs:
-                # Map old invalid roles if any exist to safety fallbacks
-                actor = log['actor_mode'] if log['actor_mode'] in ['Admin','Cashier','Inventory Manager','System'] else 'System'
-                c.execute("INSERT INTO activity_history (actor_mode, action, details, created_at) VALUES (?, ?, ?, ?)", (actor, log['action'], log['details'], log['created_at']))
             
-        c.execute('''INSERT OR IGNORE INTO product_sizes(product_id,size_oz,price_cents)
-                     SELECT id,8,price_cents FROM products WHERE lower(category)='beverage' ''')
-        c.execute('''INSERT OR IGNORE INTO product_sizes(product_id,size_oz,price_cents)
-                     SELECT id,12,price_cents FROM products WHERE lower(category)='beverage' ''')
-        c.execute('''INSERT OR IGNORE INTO product_sizes(product_id,size_oz,price_cents)
-                     SELECT id,16,price_cents FROM products WHERE lower(category)='beverage' ''')
-        
-        c.executescript('''
-        CREATE INDEX IF NOT EXISTS idx_products_active_name ON products(active, name);
-        CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at);
-        CREATE INDEX IF NOT EXISTS idx_items_transaction ON transaction_items(transaction_id);
-        CREATE INDEX IF NOT EXISTS idx_movements_product_date ON inventory_movements(product_id, created_at);
-        CREATE INDEX IF NOT EXISTS idx_orders_status_priority ON pending_orders(status, priority, sequence_no);
-        CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_history(created_at);
-        ''')
+            # d. Restore every single pre-existing pricing record back into place smoothly
+            for row in old_sizes:
+                c.execute("INSERT INTO product_sizes (product_id, size_oz, price_cents) VALUES (?, ?, ?)", 
+                          (row['product_id'], row['size_oz'], row['price_cents']))
+
 
 def rowdict(row): return dict(row) if row is not None else None
 
