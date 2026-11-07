@@ -610,7 +610,7 @@ elif mode=='Inventory Manager' and page=='Restock Products':
     if active_products:
         choices={f"{p['code']} — {p['name']} (current stock: {p['stock']})":p for p in active_products}
         with st.form('inventory_manager_restock',clear_on_submit=True):
-            selected=st.selectbox('Product',list(choices))
+            selected=st.selectbox('Product',list(choices),key='restock_item_selector')
             quantity=st.number_input('Quantity received',min_value=1,max_value=1000000,value=1,step=1)
             submit=st.form_submit_button('Save restock',type='primary')
         if submit:
