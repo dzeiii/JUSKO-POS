@@ -1,9 +1,14 @@
 """SQLite persistence and atomic business operations for the POS MVP."""
 from contextlib import contextmanager
-from datetime import datetime
 from pathlib import Path
 import sqlite3
 import re
+from datetime import datetime, timedelta
+
+def get_ph_iso_timestamp():
+    """Generates a reliable string timestamp calibrated to Philippine Standard Time (UTC+8)."""
+    return (datetime.utcnow() + timedelta(hours=8)).isoformat()
+
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / 'pos.db'
@@ -291,14 +296,13 @@ def restock_product(product_id, quantity, db_path=DB_PATH):
 def checkout(cart_items, cashier_label='Cashier', db_path=DB_PATH):
     """Commits an active cashier sale list down to persistent database tables."""
     import sqlite3
-    from datetime import datetime
+    from datetime import datetime, timedelta # Ensure timedelta is imported here
     
     if not cart_items:
         raise ValueError("Cannot checkout an empty shopping cart.")
-
-    now = datetime.now().isoformat()
+    now = (datetime.utcnow() + timedelta(hours=8)).isoformat()
     total_cents = 0
-    
+
     # Calculate order total value to satisfy transactional logs
     for item in cart_items:
         total_cents += int(item['subtotal_cents'])
@@ -386,7 +390,10 @@ def list_orders(pending_only=False, db_path=DB_PATH, order_type=None):
     sql='SELECT * FROM pending_orders'+((' WHERE '+' AND '.join(clauses)) if clauses else '')+' ORDER BY priority ASC, sequence_no ASC'
     with connection(db_path) as c: return [dict(r) for r in c.execute(sql,params).fetchall()]
 
-def add_order(customer_name, details, priority, db_path=DB_PATH, order_type='Food'):
+def add_order(customer_name, details, priority, order_type='Food', db_path=DB_PATH):
+    from datetime import datetime, timedelta
+    now = (datetime.utcnow() + timedelta(hours=8)).isoformat()
+
     customer_name,details=customer_name.strip(),details.strip()
     if not customer_name or len(customer_name)>100: raise ValueError('Customer name is required (maximum 100 characters).')
     if not details or len(details)>500: raise ValueError('Order details are required (maximum 500 characters).')
