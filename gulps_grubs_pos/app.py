@@ -255,8 +255,7 @@ elif mode=='Admin' and page=='Product Management':
                         new_code=p['code']  # Keep product codes stable so past sales remain consistent.
                         new_name=ec2.text_input('Product name',value=p['name']).strip()
                         new_cat=st.text_input('Category',value=p['category']).strip()
-                        ec3=st.columns(1)
-                        new_threshold=ec3.number_input('Low-stock alert at',min_value=0,max_value=1000000,value=p['low_stock_threshold'],step=1)
+                        new_threshold=st.number_input('Low-stock alert at',min_value=0,max_value=1000000,value=p['low_stock_threshold'],step=1)
                         save=st.form_submit_button('Save changes',type='primary')
                     if save:
                         try: db.update_product(p['id'],new_code,new_name,new_cat,cents_from_peso(new_price),int(new_threshold)); db.log_activity('Admin','Product updated',f'{new_code} · {new_name}'); st.success('Product updated.'); st.rerun()
