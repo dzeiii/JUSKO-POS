@@ -568,7 +568,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                         is_coffee = 'coffee' in cat_lower or 'coffee' in prod_name_lower
 
                         if is_drink:
-                            st.markdown("##### 🎛️ Base Sinker Selection")
+                            st.markdown("### Sinker Selection")
                             
                             # 1. FIXED: Radio layouts for your mutually exclusive free preset sinker configurations
                             if is_milktea:
@@ -597,7 +597,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                                     chosen_customizations.append("❌ NO COFFEE JELLY")
 
                             # 2. FIXED: Paid Premium Add-on Checkboxes Layout
-                            st.markdown("##### ➕ Premium Add-ons")
+                            st.markdown("### Add-ons")
                             sk1, sk2, sk3 = st.columns(3)
                             
                             add_extra_pearl = sk1.checkbox("Extra Pearls (+₱5)", key=f"add_p_{p['id']}")
