@@ -615,7 +615,7 @@ elif mode=='Inventory Manager' and page=='Restock Products':
         choices = {f"{p['code']} — {p['name']} (current stock: {p['stock']})": p for p in active_products}
         
         # Split features into clear structural operation tabs
-        itab1, itab2, itab3 = st.tabs(["➕ Add Stock (Restock)", "➖ Deduct Stock (Waste/Spoilage)", "✏️ Direct Edit (Stock Audit)"])
+        itab1, itab2, itab3 = st.tabs(["Add Stock (Restock)", "Deduct Stock (Waste/Spoilage)", "Direct Edit (Stock Audit)"])
         
         # --- TAB 1: ADD STOCK ---
         with itab1:
