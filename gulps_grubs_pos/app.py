@@ -518,10 +518,9 @@ elif mode=='Cashier' and page=='New Sale':
                         price_line = ' · '.join(price_parts)
                     else:
                         price_line=money(p['price_cents'])
-                    
-                    # Clean out metadata custom tags for the template to view it nicely
-                    display_cat_clean = p['category'].split(" | Custom:", 1).strip()
-                    # --- FIXED: Use exactly price_line=price_line inside the arguments list ---
+                
+                    display_cat_clean = p['category'].split(" | Custom:", 1)[0].strip()
+               
                     st.markdown(
                         load_html_template(
                             'product_card.html', 
