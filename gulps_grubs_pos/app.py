@@ -519,19 +519,20 @@ elif mode=='Cashier' and page=='New Sale':
                     else:
                         price_line=money(p['price_cents'])
                 
-                    display_cat_clean = p['category'].split(" | Custom:", 1)[0].strip()
-               
-                    st.markdown(
-                        load_html_template(
-                            'product_card.html', 
-                            name=p['name'], 
-                            code=p['code'], 
-                            category=display_cat_clean, 
-                            price=price_line,  # Matches the variable name exactly
-                            stock=int(p['stock'])
-                        ), 
-                        unsafe_allow_html=True
-                    )
+                    cat_parts = p['category'].split(" | Custom:", 1)
+                    display_cat_clean = cat_parts[0].strip() if cat_parts else p['category']
+                    
+                    template_payload = {
+                        'name': str(p['name']),
+                        'code': str(p['code']),
+                        'category': str(display_cat_clean),
+                        'price': str(price_line),          
+                        'stock': str(int(p['stock']))
+                    }
+                    
+                    # 3. Unpack your clean payload safely into the custom template parser function
+                    card_html = load_html_template('product_card.html', **template_payload)
+                    st.markdown(card_html, unsafe_allow_html=True)
                     
                     with st.form(f"add_cart_{p['id']}"):
                         size_oz=None; unit_price=p['price_cents']; chosen_options=[]
