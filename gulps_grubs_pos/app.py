@@ -24,7 +24,7 @@ def cents_from_peso(value): return int(round(float(value)*100))
 def load_html_template(name, **values):
     """Load a small HTML fragment from templates/ and safely fill placeholders."""
     from html import escape
-    template_path = APP_DIR / 'templates' / templates
+    template_path = APP_DIR / 'templates' / _file_name
     content = template_path.read_text(encoding='utf-8')
     for key, value in values.items():
         content = content.replace('{{ ' + key + ' }}', escape(str(value)))
