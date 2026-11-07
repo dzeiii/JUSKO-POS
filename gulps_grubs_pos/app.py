@@ -201,7 +201,6 @@ elif mode=='Admin' and page=='Product Management':
                         st.rerun()
                     except Exception as e:
                         safe_error(e)
-=
     with tab2:
         if not products: st.info('Add your first product to begin.')
         else:
