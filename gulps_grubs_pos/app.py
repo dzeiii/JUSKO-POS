@@ -614,11 +614,12 @@ elif mode == 'Cashier' and page == 'New Sale':
 
                             # 2. FIXED: Paid Premium Add-on Checkboxes Layout
                             st.markdown("### Add-ons")
-                            sk1, sk2, sk3 = st.columns(3)
+                            sk1, sk2, sk3, sk4 = st.columns(3)
                             
                             add_extra_pearl = sk1.checkbox("Extra Pearls (+₱5)", key=f"add_p_{p['id']}")
                             add_extra_nata = sk2.checkbox("Extra Nata (+₱5)", key=f"add_n_{p['id']}")
                             add_extra_jelly = sk3.checkbox("Extra Jelly (+₱5)", key=f"add_j_{p['id']}")
+                            add_extra_coffee_jelly = sk4.checkbox("Extra Coffee Jelly (+₱5)", key=f"add_c_{p['id']}")
                             
                             if add_extra_pearl:
                                 chosen_customizations.append("➕ Extra Pearls")
@@ -629,7 +630,9 @@ elif mode == 'Cashier' and page == 'New Sale':
                             if add_extra_jelly:
                                 chosen_customizations.append("➕ Extra Jelly")
                                 addon_premium += 500
-                                
+                            if add_extra_coffee_jelly:
+                                chosen_customization.append("➕ Extra Coffee Jelly")
+                                addon_premium += 500
                             unit_price += addon_premium
 
                         # 3. Custom Free-text Notes Box (Allergies, Fry Flavors, Meal Comments)
