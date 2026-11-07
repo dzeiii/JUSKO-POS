@@ -152,43 +152,45 @@ elif mode=='Admin' and page=='Product Management':
                 base_category = st.text_input('Category Name *', placeholder='e.g. Milkshake, Float, Milktea').strip()
                 
                 st.caption('Configure your cup sizes and pricing:')
-                s8, s12, s16 = st.columns(3)
                 
-                # Checkbox states linked directly via session state
-                if 'drink_use_8' not in st.session_state: st.session_state.drink_use_8 = True else: False
-                if 'drink_use_12' not in st.session_state: st.session_state.drink_use_12 = True
-                if 'drink_use_16' not in st.session_state: st.session_state.drink_use_16 = True
-                if 'drink_use_custom' not in st.session_state: st.session_state.drink_use_custom = True
+                # 1. Standard Size Layout Matrix
+                use8 = st.checkbox('Offer 8 oz', value=True, key='drink_use_8')
+                # FIX: Change 'disabled' to use the 'use8' variable directly
+                price8 = st.number_input('8 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use8)
                 
-                use8 = s8.checkbox('Offer 8 oz', key='drink_use_8')
-                price8 = s8.number_input('8 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not st.session_state.drink_use_8)
+                use12 = st.checkbox('Offer 12 oz', value=True, key='drink_use_12')
+                # FIX: Change 'disabled' to use the 'use12' variable directly
+                price12 = st.number_input('12 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use12)
                 
-                use12 = s12.checkbox('Offer 12 oz', key='drink_use_12')
-                price12 = s12.number_input('12 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not st.session_state.drink_use_12)
+                use16 = st.checkbox('Offer 16 oz', value=True, key='drink_use_16')
+                # FIX: Change 'disabled' to use the 'use16' variable directly
+                price16 = st.number_input('16 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use16)
                 
-                use16 = s16.checkbox('Offer 16 oz', key='drink_use_16')
-                price16 = s16.number_input('16 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not st.session_state.drink_use_16)
-                
-                # --- Custom Size Section ---
+                # 2. Other / Custom Size Section
                 st.divider()
                 st.markdown("##### 🥤 Other / Custom Size Profile")
-                use_custom = st.checkbox('Offer a different custom size', key='drink_use_custom')
+                use_custom = st.checkbox('Offer a different custom size', value=True, key='drink_use_custom')
                 
                 c_size_col, c_price_col = st.columns(2)
-                custom_label = c_size_col.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter, Large Jar', disabled=not st.session_state.drink_use_custom).strip()
-                custom_price = c_price_col.number_input('Custom Size Price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not st.session_state.drink_use_custom)
+                with c_size_col:
+                    # FIX: Change 'disabled' to use the 'use_custom' variable directly
+                    custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', disabled=not use_custom).strip()
+                with c_price_col:
+                    # FIX: Change 'disabled' to use the 'use_custom' variable directly
+                    custom_price = st.number_input('Custom Size Price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use_custom)
                 
-                # Map sizes strictly matching your INTEGER restrictions (8, 12, 16)
+                # 3. Data Processing Structures matching your SQLite constraints
                 size_prices = {size: cents_from_peso(pr) for size, use, pr in [(8, use8, price8), (12, use12, price12), (16, use16, price16)] if use}
                 
-                # If custom is chosen, we flag it with 99 and embed the custom text inside the category string!
                 if use_custom and custom_label:
+                    # Save the custom size under code flag 99
                     size_prices[99] = cents_from_peso(custom_price)
                     category = f"{base_category} | Custom:{custom_label}"
                 else:
                     category = base_category
                 
                 price = next(iter(size_prices.values()), 0) / 100 if size_prices else 0.0
+
                 
             elif classification == 'Others (Combo/Meal Plan)':
                 category = st.text_input('Category *', placeholder='e.g. Combo Meal, Promo Bundle').strip()
