@@ -593,31 +593,19 @@ elif mode=='Cashier' and page=='Order Queue':
         st.info('No pending orders. Add a food or drink order above.')
 
 elif mode=='Inventory Manager' and page=='Stock Overview':
-    st.subheader('Inventory stock overview')
-    products=db.list_products()
-    search=st.text_input('Search products by name, code, or category')
-    term=search.casefold().strip()
-    shown=[p for p in products if term in (p['name']+' '+p['code']+' '+p['category']).casefold()]
-    if shown:
-        st.dataframe(pd.DataFrame([{'Code':p['code'],'Product':p['name'],'Category':p['category'],'Stock':p['stock'],'Low-stock threshold':p['low_stock_threshold'],'Status':'Active' if p['active'] else 'Inactive','Stock alert':'LOW' if p['stock']<=p['low_stock_threshold'] else 'OK'} for p in shown]),use_container_width=True,hide_index=True)
-    else:
-        st.info('No product records yet. Admin must add menu products first.')
-    st.caption('Inventory Manager monitors physical stock. Admin owns menu names, categories, and prices.')
-
-elif mode=='Inventory Manager' and page=='Restock Products':
-    st.subheader('Inventory Stock Adjustments Dashboard')
+    st.subheader('Inventory Stock Adjustments')
     active_products = db.list_products(active_only=True)
     
     if not active_products:
         st.info('There are no active menu products to manage. Admin must add products first.')
     else:
-        # Build your reusable selectbox mapping matrix
+        # Build the product choices dictionary mapping
         choices = {f"{p['code']} — {p['name']} (current stock: {p['stock']})": p for p in active_products}
         
-        # Split features into clear structural operation tabs
-        itab1, itab2, itab3 = st.tabs(["Add Stock (Restock)", "Deduct Stock (Waste/Spoilage)", "Direct Edit (Stock Audit)"])
+        # Split features into 3 clean, operational tabs
+        itab1, itab2, itab3 = st.tabs(["➕ Add Stock (Restock)", "➖ Deduct Stock (Waste/Spoilage)", "✏️ Direct Edit (Stock Audit)"])
         
-        # --- TAB 1: ADD STOCK ---
+        # --- TAB 1: ADD STOCK (RESTOCK) ---
         with itab1:
             st.markdown("#### Record Incoming Deliveries")
             with st.form('inventory_manager_restock', clear_on_submit=True):
@@ -626,7 +614,8 @@ elif mode=='Inventory Manager' and page=='Restock Products':
                 submit = st.form_submit_button('Save Restock Entry', type='primary')
                 
             if submit:
-                if selected is None: st.error("Please pick a menu product first.")
+                if selected is None: 
+                    st.error("Please select a valid menu product from the dropdown box first.")
                 else:
                     try:
                         item = choices[selected]
@@ -635,9 +624,10 @@ elif mode=='Inventory Manager' and page=='Restock Products':
                         db.log_activity('Inventory Manager', 'Stock Added', f"{item['code']} · +{int(quantity)} units")
                         st.success(f"Successfully added {quantity} units to '{item['name']}'! New balance: {new_total}")
                         st.rerun()
-                    except Exception as exc: safe_error(exc)
+                    except Exception as exc: 
+                        safe_error(exc)
 
-        # --- TAB 2: DEDUCT STOCK ---
+        # --- TAB 2: DEDUCT STOCK (WASTE/SPOILAGE) ---
         with itab2:
             st.markdown("#### Record Spoilage, Damage, or Waste")
             with st.form('inventory_manager_deduct', clear_on_submit=True):
@@ -647,8 +637,10 @@ elif mode=='Inventory Manager' and page=='Restock Products':
                 submit = st.form_submit_button('Confirm Stock Deduction', type='primary')
                 
             if submit:
-                if selected is None: st.error("Please pick a menu product first.")
-                elif not reason: st.error("A validation reason is required to process inventory deductions.")
+                if selected is None: 
+                    st.error("Please select a valid menu product from the dropdown box first.")
+                elif not reason: 
+                    st.error("A validation reason is required to process inventory deductions.")
                 else:
                     try:
                         item = choices[selected]
@@ -660,12 +652,13 @@ elif mode=='Inventory Manager' and page=='Restock Products':
                             db.log_activity('Inventory Manager', 'Stock Deducted', f"{item['code']} · -{int(quantity)} units ({reason})")
                             st.success(f"Successfully deducted {quantity} units from '{item['name']}'. New balance: {new_total}")
                             st.rerun()
-                    except Exception as exc: safe_error(exc)
+                    except Exception as exc: 
+                        safe_error(exc)
 
-        # --- TAB 3: DIRECT EDIT / AUDIT ---
+        # --- TAB 3: DIRECT EDIT (STOCK AUDIT) ---
         with itab3:
             st.markdown("#### Direct Physical Inventory Audit Override")
-            st.caption("Use this only during weekly or monthly inventory audits to force correct counts.")
+            st.caption("Use this only during physical inventory audits to calibrate exact database counts.")
             
             selected = st.selectbox('Select Product to Audit', list(choices.keys()), index=None, placeholder="Select product...", key='restock_audit_select')
             
@@ -683,7 +676,9 @@ elif mode=='Inventory Manager' and page=='Restock Products':
                         db.log_activity('Inventory Manager', 'Stock Count Audited', f"{item['code']} · Overwrote to {int(exact_stock)}")
                         st.success(f"Inventory database successfully calibrated to exactly {exact_stock} units.")
                         st.rerun()
-                    except Exception as exc: safe_error(exc)
+                    except Exception as exc: 
+                        safe_error(exc)
+
 
 
 elif mode=='Cashier' and page=='Last Transaction':
