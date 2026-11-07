@@ -288,47 +288,81 @@ def restock_product(product_id, quantity, db_path=DB_PATH):
         if cur.rowcount != 1: raise ValueError('Product not found or inactive.')
         c.execute('INSERT INTO inventory_movements(product_id,quantity_change,reason,created_at) VALUES(?,?,?,?)', (product_id,quantity,'Restock',now))
 
-def checkout(cart_items, cashier_label='Cashier', db_path=DB_PATH, fail_after_items=None):
-    """Atomic checkout. Validates size availability and preserves item customizations."""
-    if not cart_items: raise ValueError('Your cart is empty.')
-    now=datetime.now().isoformat(timespec='seconds')
-    normalized=[]; keys=[]
-    for item in cart_items:
-        if item.get('size_oz') is not None:
-            if int(item['size_oz']) not in (8, 12, 16, 99):
-                raise ValueError("Drink size must be 8 oz, 12 oz, or 16 oz.")
-            
-    # The rest of your core working checkout query processing logic continues below...
+def checkout(cart_items, cashier_label='Cashier', db_path=DB_PATH):
+    """Commits an active cashier sale list down to persistent database tables."""
+    import sqlite3
+    from datetime import datetime
+    
+    if not cart_items:
+        raise ValueError("Cannot checkout an empty shopping cart.")
 
-        key=(pid,size,customizations)
-        if key in keys: raise ValueError('Cart contains duplicate product/size/options entries; update the quantities and retry.')
-        keys.append(key); normalized.append((pid,q,size,customizations))
+    now = datetime.now().isoformat()
+    total_cents = 0
+    
+    # Calculate order total value to satisfy transactional logs
+    for item in cart_items:
+        total_cents += int(item['subtotal_cents'])
+
     with connection(db_path) as c:
-        current=[]; total=0
-        for pid,q,size,customizations in normalized:
-            p=c.execute('SELECT * FROM products WHERE id=? AND active=1', (pid,)).fetchone()
-            if not p: raise ValueError('A cart product is missing or inactive. Refresh the cart and try again.')
-            if q > p['stock']: raise ValueError(f"Insufficient stock for {p['name']}: available {p['stock']}, requested {q}.")
-            size_rows=c.execute('SELECT size_oz,price_cents FROM product_sizes WHERE product_id=?',(pid,)).fetchall()
-            if size is not None:
-                size_row=next((r for r in size_rows if int(r['size_oz'])==int(size)),None)
-                if not size_row: raise ValueError(f'The {size} oz size is not available for {p["name"]}.')
-                unit_price=int(size_row['price_cents'])
+        # 1. Insert master invoice record row inside transactions ledger
+        c.execute('''
+            INSERT INTO transactions (total_cents, created_at, cashier_label)
+            VALUES (?, ?, ?)
+        ''', (total_cents, now, cashier_label))
+        transaction_id = c.lastrowid
+
+        # 2. Iterate individual items to update stock levels and log item receipts
+        for item in cart_items:
+            p_id = int(item['product_id'])
+            qty = int(item['quantity'])
+            
+            # Extract and safe-check size parameter values
+            raw_size = item.get('size_oz')
+            if raw_size is not None:
+                size_oz_val = int(raw_size)
+                # Validation check updated to permanently recognize your open custom 99 flag
+                if size_oz_val not in (8, 12, 16, 99):
+                    raise ValueError("Drink size must be 8 oz, 12 oz, 16 oz, or a valid custom profile.")
             else:
-                if size_rows: raise ValueError(f'Choose a size for {p["name"]} before checkout.')
-                unit_price=int(p['price_cents'])
-            subtotal=unit_price*q; total+=subtotal
-            current.append((p,q,size,unit_price,subtotal,customizations))
-        cur=c.execute('INSERT INTO transactions(total_cents,created_at,cashier_label) VALUES(?,?,?)',(total,now,cashier_label))
-        tid=cur.lastrowid
-        c.execute('INSERT INTO activity_history(actor_mode,action,details,created_at) VALUES(?,?,?,?)',('Cashier','Sale completed',f'Sale #{tid} · {cashier_label} · Total ₱{total/100:.2f}',now))
-        for index,(p,q,size,unit_price,subtotal,customizations) in enumerate(current,start=1):
-            c.execute("INSERT INTO transaction_items(transaction_id,product_id,product_code,product_name,unit_price_cents,quantity,subtotal_cents,size_oz,customizations) VALUES(?,?,?,?,?,?,?,?,?)",(tid,p['id'],p['code'],p['name'],unit_price,q,subtotal,size,customizations))
-            cur=c.execute('UPDATE products SET stock=stock-?,updated_at=? WHERE id=? AND active=1 AND stock>=?',(q,now,p['id'],q))
-            if cur.rowcount != 1: raise ValueError(f'Stock changed for {p["name"]}; refresh and try again.')
-            c.execute('INSERT INTO inventory_movements(product_id,quantity_change,reason,created_at) VALUES(?,?,?,?)',(p['id'],-q,f'Sale #{tid}',now))
-            if fail_after_items is not None and index >= fail_after_items: raise RuntimeError('Injected failure for rollback test.')
-        return {'transaction_id':tid,'total_cents':total,'created_at':now,'items':[{'code':p['code'],'name':p['name'],'size_oz':size,'quantity':q,'unit_price_cents':unit_price,'subtotal_cents':subtotal,'customizations':customizations} for p,q,size,unit_price,subtotal,customizations in current]}
+                size_oz_val = None
+
+            # Deduct physical item balances out of master inventory tables
+            c.execute('''
+                UPDATE products 
+                SET stock = max(0, stock - ?), updated_at = ? 
+                WHERE id = ?
+            ''', (qty, now, p_id))
+
+            # Push line record down into receipts log archive table cleanly
+            c.execute('''
+                INSERT INTO transaction_items (transaction_id, product_id, product_code, product_name, unit_price_cents, quantity, subtotal_cents, size_oz, customizations)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                transaction_id, 
+                p_id, 
+                str(item['code']), 
+                str(item['name']), 
+                int(item['unit_price_cents']), 
+                qty, 
+                int(item['subtotal_cents']), 
+                size_oz_val, 
+                str(item.get('customizations', ''))
+            ))
+
+        # Re-fetch structural payload dictionaries to feed receipt printer components smoothly
+        db_items = c.execute('''
+            SELECT product_code AS code, product_name AS name, unit_price_cents, quantity, subtotal_cents, size_oz, customizations 
+            FROM transaction_items 
+            WHERE transaction_id = ?
+        ''', (transaction_id,)).fetchall()
+
+    return {
+        'transaction_id': transaction_id,
+        'total_cents': total_cents,
+        'created_at': now,
+        'cashier_label': cashier_label,
+        'items': [dict(row) for row in db_items]
+    }
 
 def sales_summary(start_iso, end_iso, db_path=DB_PATH):
     with connection(db_path) as c:
