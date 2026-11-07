@@ -341,7 +341,7 @@ elif mode=='Admin' and page=='Product Management':
                     
                     # HTML and Bold styling fixed to render properly together
                     st.markdown(
-                        "<span style='font-size: 14px;'>Clicking delete below will execute a <b style='color: #c92a2a;'>HARD DELETE</b>. "
+                        "<span style='font-size: 20px;'>Clicking delete below will execute a <b style='color: #c92a2a;'>HARD DELETE</b>. "
                         "This completely wipes the item profile row from the database catalog and cannot be undone.</span>", 
                         unsafe_allow_html=True
                     )
