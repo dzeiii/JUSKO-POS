@@ -506,7 +506,7 @@ elif mode == 'Cashier' and page == 'New Sale':
             for col, p in zip(cols, shown[start_idx:start_idx+2]):
                 with col:
                     # 1. Calculate available servings from raw ingredients/powders
-                    available_servings = calculate_available_servings(p['id'])
+                    available_servings = db.calculate_available_servings(p['id'])
                     
                     # If a recipe exists, use calculated servings; otherwise fall back to direct stock
                     if isinstance(available_servings, int):
