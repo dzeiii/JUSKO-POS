@@ -1,4 +1,4 @@
-from datetime import date, datetime, time, timedelta
+rom datetime import date, datetime, time, timedelta
 from pathlib import Path
 import logging
 import sqlite3
@@ -520,8 +520,7 @@ elif mode=='Cashier' and page=='New Sale':
                         price_line=money(p['price_cents'])
                     
                     # Clean out metadata custom tags for the template to view it nicely
-                    display_cat_clean = p['category'].split(" | Custom:", 1)[0].strip()
-                    
+                    display_cat_clean = p['category'].split(" | Custom:", 1).strip()
                     # --- FIXED: Use exactly price_line=price_line inside the arguments list ---
                     st.markdown(
                         load_html_template(
@@ -529,8 +528,8 @@ elif mode=='Cashier' and page=='New Sale':
                             name=p['name'], 
                             code=p['code'], 
                             category=display_cat_clean, 
-                            price_line=price_line,  # Matches the variable name exactly
-                            stock=p['stock']
+                            price=price_line,  # Matches the variable name exactly
+                            stock=int(p['stock'])
                         ), 
                         unsafe_allow_html=True
                     )
