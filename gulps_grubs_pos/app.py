@@ -294,12 +294,11 @@ elif mode=='Admin' and page=='Product Management':
                         
                         new_cat = f"{new_base_cat} | Custom:{edit_custom_label}" if (has_custom and edit_custom_label) else new_base_cat
                         
-                        # FIX: Read baseline sizes directly as raw cents integers from the DB without multiplying again
                         updated_sizes = {int(sz): int(cents) for sz, cents in current_sizes.items()}
                         
-                        # Update standard sizes ONLY if they match what's on the screen layout
                         for sz, pr_val in size_inputs.items():
-                            updated_sizes[int(sz)] = cents_from_peso(pr_val)
+                            if pr_val > 0.0:
+                                updated_sizes[int(sz)] = cents_from_peso(pr_val)
                         
                         # Add or update the custom size (99) profile independently
                         if has_custom and edit_custom_label:
