@@ -501,7 +501,7 @@ elif mode == 'Cashier' and page == 'New Sale':
         if not shown: 
             st.info('No matching active products.')
             
-                for start_idx in range(0, len(shown), 2):
+        for start_idx in range(0, len(shown), 2):
             cols = st.columns(2)
             for col, p in zip(cols, shown[start_idx:start_idx+2]):
                 with col:
