@@ -79,7 +79,7 @@ with st.container(key='site_header'):
             page=st.radio('Cashier navigation',['New Sale','Order Queue','Last Transaction','Sales History'],
                           horizontal=True,key='cashier_page',label_visibility='collapsed')
         else:
-            page=st.radio('Inventory navigation',['Stock Overview','Restock Products'],
+            page=st.radio('Inventory navigation',['Dashboard','Stock Overview','Restock Products'],
                           horizontal=True,key='inventory_page',label_visibility='collapsed')
 st.caption('Demo mode selector only — it is not secure authentication. Add role-based login before public deployment.')
 
@@ -690,43 +690,97 @@ elif mode=='Inventory Manager' and page=='Restock Products':
                         st.rerun()
                     except Exception as exc: 
                         safe_error(exc)
-
-        # --- 📊 DYNAMIC STOCK MOVEMENT SUMMARY LEDGER ---
-        st.markdown("---")
-        st.markdown("#### 📜 Recent Inventory Movement Logs")
+elif mode=='Inventory Manager' and page== 'Dashboard':
+        st.subheader('📦 Inventory Operations Dashboard')
+        # Load running baseline metrics from your central database
+    all_products = db.list_products(active_only=True)
+    
+    if not all_products:
+        st.info("No active catalog items found. Dashboard analytics will populate once items are added.")
+    else:
+        # 1. Calculate operational thresholds using your alert boundaries
+        out_of_stock = [p for p in all_products if p['stock'] == 0]
+        low_stock = [p for p in all_products if 0 < p['stock'] <= p['low_stock_threshold']]
+        overstocked = [p for p in all_products if p['stock'] >= p.get('high_stock_threshold', 50)]
+        healthy_stock = len(all_products) - len(out_of_stock) - len(low_stock) - len(overstocked)
         
-        # Pull movements directly from your database's inventory_movements table
-        try:
-            with db.connection() as conn:
-                movements = conn.execute('''
-                    SELECT m.id, p.code, p.name, m.quantity_change, m.reason, m.created_at 
-                    FROM inventory_movements m
-                    JOIN products p ON m.product_id = p.id
-                    ORDER BY m.created_at DESC LIMIT 10
-                ''').fetchall()
-                
-            if movements:
-                log_data = []
-                for m in movements:
-                    # Clean up timestamps for scannability
-                    clean_time = m['created_at'].replace('T', ' ')[:16]
-                    direction = "➕ Addition" if m['quantity_change'] > 0 else "➖ Deduction"
-                    
-                    log_data.append({
-                        "Timestamp": clean_time,
-                        "Product Code": m['code'],
-                        "Product Name": m['name'],
-                        "Type": direction,
-                        "Quantity": abs(m['quantity_change']),
-                        "Adjustment Context / Reason": m['reason']
-                    })
-                st.dataframe(pd.DataFrame(log_data), use_container_width=True, hide_index=True)
+        # 2. Render High-Visibility Operational Gauges
+        st.markdown("##### 🚨 Stock Urgency Indicators")
+        g1, g2, g3, g4 = st.columns(4)
+        
+        g1.metric("Total Items Managed", len(all_products))
+        
+        g2.metric(
+            "Out of Stock 🛑", 
+            len(out_of_stock), 
+            delta=f"CRITICAL FIX" if out_of_stock else "All Available",
+            delta_color="inverse" if out_of_stock else "normal"
+        )
+        
+        g3.metric(
+            "Low-Stock Warning ⚠️", 
+            len(low_stock), 
+            delta=f"Needs Restock" if low_stock else "Levels Safe",
+            delta_color="inverse" if low_stock else "normal"
+        )
+        
+        g4.metric(
+            "Overstocked Rows 📦", 
+            len(overstocked), 
+            delta=f"Freeze Orders" if overstocked else "Within Limits",
+            delta_color="off" if overstocked else "normal"
+        )
+        
+        st.divider()
+        
+        # 3. Two-Column Analytical Breakdown Layout
+        left_dash, right_dash = st.columns(2)
+        
+        with left_dash:
+            st.markdown("#### 🚨 Fast Action Restock Checklist")
+            st.caption("Items sorted by lowest current stock count to show what needs immediate loading.")
+            
+            # Combine items needing attention and sort them by lowest stock level first
+            urgency_list = sorted(out_of_stock + low_stock, key=lambda x: x['stock'])
+            
+            if not urgency_list:
+                st.success("🎉 Excellent! All inventory shelf counts match healthy threshold levels.")
             else:
-                st.info("No stock adjustments have been recorded in this database session yet.")
-        except Exception as e:
-            st.caption("Unable to load real-time movement history log rows.")
-
-
+                checklist_data = []
+                for item in urgency_list:
+                    status = "🔴 OUT OF STOCK" if item['stock'] == 0 else "⚠️ LOW STOCK"
+                    checklist_data.append({
+                        "Code": item['code'],
+                        "Product Name": item['name'],
+                        "Current Stock": item['stock'],
+                        "Alert Threshold": item['low_stock_threshold'],
+                        "Urgency": status
+                    })
+                st.dataframe(pd.DataFrame(checklist_data), use_container_width=True, hide_index=True)
+                
+        with right_dash:
+            st.markdown("#### 📉 Recent Stock Movements & Audits")
+            st.caption("Live timeline logging additions, wastage data, and physical overrides.")
+            
+            try:
+                with db.connection() as conn:
+                    recent_movements = conn.execute('''
+                        SELECT m.quantity_change, m.reason, p.name 
+                        FROM inventory_movements m
+                        JOIN products p ON m.product_id = p.id
+                        ORDER BY m.created_at DESC LIMIT 6
+                    ''').fetchall()
+                
+                if recent_movements:
+                    for move in recent_movements:
+                        qty = move['quantity_change']
+                        icon = "🟢" if qty > 0 else "🔴"
+                        sign = "+" if qty > 0 else ""
+                        st.markdown(f"{icon} **{sign}{qty} units** — {move['name']} <br><small style='color:gray;'>Reason: {move['reason']}</small>", unsafe_allow_html=True)
+                else:
+                    st.info("No database movements logged yet.")
+            except Exception:
+                st.caption("Unable to stream live adjustment logs.")
 elif mode=='Cashier' and page=='Last Transaction':
     st.subheader('Last transaction')
     sale=st.session_state.last_sale
