@@ -155,32 +155,35 @@ elif mode=='Admin' and page=='Product Management':
             price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
             
         # --- PATH 2: DRINKS (Instant Checkbox Disabling Works Perfectly Here) ---
+                # --- PATH 2: DRINKS ---
         elif classification == 'Drinks (Gulps)':
             base_category = st.text_input('Category Name *', placeholder='e.g. Milkshake, Float, Milktea').strip()
             
             st.caption('Configure your cup sizes and pricing:')
             s8, s12, s16 = st.columns(3)
             
+            # By embedding classification in the key, Streamlit completely unmounts and resets 
+            # the checkboxes to their default values the moment you click a different classification radio!
             with s8:
-                use8 = st.checkbox('Offer 8 oz', value=False, key='drink_use_8')
-                price8 = st.number_input('8 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use8)
+                use8 = st.checkbox('Offer 8 oz', value=False, key=f'{classification}_use_8')
+                price8 = st.number_input('8 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use8, key=f'{classification}_val_8')
             with s12:
-                use12 = st.checkbox('Offer 12 oz', value=True, key='drink_use_12')
-                price12 = st.number_input('12 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use12)
+                use12 = st.checkbox('Offer 12 oz', value=True, key=f'{classification}_use_12')
+                price12 = st.number_input('12 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use12, key=f'{classification}_val_12')
             with s16:
-                use16 = st.checkbox('Offer 16 oz', value=True, key='drink_use_16')
-                price16 = st.number_input('16 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use16)
+                use16 = st.checkbox('Offer 16 oz', value=True, key=f'{classification}_use_16')
+                price16 = st.number_input('16 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use16, key=f'{classification}_val_16')
             
             st.divider()
             st.markdown("##### 🥤 Other / Custom Size Profile")
-            use_custom = st.checkbox('Offer a different custom size', value=False, key='drink_use_custom')
+            use_custom = st.checkbox('Offer a different custom size', value=False, key=f'{classification}_use_custom')
             
             c_size_col, c_price_col = st.columns(2)
             with c_size_col:
-                custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', disabled=not use_custom).strip()
+                custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', disabled=not use_custom, key=f'{classification}_lbl_custom').strip()
             with c_price_col:
-                custom_price = st.number_input('Custom Size Price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use_custom)
-            
+                custom_price = st.number_input('Custom Size Price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use_custom, key=f'{classification}_val_custom')
+
             # Pack active sizes matching structural parameters
             if use8: size_prices[8] = cents_from_peso(price8)
             if use12: size_prices[12] = cents_from_peso(price12)
