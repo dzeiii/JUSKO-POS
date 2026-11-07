@@ -77,7 +77,7 @@ with st.container(key='site_header'):
             page=st.radio('Admin navigation',['Dashboard','Product Management','Sales History','Activity History'],
                           horizontal=True,key='admin_page',label_visibility='collapsed')
         elif mode=='Cashier':
-            page=st.radio('Cashier navigation',['New Sale','Pickup Queue Priority','Last Transaction','Sales History'],
+            page=st.radio('Cashier navigation',['Dashboard','New Sale','Pickup Queue Priority','Last Transaction','Sales History'],
                           horizontal=True,key='cashier_page',label_visibility='collapsed')
         else:
             page=st.radio('Inventory navigation',['Dashboard','Stock Overview','Restock Products'],
@@ -490,6 +490,96 @@ elif mode=='Admin' and page=='Activity History':
 #===================
 ### CASHIER MODE
 #==================
+elif mode == 'Cashier' and page == 'Dashboard':
+    st.subheader('📊 Cashier Shift Workspace Dashboard')
+    
+    # 1. Fetch running shift parameters filtered for Today only
+    from datetime import date, datetime, time, timedelta
+    today = date.today()
+    start_time = datetime.combine(today, time.min).isoformat()
+    end_time = datetime.combine(today + timedelta(days=1), time.min).isoformat()
+    
+    shift_summary = db.sales_summary(start_time, end_time)
+    recent_sales = db.transaction_history(start_time, end_time)[:5]
+    
+    try:
+        with db.connection() as conn:
+            pending_count_row = conn.execute("SELECT COUNT(*) as total FROM pending_orders WHERE status = 'Pending'").fetchone()
+            pending_count = pending_count_row['total'] if pending_count_row else 0
+    except Exception:
+        pending_count = 0
+
+    # 2. High-Visibility Shift Metric Gauges
+    c_metric1, c_metric2, c_metric3 = st.columns(3)
+    
+    c_metric1.metric(
+        label="My Today's Sales 💰", 
+        value=money(shift_summary['revenue_cents']),
+        delta=f"{shift_summary['transactions']} Receipts printed today"
+    )
+    
+    c_metric2.metric(
+        label="Active Kitchen Queue ⏳", 
+        value=f"{pending_count} Orders",
+        delta="Queue heavy - Focus on speed" if pending_count > 5 else "Queue light / clear",
+        delta_color="inverse" if pending_count > 5 else "normal"
+    )
+    
+    c_metric3.metric(
+        label="Current Work Station", 
+        value="Cashier Desk #1",
+        delta="System Connected & Online"
+    )
+    
+    st.divider()
+    
+    # 3. Two-Column Dashboard Information Grid Panels
+    dash_left, dash_right = st.columns([1.2, 1.0], gap="large")
+    
+    with dash_left:
+        st.markdown("#### 📜 Recent Shift Receipts")
+        st.caption("A quick-reference scroll log of your last few completed checkouts:")
+        
+        if not recent_sales:
+            st.info("No customer transactions have been recorded during your active shift window yet.")
+        else:
+            receipt_ledger = []
+            for r in recent_sales:
+                # Extract short time representation for easy scanning on the terminal
+                short_time = r['created_at'].split('T')[1][:5]
+                receipt_ledger.append({
+                    "Receipt #": f"TX-{r['id']}",
+                    "Timestamp": short_time,
+                    "Cashier Desk": r['cashier_label'],
+                    "Total Bill": money(r['total_cents'])
+                })
+            st.dataframe(pd.DataFrame(receipt_ledger), use_container_width=True, hide_index=True)
+            
+    with dash_right:
+        st.markdown("#### ⚡ Cashier Quick Actions")
+        st.caption("Common shortcuts to navigate your storefront workspace immediately:")
+        
+        # Simple navigation helper anchors leveraging columns
+        act_col1, act_col2 = st.columns(2)
+        
+        with act_col1:
+            st.markdown(
+                '<a href="/?cashier_page=New+Sale" target="_self" style="text-decoration:none;">'
+                '<div style="background-color:#f0f2f6; padding:20px; border-radius:10px; text-align:center; color:#31333F; font-weight:bold; border:1px solid #d3d3d3;">'
+                '🛒 Ring Up New Sale<br><small style="color:gray;font-weight:normal;">Open Menu Grid</small>'
+                '</div></a>', 
+                unsafe_allow_html=True
+            )
+            
+        with act_col2:
+            st.markdown(
+                '<a href="/?cashier_page=Pickup+Queue+Priority" target="_self" style="text-decoration:none;">'
+                '<div style="background-color:#f0f2f6; padding:20px; border-radius:10px; text-align:center; color:#31333F; font-weight:bold; border:1px solid #d3d3d3;">'
+                '📋 Dispatch Orders<br><small style="color:gray;font-weight:normal;">View Active Tickets</small>'
+                '</div></a>', 
+                unsafe_allow_html=True
+            )
+
 elif mode == 'Cashier' and page == 'New Sale':
     st.subheader('New Sale')
     all_products = db.list_products(active_only=True)
