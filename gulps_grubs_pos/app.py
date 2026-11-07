@@ -501,26 +501,41 @@ elif mode == 'Cashier' and page == 'New Sale':
         if not shown: 
             st.info('No matching active products.')
             
-        for start_idx in range(0, len(shown), 2):
+                for start_idx in range(0, len(shown), 2):
             cols = st.columns(2)
             for col, p in zip(cols, shown[start_idx:start_idx+2]):
                 with col:
-                    # 1. Calculate available servings from raw ingredients/powders
-                    available_servings = db.calculate_available_servings(p['id'])
+                    # --- FIX: Ensure these two definition lines are right here at the top! ---
+                    sizes = db.get_product_sizes(p['id'])
+                    is_drink = bool(sizes)
                     
-                    # If a recipe exists, use calculated servings; otherwise fall back to direct stock
-                    if isinstance(available_servings, int):
-                        display_stock = available_servings
+                    if is_drink:
+                        price_parts = []
+                        for size, price in sizes.items():
+                            if int(size) == 99 and " | Custom:" in p['category']:
+                                custom_label = p['category'].split(" | Custom:", 1)[1].strip()
+                                price_parts.append(f"{custom_label} {money(price)}")
+                            else:
+                                price_parts.append(f"{size} oz {money(price)}")
+                        price_line = ' · '.join(price_parts)
                     else:
-                        display_stock = p['stock']
-
-                    st.markdown(
-                        f"<div class='product-card'><b>{p['name']}</b><br>"
-                        f"<span class='small-note'>{p['code']} · {p['category']}</span>"
-                        f"<h3>{money(p['price_cents'])}</h3>"
-                        f"<span class='small-note'>In stock / Servings: {display_stock}</span></div>", 
-                        unsafe_allow_html=True
-                    )
+                        price_line = money(p['price_cents'])
+                    
+                    cat_parts = p['category'].split(" | Custom:", 1)
+                    display_cat_clean = cat_parts[0].strip() if cat_parts else p['category']
+                    
+                    template_payload = {
+                        'product_name': str(p['name']),
+                        'code': str(p['code']),
+                        'category': str(display_cat_clean),
+                        'price': str(price_line),
+                        'price_line': str(price_line),
+                        'stock': str(int(p['stock']))
+                    }
+                    
+                    card_html = load_html_template('product_card.html', **template_payload)
+                    st.markdown(card_html, unsafe_allow_html=True)
+                    
                     with st.form(f"add_cart_{p['id']}"):
                         size_oz = None
                         unit_price = p['price_cents']
@@ -537,11 +552,10 @@ elif mode == 'Cashier' and page == 'New Sale':
                             unit_price = sizes[size_oz]
                             st.caption(f"Selected size price: {money(unit_price)}")
 
-                        # --- 🥤 ADDED: REAL-TIME CUSTOMIZATION / ALLERGY NOTE FIELD ---
-                        # Generates an open-ended specification bar tailored directly to that card
+                        # Open customization notes box
                         custom_note = st.text_input(
                             'Special Notes / Flavors / Allergies', 
-                            placeholder='e.g., No Ice, Barbecue Fries, Egg well-done, Peanut Allergy',
+                            placeholder='e.g., No Ice, Barbecue Fries, Egg well-done',
                             key=f"note_input_{p['id']}"
                         ).strip()
 
@@ -560,15 +574,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                             else:
                                 size_display_name = ''
                                 
-                            # Pass your text notes directly down into the custom linked list cart state engine
-                            st.session_state.cart.add(
-                                p, 
-                                int(qty), 
-                                size_oz=size_oz, 
-                                unit_price_cents=unit_price, 
-                                customizations=custom_note  # Feeds text to your custom list storage
-                            )
-                            
+                            st.session_state.cart.add(p, int(qty), size_oz=size_oz, unit_price_cents=unit_price, customizations=custom_note)
                             size_label = f" ({size_display_name})" if size_oz else ''
                             option_label = f" · Note: '{custom_note}'" if custom_note else ''
                             st.success(f"Added {qty} × {p['name']}{size_label}{option_label}.")
