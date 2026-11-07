@@ -240,125 +240,53 @@ elif mode=='Admin' and page=='Product Management':
 
         with tab2:
             st.subheader("Edit or Delete Product")
-            
             # Load all products from your database functions
             all_products = db.list_products(active_only=True)
             if not all_products:
                 st.info("No active products available to edit.")
             else:
-                prod_map = {f"{p['code']} — {p['name']}": p for p in all_products}
-                selected_prod_label = st.selectbox("Select product to modify", list(prod_map.keys()))
-                selected_prod = prod_map[selected_prod_label]
-                
-                # 1. Parse category and locate any custom label extensions
-                orig_category = selected_prod['category']
-                is_custom_drink = " | Custom:" in orig_category
-                
-                if is_custom_drink:
-                    base_cat_name, custom_sz_label = orig_category.split(" | Custom:", 1)
-                else:
-                    base_cat_name = orig_category
-                    custom_sz_label = ""
-    
-                # 2. Pull down existing drink size options from product_sizes if applicable
-                # (Assumes your database.py script has a function like db.get_product_sizes(id))
-                saved_sizes = {}
-                try:
-                    with db.connection() as _c:
-                        rows = _c.execute('SELECT size_oz, price_cents FROM product_sizes WHERE product_id = ?', (selected_prod['id'],)).fetchall()
-                        saved_sizes = {str(r['size_oz']): r['price_cents']/100 for r in rows}
-                except Exception:
-                    saved_sizes = {}
-    
-                # 3. Dynamic layout switching rules matching your Add Product flow
-                is_a_drink = is_custom_drink or any(d in base_cat_name.lower() for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage'])
-    
-                with st.form("edit_product_blueprint_form"):
-                    new_name = st.text_input("Edit Product Name *", value=selected_prod['name']).strip()
-                    
-                    # Container parameters initialization
-                    new_category = ""
-                    size_prices = {}
-                    price = 0.0
-    
-                    if is_a_drink:
-                        new_base_cat = st.text_input("Category Name *", value=base_cat_name).strip()
-                        
-                        st.caption("Configure your cup sizes and pricing:")
-                        ec1, ec2, ec3 = st.columns(3)
-                        
-                        with ec1:
-                            use8 = st.checkbox('Offer 8 oz', value=('8' in saved_sizes), key='edit_use_8')
-                            price8 = st.number_input('8 oz price (₱)', min_value=0.0, value=saved_sizes.get('8', 0.0), step=5.0, format='%.2f', disabled=not use8)
-                        with ec2:
-                            use12 = st.checkbox('Offer 12 oz', value=('12' in saved_sizes or not saved_sizes), key='edit_use_12')
-                            price12 = st.number_input('12 oz price (₱)', min_value=0.0, value=saved_sizes.get('12', 0.0), step=5.0, format='%.2f', disabled=not use12)
-                        with ec3:
-                            use16 = st.checkbox('Offer 16 oz', value=('16' in saved_sizes or not saved_sizes), key='edit_use_16')
-                            price16 = st.number_input('16 oz price (₱)', min_value=0.0, value=saved_sizes.get('16', 0.0), step=5.0, format='%.2f', disabled=not use16)
-                        
-                        st.divider()
-                        st.markdown("##### 🥤 Other / Custom Size Profile")
-                        edit_custom = st.checkbox("Offer a different custom size", value=is_custom_drink, key='edit_use_custom')
-                        
-                        cx_col, cp_col = st.columns(2)
-                        with cx_col:
-                            new_custom_label = st.text_input("Custom Size Description Label", value=custom_sz_label, disabled=not edit_custom).strip()
-                        with cp_col:
-                            new_custom_price = st.number_input("Custom Size Price (₱)", min_value=0.0, value=saved_sizes.get('99', 0.0), step=5.0, format="%.2f", disabled=not edit_custom)
-                        
-                        #Package active sizes into metadata layout dictionaries
-                        if use8: size_prices['8'] = cents_from_peso(price8)
-                        if use12: size_prices['12'] = cents_from_peso(price12)
-                        if use16: size_prices['16'] = cents_from_peso(price16)
-                        if edit_custom and new_custom_label:
-                            size_prices['99'] = cents_from_peso(new_custom_price)
-                            new_category = f"{new_base_cat} | Custom:{new_custom_label}"
-                        else:
-                            new_category = new_base_cat
-                            
-                        if size_prices:
-                            price = next(iter(size_prices.values())) / 100
-                    else:
-                        # Standard Single-Price Food Layout Paths
-                        new_category = st.text_input("Category *", value=orig_category).strip()
-                        price = st.number_input("Price (₱)", min_value=0.0, value=float(selected_prod['price_cents']/100), step=5.0, format="%.2f")
-    
-                    st.divider()
-                    # Operational Alert Metrics
-                    new_low = st.number_input("Low-stock alert boundary count", min_value=0, value=int(selected_prod['low_stock_threshold']))
-                    new_high = st.number_input("High-stock alert boundary count", min_value=0, value=int(selected_prod.get('high_stock_threshold', 50)))
-                    
-                    # Save & Delete layout actions placement
-                    col_save, col_del = st.columns(2)
-                    with col_save:
-                        save_submitted = st.form_submit_button("Save Changes", type="primary")
-                    with col_del:
-                        delete_submitted = st.form_submit_button("Delete Product Profile")
-    
-                # 4. Action submission handlers
-                if save_submitted:
-                    if not new_name or not new_category:
-                        st.error("Product parameters name and category cannot be saved empty.")
-                    else:
+                    labels={f"{p['code']} — {p['name']} {'(inactive)' if not p['active'] else ''}":p for p in products}
+            selected_label=st.selectbox('Select product',list(labels),key='edit_select')
+            p=labels[selected_label]
+            if p['active']:
+                with st.form('edit_product_form'):
+                    ec1,ec2=st.columns(2)
+                    ec1.text_input('Product code (automatically assigned)',value=p['code'],disabled=True)
+                    new_code=p['code']  # Keep product codes stable so past sales remain consistent.
+                    new_name=ec2.text_input('Product name',value=p['name']).strip()
+                    new_cat=st.text_input('Category',value=p['category']).strip()
+                    ec3=st.columns(1)
+                    new_threshold=ec3.number_input('Low-stock alert at',min_value=0,max_value=1000000,value=p['low_stock_threshold'],step=1)
+                    save=st.form_submit_button('Save changes',type='primary')
+                if save:
+                    try: db.update_product(p['id'],new_code,new_name,new_cat,cents_from_peso(new_price),int(new_threshold)); db.log_activity('Admin','Product updated',f'{new_code} · {new_name}'); st.success('Product updated.'); st.rerun()
+                    except Exception as e: safe_error(e)
+                current_sizes=db.get_product_sizes(p['id'])
+                if current_sizes:
+                    if not current_sizes: current_sizes={8:p['price_cents'],12:p['price_cents'],16:p['price_cents']}
+                    with st.form(f"size_prices_{p['id']}"):
+                        st.markdown('**Available drink size pricing**')
+                        st.caption('Only sizes currently configured for this menu item are shown.')
+                        size_inputs={}
+                        size_cols=st.columns(max(1,len(current_sizes)))
+                        for size_idx,size in enumerate(current_sizes):
+                            size_inputs[size]=size_cols[size_idx].number_input(f'{size} oz price (₱)',min_value=0.0,max_value=1000000.0,value=current_sizes[size]/100,step=5.0,format='%.2f',key=f'price_{p["id"]}_{size}')
+                        save_sizes=st.form_submit_button('Save drink size prices',type='primary')
+                    if save_sizes:
                         try:
-                            # Convert base currency values back to integers
-                            price_cents = cents_from_peso(price)
-                            
-                            # Replace this placeholder method with your exact database update call:
-                            # e.g., db.update_product(selected_prod['id'], new_name, new_category, price_cents, new_low, new_high, size_prices if is_a_drink else None)
-                            st.success(f"Successfully updated menu metadata settings for '{new_name}'!")
-                            st.rerun()
-                        except Exception as e:
-                            safe_error(e)
-                            
-                if delete_submitted:
-                    success, return_msg = db.delete_product(selected_prod['id'])
-                    if success:
-                        st.success(return_msg)
-                        st.rerun()
-                    else:
-                        st.error(return_msg)
+                            db.set_product_sizes(p['id'],{size:cents_from_peso(price) for size,price in size_inputs.items()}); db.log_activity('Admin','Drink prices updated',f"{p['code']} · {size_inputs}")
+                            st.success('Drink size prices updated.'); st.rerun()
+                        except Exception as e: safe_error(e)
+                st.warning('Products are deactivated instead of deleted so historical sales remain intact.')
+                if st.button('Deactivate selected product',key='deactivate_btn'):
+                    try: db.deactivate_product(p['id']); db.log_activity('Admin','Product deleted / deactivated',f"{p['code']} · {p['name']}"); st.success('Product deactivated. Historical sales are preserved.'); st.rerun()
+                    except Exception as e: safe_error(e)
+            else: st.info('This product is inactive and cannot be sold. Its historic transaction details are preserved.')
+    search=st.text_input('Search by code or product name',key='product_search')
+    shown=[p for p in products if search.casefold() in (p['code']+' '+p['name']).casefold()]
+    if shown:
+        st.dataframe(pd.DataFrame([{'Code':p['code'],'Product':p['name'],'Category':p['category'],'Price':(' · '.join(f"{size} oz {money(price)}" for size,price in db.get_product_sizes(p['id']).items()) if db.get_product_sizes(p['id']) else money(p['price_cents'])),'Stock':p['stock'],'Low-stock threshold':p['low_stock_threshold'],'Status':'Active' if p['active'] else 'Inactive'} for p in shown]),use_container_width=True,hide_index=True)
+    else: st.info('No products match your search.')
 
 
 elif mode=='Admin' and page=='Sales History':
