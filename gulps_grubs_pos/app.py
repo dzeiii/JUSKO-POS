@@ -77,8 +77,19 @@ with st.container(key='site_header'):
             page=st.radio('Admin navigation',['Dashboard','Product Management','Sales History','Activity History'],
                           horizontal=True,key='admin_page',label_visibility='collapsed')
         elif mode=='Cashier':
-            page=st.radio('Cashier navigation',['Dashboard','New Sale','Pickup Queue Priority','Last Transaction','Sales History'],
-                          horizontal=True,key='cashier_page',label_visibility='collapsed')
+            cashier_options = ['Dashboard', 'New Sale', 'Pickup Queue Priority', 'Last Transaction', 'Sales History']
+            current_selection = st.session_state.get('cashier_page', 'Dashboard')
+            if current_selection not in cashier_options:
+                current_selection = 'Dashboard'
+                
+            page = st.radio(
+                'Cashier navigation', 
+                cashier_options,
+                index=cashier_options.index(current_selection),
+                horizontal=True, 
+                key='cashier_page', 
+                label_visibility='collapsed'
+            )
         else:
             page=st.radio('Inventory navigation',['Dashboard','Stock Overview','Restock Products'],
                           horizontal=True,key='inventory_page',label_visibility='collapsed')
@@ -559,19 +570,19 @@ elif mode == 'Cashier' and page == 'Dashboard':
         st.markdown("#### ⚡ Cashier Quick Actions")
         st.caption("Common shortcuts to navigate your storefront workspace immediately:")
         
-        # FIXED: Replaced raw HTML anchors with reactive Streamlit state update buttons
         act_col1, act_col2 = st.columns(2)
         
         with act_col1:
-            # Styled box with a native form submission alternative
-            if st.button("🛒 Ring Up New Sale\n(Open Menu Grid)", use_container_width=True, type="secondary"):
-                st.session_state.cashier_page = 'New Sale'
+            # FIXED: Avoid key crashes by passing unique widget keys and wrapping state alterations cleanly
+            if st.button("🛒 Ring Up New Sale\n(Open Menu Grid)", key="btn_shortcut_new_sale", use_container_width=True, type="secondary"):
+                st.session_state['cashier_page'] = 'New Sale'
                 st.rerun()
             
         with act_col2:
-            if st.button("📋 Dispatch Orders\n(View Active Tickets)", use_container_width=True, type="secondary"):
-                st.session_state.cashier_page = 'Pickup Queue Priority'
+            if st.button("📋 Dispatch Orders\n(View Active Tickets)", key="btn_shortcut_dispatch", use_container_width=True, type="secondary"):
+                st.session_state['cashier_page'] = 'Pickup Queue Priority'
                 st.rerun()
+
 
 
 elif mode == 'Cashier' and page == 'New Sale':
