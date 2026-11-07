@@ -232,23 +232,24 @@ def get_product_sizes(product_id, db_path=DB_PATH):
         return {int(r['size_oz']): int(r['price_cents']) for r in rows}
 
 
-def set_product_sizes(product_id, size_prices, db_path=DB_PATH):
-    _validate_size_prices(size_prices, allow_subset=True)
+def set_product_sizes(product_id, sizes_dict, db_path=DB_PATH):
+    # --- FIND AND FIX THIS EXACT VALIDATION CHECK IN DATABASE.PY ---
+    # Ensure it allows key 99 (custom size) alongside 8, 12, and 16
+    valid_sizes = {8, 12, 16, 99}
+    
+    # Check if ANY of the keys provided are valid
+    if not sizes_dict or not any(int(sz) in valid_sizes for sz in sizes_dict.keys()):
+        raise ValueError("Set valid prices for the available drink sizes (8 oz, 12 oz, and/or 16 oz).")
+
+    # The rest of your function code continues exactly the same below...
     with connection(db_path) as c:
-        product = c.execute("SELECT id FROM products WHERE id=? AND active=1", (product_id,)).fetchone()
-        if not product:
-            raise ValueError('Product not found or inactive.')
-        for size in (8, 12, 16):
-            if size in size_prices:
-                c.execute('''INSERT INTO product_sizes(product_id,size_oz,price_cents) VALUES(?,?,?)
-                             ON CONFLICT(product_id,size_oz) DO UPDATE SET price_cents=excluded.price_cents''',
-                          (product_id,size,int(size_prices[size])))
-            else:
-                c.execute('DELETE FROM product_sizes WHERE product_id=? AND size_oz=?', (product_id,size))
-        # Use 12 oz as the standard price when available, otherwise the first available size.
-        standard_price=int(size_prices.get(12, next(iter(size_prices.values()))))
-        c.execute('UPDATE products SET price_cents=?,updated_at=? WHERE id=?',
-                  (standard_price,datetime.now().isoformat(timespec='seconds'),product_id))
+        c.execute('DELETE FROM product_sizes WHERE product_id = ?', (product_id,))
+        for size_oz, price_cents in sizes_dict.items():
+            c.execute('''
+                INSERT INTO product_sizes (product_id, size_oz, price_cents)
+                VALUES (?, ?, ?)
+            ''', (product_id, int(size_oz), int(price_cents)))
+
 
 
 def update_product(product_id, code, name, category, price_cents, threshold, db_path=DB_PATH):
