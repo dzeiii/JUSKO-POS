@@ -188,7 +188,7 @@ h2{margin-top:.4rem}
 
 /* Also adjust the descriptive text span text sizes inside this module block if desired */
 .st-key-danger_zone_box span {
-    font-size: 16px !important;
+    font-size: 20px !important;
     font-weight: 500 !important;
     line-height: 1.5 !important;
 }
