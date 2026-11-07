@@ -111,6 +111,12 @@ if mode=='Admin' and page=='Dashboard':
         if low:
             st.dataframe(pd.DataFrame([{'Code':p['code'],'Product':p['name'],'Stock':p['stock'],'Alert at':p['low_stock_threshold']} for p in low]),use_container_width=True,hide_index=True)
         else: st.success('No active products are at or below their low-stock threshold.')
+
+        st.markdown('#### High-stock watch')
+        if high:
+            st.dataframe(pd.DataFrame([{'Code':p['code'],'Product':p['name'],'Stock':p['stock'],'Limit':p.get('high_stock_threshold', 0)} for p in high]),use_container_width=True,hide_index=True)
+        else: st.success('No active products are at or above their high-stock threshold.')
+    
     with right:
         st.markdown('#### Recent transactions')
         recent=db.transaction_history()[:6]
