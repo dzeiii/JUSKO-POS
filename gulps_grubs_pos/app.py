@@ -241,12 +241,12 @@ elif mode=='Admin' and page=='Product Management':
         with tab2:
             st.subheader("Edit or Delete Product")
             # Load all products from your database functions
-            all_products = db.list_products(active_only=True)
+            all_products = db.list_products(active_only=False)
             if not all_products:
                 st.info("No active products available to edit.")
             else:
-                    labels={f"{p['code']} — {p['name']} {'(inactive)' if not p['active'] else ''}":p for p in products}
-            selected_label=st.selectbox('Select product',list(labels),key='edit_select')
+            labels={f"{p['code']} — {p['name']} {'(Inactive)' if not p['active'] else ''}":p for p in all_products}
+            selected_label=st.selectbox('Select product to modify',list(labels),key='edit_select')
             p=labels[selected_label]
             if p['active']:
                 with st.form('edit_product_form'):
