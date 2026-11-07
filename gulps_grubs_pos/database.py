@@ -148,26 +148,23 @@ def generate_product_code(db_path=DB_PATH):
         candidate = f"GG-{next_number:04d}"
     return candidate
 
-def add_product(name, category, price_cents, size_prices=None, stock=0, low_stock_threshold=5, high_stock_threshold=50, db_path=DB_PATH):
-    # Automatically generate the unique identifier sequence code
-    code = generate_product_code(db_path=db_path)
-    
-    name, category = name.strip(), category.strip()
-    if not name or len(name) > 100: raise ValueError('Product name is required (maximum 100 characters).')
-    if not category or len(category) > 50: raise ValueError('Choose a valid category (maximum 50 characters).')
+# Inside database.py - Put this exact function structure back
+def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_PATH, size_prices=None):
+    code, name, category = code.strip().upper(), name.strip(), category.strip()
+    if not code or len(code)>30: raise ValueError('Product code is required and must be at most 30 characters.')
+    if not name or len(name)>100: raise ValueError('Product name is required and must be at most 100 characters.')
+    if not category or len(category)>50: raise ValueError('Choose a valid category (maximum 50 characters).')
     if isinstance(price_cents, bool) or not isinstance(price_cents, int) or price_cents < 0: raise ValueError('Price must be a non-negative amount.')
     if isinstance(stock, bool) or not isinstance(stock, int) or stock < 0: raise ValueError('Stock must be a non-negative whole number.')
-    if isinstance(low_stock_threshold, bool) or not isinstance(low_stock_threshold, int) or low_stock_threshold < 0: raise ValueError('Low stock threshold must be non-negative.')
-    if isinstance(high_stock_threshold, bool) or not isinstance(high_stock_threshold, int) or high_stock_threshold < 0: raise ValueError('High stock threshold must be non-negative.')
+    if isinstance(threshold, bool) or not isinstance(threshold, int) or threshold < 0: raise ValueError('Low-stock threshold must be a non-negative whole number.')
     
-    # --- Fixes the cutoff syntax error ---
     now = datetime.now().isoformat()
     
     with connection(db_path) as c:
         res = c.execute('''
-            INSERT INTO products (code, name, category, price_cents, stock, low_stock_threshold, high_stock_threshold, active, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
-        ''', (code, name, category, price_cents, stock, low_stock_threshold, high_stock_threshold, now, now))
+            INSERT INTO products (code, name, category, price_cents, stock, low_stock_threshold, active, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+        ''', (code, name, category, price_cents, stock, threshold, now, now))
         
         product_id = res.lastrowid
         
@@ -179,7 +176,6 @@ def add_product(name, category, price_cents, size_prices=None, stock=0, low_stoc
                 ''', (product_id, int(size_oz), pr_cents))
                 
         return product_id
-
     except sqlite3.IntegrityError as e:
         if 'products.code' in str(e).lower(): raise ValueError('That product code already exists.') from e
         raise
