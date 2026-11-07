@@ -559,26 +559,20 @@ elif mode == 'Cashier' and page == 'Dashboard':
         st.markdown("#### ⚡ Cashier Quick Actions")
         st.caption("Common shortcuts to navigate your storefront workspace immediately:")
         
-        # Simple navigation helper anchors leveraging columns
+        # FIXED: Replaced raw HTML anchors with reactive Streamlit state update buttons
         act_col1, act_col2 = st.columns(2)
         
         with act_col1:
-            st.markdown(
-                '<a href="/?cashier_page=New+Sale" target="_self" style="text-decoration:none;">'
-                '<div style="background-color:#f0f2f6; padding:20px; border-radius:10px; text-align:center; color:#31333F; font-weight:bold; border:1px solid #d3d3d3;">'
-                '🛒 Ring Up New Sale<br><small style="color:gray;font-weight:normal;">Open Menu Grid</small>'
-                '</div></a>', 
-                unsafe_allow_html=True
-            )
+            # Styled box with a native form submission alternative
+            if st.button("🛒 Ring Up New Sale\n(Open Menu Grid)", use_container_width=True, type="secondary"):
+                st.session_state.cashier_page = 'New Sale'
+                st.rerun()
             
         with act_col2:
-            st.markdown(
-                '<a href="/?cashier_page=Pickup+Queue+Priority" target="_self" style="text-decoration:none;">'
-                '<div style="background-color:#f0f2f6; padding:20px; border-radius:10px; text-align:center; color:#31333F; font-weight:bold; border:1px solid #d3d3d3;">'
-                '📋 Dispatch Orders<br><small style="color:gray;font-weight:normal;">View Active Tickets</small>'
-                '</div></a>', 
-                unsafe_allow_html=True
-            )
+            if st.button("📋 Dispatch Orders\n(View Active Tickets)", use_container_width=True, type="secondary"):
+                st.session_state.cashier_page = 'Pickup Queue Priority'
+                st.rerun()
+
 
 elif mode == 'Cashier' and page == 'New Sale':
     st.subheader('New Sale')
