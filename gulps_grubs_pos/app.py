@@ -307,13 +307,12 @@ elif mode=='Admin' and page=='Product Management':
                         with cp_col:
                             new_custom_price = st.number_input("Custom Size Price (₱)", min_value=0.0, value=saved_sizes.get('99', 0.0), step=5.0, format="%.2f", disabled=not edit_custom)
                         
-                        # Package active sizes into metadata layout dictionaries
-                        if use8: size_prices['8'] = db.cents_from_peso(price8)
-                        if use12: size_prices['12'] = db.cents_from_peso(price12)
-                        if use16: size_prices['16'] = db.cents_from_peso(price16)
-                        
+                        #Package active sizes into metadata layout dictionaries
+                        if use8: size_prices['8'] = cents_from_peso(price8)
+                        if use12: size_prices['12'] = cents_from_peso(price12)
+                        if use16: size_prices['16'] = cents_from_peso(price16)
                         if edit_custom and new_custom_label:
-                            size_prices['99'] = db.cents_from_peso(new_custom_price)
+                            size_prices['99'] = cents_from_peso(new_custom_price)
                             new_category = f"{new_base_cat} | Custom:{new_custom_label}"
                         else:
                             new_category = new_base_cat
