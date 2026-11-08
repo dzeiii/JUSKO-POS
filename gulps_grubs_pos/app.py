@@ -612,9 +612,7 @@ elif mode == 'Admin' and page == 'Product Management':
                                 'Stock': prod['stock'],
                                 'Low-stock threshold': prod['low_stock_threshold'],
                                 'Status': (
-                                    'Active' if prod['active'] else 'Inactive'
-                                    )
-                                    }
+                                    'Active' if prod['active'] else 'Inactive')}
                                     for prod in filtered_items
                                     ]),use_container_width=True, hide_index=True)
         else:
@@ -977,7 +975,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                 }[x]
             )
 
-            cashier_name = st.text_input('Cashier name (optional)',value='Cashier')
+            cashier_label = st.text_input('Cashier name (optional)',value='Cashier')
             confirm = st.form_submit_button('Confirm sale',type='primary',use_container_width=True)
             if confirm:
                 try:
