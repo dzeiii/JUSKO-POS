@@ -828,11 +828,11 @@ elif mode == 'Cashier' and page == 'New Sale':
                         is_lemonade_slushie = ('slushie' in cat_lower or 'slushie' in prod_name_lower)
                         is_lemonade = ('lemonade' in cat_lower or 'lemonade' in prod_name_lower ) and not is_lemonade_slushie
                         is_coffee = ('coffee' in cat_lower or 'coffee' in prod_name_lower)
-                        is_float = 'float' in cat_lower or 'float' in prod_name_lower
-                        
+                        is_float_or_juice = ('float' in cat_lower or 'float' in prod_name_lower or 'juice' in cat_lower or 'juice' in prod_name_lower)
+                          
                         # SINKER SELECTION
                         if is_drink:
-                            if not is_float:
+                            if not is_float_or_juice:
                                 st.markdown("### Sinker Selection")
                                 if is_milktea:
                                     mt_sinker = st.radio("Included Sinker Options",
