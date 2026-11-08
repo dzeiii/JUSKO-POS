@@ -294,7 +294,7 @@ elif mode=='Admin' and page=='Product Management':
                 st.error("Category structure specification is required.")
             elif classification == 'Drinks (Gulps)' and not size_prices:
                 st.error("Please enable at least one size configuration option for drink catalog items.")
-                        else:
+            else:
                 try:
                     price_cents = cents_from_peso(price)
                     generated_code = db.generate_product_code()
@@ -421,21 +421,23 @@ elif mode=='Admin' and page=='Product Management':
                     save_changes = st.button('Save All Product Details', type='primary', key=f"unified_save_btn_{p['id']}")
 
                     if save_changes:
-                        if not new_name or not new_cat: st.error("Product name and category definitions cannot be left blank.")
+                        if not new_name or not new_cat: 
+                            st.error("Product name and category definitions cannot be left blank.")
                         else:
                             try: 
                                 db.update_product(p['id'], p['code'], new_name, new_cat, int(new_base_price_cents), int(new_threshold))
-                                if is_a_drink and updated_sizes: db.set_product_sizes(p['id'], updated_sizes)
                                 
-                                # --- SUCCESS TRANSACTION PRINTS & AUDITS ---
-                                success_msg = f"📝 SUCCESS: Product details for '{p['code']}' updated successfully (Name: '{new_name}', Category: '{new_cat}')."
-                                st.success(success_msg)
-                                db.log_activity('Admin', 'Product Updated', f"{p['code']} · {new_name}")
-                                logging.info(success_msg)
-                                
+                                # --- FIXED: Only update sizing tables if this specific item is verified as a drink ---
+                                if is_a_drink and updated_sizes is not None:
+                                    db.set_product_sizes(p['id'], updated_sizes)
+                                else:
+                                    # If it's a food item, cleanly purge any old accidentally attached size metrics from the DB
+                                    with db.connection() as clean_conn:
+                                        clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
+                                        
+                                st.success('Product details saved successfully!')
                                 st.rerun()
                             except Exception as e: safe_error(e)
-
 
                    # --- Permanent Force Hard-Delete Interface Module ---
                     st.divider()
