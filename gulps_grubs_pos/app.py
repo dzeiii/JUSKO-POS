@@ -255,976 +255,975 @@ elif mode == 'Admin' and page == 'Product Management':
                 custom_label = ""
                 custom_price = 0.0
                 if use_custom:
-                    
-            c_size_col, c_price_col = st.columns(2)
-            with c_size_col:
-                custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', disabled=not use_custom, key=f'{classification}_lbl_custom').strip()
-            with c_price_col:
-                custom_price = st.number_input('Custom Size Price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use_custom, key=f'{classification}_val_custom')
-
-            if use8: size_prices[8] = cents_from_peso(price8)
-            if use12: size_prices[12] = cents_from_peso(price12)
-            if use16: size_prices[16] = cents_from_peso(price16)
-
-            if use_custom and custom_label:
-                size_prices[99] = cents_from_peso(custom_price)
-                category = f"{base_category} | Custom:{custom_label}"
-            else:
-                category = base_category
+                    c_size_col, c_price_col = st.columns(2)
+                with c_size_col:
+                    custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', disabled=not use_custom, key=f'{classification}_lbl_custom').strip()
+                with c_price_col:
+                    custom_price = st.number_input('Custom Size Price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use_custom, key=f'{classification}_val_custom')
     
-            if size_prices:
-                price = next(iter(size_prices.values())) / 100
-                
-        # --- PATH 3: OTHERS ---
-        elif classification == 'Others (Combo/Meal Plan)':
-            category = st.text_input('Category *', placeholder='e.g. Combo Meal, Promo Bundle').strip()
-            price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
-
-        # System Administration Settings & Threshold Counts
-        st.divider()
-        low_stock_threshold = st.number_input('Low-stock alert boundary count', min_value=0, value=5, step=1)
-        high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
+                if use8: size_prices[8] = cents_from_peso(price8)
+                if use12: size_prices[12] = cents_from_peso(price12)
+                if use16: size_prices[16] = cents_from_peso(price16)
+    
+                if use_custom and custom_label:
+                    size_prices[99] = cents_from_peso(custom_price)
+                    category = f"{base_category} | Custom:{custom_label}"
+                else:
+                    category = base_category
         
-        # Submit Button Action Block
-        if st.button('Add product to Catalog', type='primary'):
-            # Clean and isolate inputs for analysis
-            clean_name = name.strip()
-            clean_category = category.strip()
-            test_string = f"{clean_name} {clean_category}".lower()
-
-            # --- 1. REPEATING KEYBOARD SPAM CHECKER ---
-            def has_consecutive_repetitions(text, max_allowed=3):
-                if not text: return False
-                count = 1
-                for i in range(1, len(text)):
-                    if text[i] == text[i-1] and text[i].isalnum():
-                        count += 1
-                        if count > max_allowed: return True
-                    else: count = 1
-                return False
-
-            # --- 2. GIBBERISH DETECTOR ---
-            def looks_like_gibberish(text):
-                words = [w for w in text.split() if w.isalpha()]
-                if not words: return False
-                vowels = set("aeiou")
-                for word in words:
-                    if len(word) >= 4 and not any(char in vowels for char in word):
-                        return True
-                return False
-
-            # --- 3. CORE VALIDATION PARAMETERS ---
-            prohibited_keywords = ['person', 'human', 'people', 'teacher', 'student', 'animal', 'object', 'thing']
-            drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe', 'drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
-
-            is_spam_text = has_consecutive_repetitions(test_string, max_allowed=3) or has_consecutive_repetitions(clean_category, max_allowed=3)
-            is_nonsense_word = looks_like_gibberish(test_string) or looks_like_gibberish(clean_category)
-            contains_junk = any(junk in test_string for junk in prohibited_keywords)
-            category_has_drink_terms = any(dk in clean_category.lower() for dk in drink_keywords)
-
-            # --- ✨ MASTER EXECUTION GATEKEEPER TREE WITH PRICE ENFORCEMENT ---
-            if not clean_name:
-                st.error("Product name is required.")
-            elif not clean_category:
-                st.error("Category structure specification is required.")
-            elif is_spam_text or is_nonsense_word:
-                st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish patterns. Please use genuine descriptions.")
-            elif contains_junk:
-                st.error("🔴 Context Validation Alert: Junk classifications (person, human, object) are strictly blocked.")
-            elif classification == 'Drinks (Gulps)' and not category_has_drink_terms:
-                st.error(f"🔴 Classification Mismatch: You selected 'Drinks (Gulps)' but entered a non-beverage category '{category}'.")
-            elif classification == 'Foods (Grubs)' and category_has_drink_terms:
-                st.error(f"🔴 Classification Mismatch: You selected 'Foods (Grubs)' but entered a drink-related category '{category}'.")
+                if size_prices:
+                    price = next(iter(size_prices.values())) / 100
+                    
+            # --- PATH 3: OTHERS ---
+            elif classification == 'Others (Combo/Meal Plan)':
+                category = st.text_input('Category *', placeholder='e.g. Combo Meal, Promo Bundle').strip()
+                price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
+    
+            # System Administration Settings & Threshold Counts
+            st.divider()
+            low_stock_threshold = st.number_input('Low-stock alert boundary count', min_value=0, value=5, step=1)
+            high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
             
-            # --- 🚨 THE PRICING GATEKEEPER RULE: BLOCKS ZERO OR MISSING VALUES COMPLETELY ---
-            elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0:
-                st.error("🔴 Validation Error: Price field is required. Product price must be greater than ₱0.00.")
-            elif classification == 'Drinks (Gulps)' and not size_prices:
-                st.error("🔴 Validation Error: Sizing prices are required. Please enable and price at least one cup size option.")
+            # Submit Button Action Block
+            if st.button('Add product to Catalog', type='primary'):
+                # Clean and isolate inputs for analysis
+                clean_name = name.strip()
+                clean_category = category.strip()
+                test_string = f"{clean_name} {clean_category}".lower()
+    
+                # --- 1. REPEATING KEYBOARD SPAM CHECKER ---
+                def has_consecutive_repetitions(text, max_allowed=3):
+                    if not text: return False
+                    count = 1
+                    for i in range(1, len(text)):
+                        if text[i] == text[i-1] and text[i].isalnum():
+                            count += 1
+                            if count > max_allowed: return True
+                        else: count = 1
+                    return False
+    
+                # --- 2. GIBBERISH DETECTOR ---
+                def looks_like_gibberish(text):
+                    words = [w for w in text.split() if w.isalpha()]
+                    if not words: return False
+                    vowels = set("aeiou")
+                    for word in words:
+                        if len(word) >= 4 and not any(char in vowels for char in word):
+                            return True
+                    return False
+    
+                # --- 3. CORE VALIDATION PARAMETERS ---
+                prohibited_keywords = ['person', 'human', 'people', 'teacher', 'student', 'animal', 'object', 'thing']
+                drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe', 'drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
+    
+                is_spam_text = has_consecutive_repetitions(test_string, max_allowed=3) or has_consecutive_repetitions(clean_category, max_allowed=3)
+                is_nonsense_word = looks_like_gibberish(test_string) or looks_like_gibberish(clean_category)
+                contains_junk = any(junk in test_string for junk in prohibited_keywords)
+                category_has_drink_terms = any(dk in clean_category.lower() for dk in drink_keywords)
+    
+                # --- ✨ MASTER EXECUTION GATEKEEPER TREE WITH PRICE ENFORCEMENT ---
+                if not clean_name:
+                    st.error("Product name is required.")
+                elif not clean_category:
+                    st.error("Category structure specification is required.")
+                elif is_spam_text or is_nonsense_word:
+                    st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish patterns. Please use genuine descriptions.")
+                elif contains_junk:
+                    st.error("🔴 Context Validation Alert: Junk classifications (person, human, object) are strictly blocked.")
+                elif classification == 'Drinks (Gulps)' and not category_has_drink_terms:
+                    st.error(f"🔴 Classification Mismatch: You selected 'Drinks (Gulps)' but entered a non-beverage category '{category}'.")
+                elif classification == 'Foods (Grubs)' and category_has_drink_terms:
+                    st.error(f"🔴 Classification Mismatch: You selected 'Foods (Grubs)' but entered a drink-related category '{category}'.")
                 
+                # --- 🚨 THE PRICING GATEKEEPER RULE: BLOCKS ZERO OR MISSING VALUES COMPLETELY ---
+                elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0:
+                    st.error("🔴 Validation Error: Price field is required. Product price must be greater than ₱0.00.")
+                elif classification == 'Drinks (Gulps)' and not size_prices:
+                    st.error("🔴 Validation Error: Sizing prices are required. Please enable and price at least one cup size option.")
+                    
+                else:
+                    try:
+                        price_cents = cents_from_peso(price)
+                        generated_code = db.generate_product_code(classification)
+                        starting_stock = 0
+                        
+                        db.add_product(
+                            code=generated_code, name=clean_name, category=clean_category, price_cents=price_cents, 
+                            stock=starting_stock, threshold=low_stock_threshold,
+                            size_prices=size_prices if classification == 'Drinks (Gulps)' else None
+                        )
+                        
+                        success_msg = f"✨ SUCCESS: Product '{clean_name}' successfully added to catalog under category '{clean_category}' (Code: {generated_code})."
+                        st.success(success_msg)
+                        db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
+                        logging.info(success_msg)
+                        st.rerun()
+                    except Exception as e: safe_error(e)
+    
+            with tab2:
+                st.subheader("Edit or Delete Product")
+                
+                # Load all products using your uniform list call
+                all_products = db.list_products(active_only=False)
+                if not all_products:
+                    st.info("No active products available to edit.")
+                else:
+                    labels = {f"{prod['code']} — {prod['name']} {'(Inactive)' if not prod['active'] else ''}": prod for prod in all_products}
+                    selected_label = st.selectbox('Select product to modify', list(labels.keys()), key='edit_select')
+                    p = labels[selected_label]
+                    
+                    if p['active']:
+                        # Pull saved size details up front
+                        current_sizes = db.get_product_sizes(p['id'])
+                        
+                        # Parse custom descriptions out of the category string
+                        orig_category = p['category']
+                        is_custom_drink = " | Custom:" in orig_category
+                        if is_custom_drink:
+                            base_cat_name, custom_sz_label = orig_category.split(" | Custom:", 1)
+                        else:
+                            base_cat_name = orig_category
+                            custom_sz_label = ""
+    
+                        st.markdown("#### Product Details")
+                        ec1, ec2 = st.columns(2)
+                        ec1.text_input('Product code (automatically assigned)', value=p['code'], disabled=True)
+                        new_name = ec2.text_input('Product name', value=p['name']).strip()
+                        
+                        # Identify if item structural layout tracks as a drink type
+                        is_a_drink = is_custom_drink or any(d in base_cat_name.lower() for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage'])
+                        
+                        size_inputs = {}
+                        if is_a_drink:
+                            new_base_cat = st.text_input('Category Name *', value=base_cat_name).strip()
+                            
+                            st.markdown('**Available drink size pricing**')
+                            standard_sizes = {k: v for k, v in current_sizes.items() if k in (8, 12, 16)}
+                            
+                            if not standard_sizes:
+                                standard_sizes = {12: p['price_cents'], 16: p['price_cents']}
+                                
+                            size_cols = st.columns(len(standard_sizes))
+                            for size_idx, size in enumerate(sorted(standard_sizes.keys())):
+                                size_inputs[size] = size_cols[size_idx].number_input(
+                                    f'{size} oz price (₱)', 
+                                    min_value=0.0, 
+                                    value=float(standard_sizes[size]/100), 
+                                    step=5.0, 
+                                    format='%.2f', 
+                                    key=f'form_price_{p["id"]}_{size}'
+                                )
+                                
+                            st.divider()
+                            st.markdown('**🥤 Other / Custom Size Configuration**')
+                            has_custom = st.checkbox("Enable a different custom size profile for this product", value=is_custom_drink, key=f"form_has_cust_{p['id']}")
+                            
+                            c_col1, c_col2 = st.columns(2)
+                            edit_custom_label = c_col1.text_input("Custom Size Description Label", value=custom_sz_label, placeholder="e.g., 22oz, 1-Liter", disabled=not has_custom, key=f"form_lbl_cust_{p['id']}").strip()
+                            edit_custom_price = c_col2.number_input("Custom Size Price (₱)", min_value=0.0, value=float(current_sizes.get(99, 0.0) / 100), step=5.0, format='%.2f', disabled=not has_custom, key=f"form_val_cust_{p['id']}")
+                            
+                            new_cat = f"{new_base_cat} | Custom:{edit_custom_label}" if (has_custom and edit_custom_label) else new_base_cat
+                    
+                            updated_sizes = {}
+                            for sz_key, cents_val in current_sizes.items():
+                                updated_sizes[int(sz_key)] = int(cents_val)
+                            
+                            # 2. Layer on screen inputs ONLY if they are active and contain a changed price > 0.0
+                            for sz, pr_val in size_inputs.items():
+                                if float(pr_val) > 0.0:
+                                    updated_sizes[int(sz)] = cents_from_peso(pr_val)
+                            
+                            # 3. Add or update the custom size (99) profile completely independently
+                            if has_custom and edit_custom_label:
+                                # If a valid premium price was typed, map it; otherwise, carry over pre-saved custom cents
+                                if float(edit_custom_price) > 0.0:
+                                    updated_sizes[99] = cents_from_peso(edit_custom_price)
+                                elif 99 in current_sizes:
+                                    updated_sizes[99] = int(current_sizes[99])
+                                else:
+                                    updated_sizes[99] = 0 # Default fallback if brand-new and unpriced
+                                    
+                                new_cat = f"{new_base_cat} | Custom:{edit_custom_label}"
+                            else:
+                                new_cat = new_base_cat
+                                if 99 in updated_sizes:
+                                    del updated_sizes[99]
+                            
+                            # Set a stable base price from the first available size to satisfy main database integrity constraints
+                            if updated_sizes:
+                                new_base_price_cents = next(iter(updated_sizes.values()))
+                            else:
+                                new_base_price_cents = p['price_cents']
+                        else:
+                            new_cat = st.text_input('Category', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
+                            new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents']/100), step=5.0, format='%.2f', key=f"edit_price_food_{p['id']}")
+                            new_base_price_cents = cents_from_peso(new_price_val)
+                            updated_sizes = None
+    
+                        st.divider()
+                        new_threshold = st.number_input('Low-stock alert at', min_value=0, max_value=1000000, value=int(p['low_stock_threshold']), step=1)
+                        
+                        save_changes = st.button('Save All Product Details', type='primary', key=f"unified_save_btn_{p['id']}")
+    
+                        if save_changes:
+                            if not new_name or not new_cat: 
+                                st.error("Product name and category definitions cannot be left blank.")
+                            else:
+                                try: 
+                                    db.update_product(p['id'], p['code'], new_name, new_cat, int(new_base_price_cents), int(new_threshold))
+                                    
+                                    # --- FIXED: Only update sizing tables if this specific item is verified as a drink ---
+                                    if is_a_drink and updated_sizes is not None:
+                                        db.set_product_sizes(p['id'], updated_sizes)
+                                    else:
+                                        # If it's a food item, cleanly purge any old accidentally attached size metrics from the DB
+                                        with db.connection() as clean_conn:
+                                            clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
+                                            
+                                    st.success('Product details saved successfully!')
+                                    st.rerun()
+                                except Exception as e: safe_error(e)
+    
+                       # --- Permanent Force Hard-Delete Interface Module ---
+                        st.divider()
+                        st.error('### 🚨 DANGER ZONE: PERMANENT PURGE')
+                        
+                        # HTML and Bold styling fixed to render properly together
+                        st.markdown(
+                            "<span style='font-size: 20px;'>Clicking delete below will execute a <b style='color: #c92a2a;'>HARD DELETE</b>. "
+                            "This completely wipes the item profile row from the database catalog and cannot be undone.</span>", 
+                            unsafe_allow_html=True
+                        )
+                    
+                        # FIXED: Indentation aligned correctly inside your active product block
+                        with st.container(key="danger_zone_box"):    
+                            check_step1 = st.checkbox("Confirm: I want to permanently delete this product profile, not deactivate it.", key=f"force_del_c1_{p['id']}")
+                            check_step2 = st.checkbox("Confirm: I understand this action completely removes it from all search logs.", key=f"force_del_c2_{p['id']}")
+                            # Button lights up ONLY when both safety checks are explicitly marked
+                            if st.button('Permanently Delete From Database', key=f"hard_purge_action_{p['id']}", type='primary', disabled=not (check_step1 and check_step2)):
+                                try:
+                                    success, msg = db.delete_product(p['id'])
+                                    
+                                    if success:
+                                        # --- SUCCESS TRANSACTION PRINTS & AUDITS ---
+                                        success_msg = f"🗑️ SUCCESS: Product '{p['code']} — {p['name']}' was permanently deleted from the database catalog."
+                                        st.success(success_msg)
+                                        db.log_activity('Admin', 'Product Deleted', f"{p['code']} · {p['name']}")
+                                        logging.info(success_msg)
+                                        
+                                        st.rerun()
+                                    else: st.error(msg)
+                                except Exception as e: safe_error(e)
+    
+    
+        with tab3:
+            # Global Catalog Search Inventory Matrix View Frames
+            st.markdown("---")
+            st.markdown("#### 🔍 Filter & Sort Product Catalog")
+            
+            # Split sorting filters into 3 clean, balanced columns
+            search_col, category_col, sort_col = st.columns([2, 1.2, 1.2])
+            
+            with search_col:
+                search = st.text_input('Search by code or product name', key='product_search_input')
+                
+            with category_col:
+                raw_categories = {prod['category'].split(" | Custom:", 1)[0].strip() for prod in all_products}
+                category_options = ["All Categories"] + sorted(list(raw_categories))
+                selected_search_category = st.selectbox("Filter by Category", category_options, key='product_category_filter')
+                
+            with sort_col:
+                # 1. Provide arrangement sorting choices
+                sort_option = st.selectbox(
+                    "Arrange Products By",
+                    [
+                        "Product Name (A-Z)", 
+                        "Product Name (Z-A)", 
+                        "Product Code (Ascending)", 
+                        "Highest Price First", 
+                        "Lowest Price First",
+                        "Lowest Stock Level First",
+                        "Highest Stock Level First"
+                    ],
+                    key='catalog_sort_selector'
+                )
+    
+            # 2. Filter list by BOTH keyword search AND category selection simultaneously
+            filtered_items = []
+            for prod in all_products:
+                matches_keyword = search.casefold() in (prod['code'] + ' ' + prod['name']).casefold()
+                clean_item_category = prod['category'].split(" | Custom:", 1)[0].strip()
+                matches_category = (selected_search_category == "All Categories") or (clean_item_category == selected_search_category)
+                
+                if matches_keyword and matches_category:
+                    filtered_items.append(prod)
+    
+            # 3. Dynamic Sorting Execution Logic
+            if sort_option == "Product Name (A-Z)":
+                filtered_items.sort(key=lambda x: x['name'].lower())
+            elif sort_option == "Product Name (Z-A)":
+                filtered_items.sort(key=lambda x: x['name'].lower(), reverse=True)
+            elif sort_option == "Product Code (Ascending)":
+                filtered_items.sort(key=lambda x: x['code'].lower())
+            elif sort_option == "Highest Price First":
+                filtered_items.sort(key=lambda x: x['price_cents'], reverse=True)
+            elif sort_option == "Lowest Price First":
+                filtered_items.sort(key=lambda x: x['price_cents'])
+            elif sort_option == "Lowest Stock Level First":
+                filtered_items.sort(key=lambda x: x['stock'])
+            elif sort_option == "Highest Stock Level First":
+                filtered_items.sort(key=lambda x: x['stock'], reverse=True)
+    
+            # 4. Render Sorted Dataframe Results Matrix
+            if filtered_items:
+                st.dataframe(pd.DataFrame([
+                    {
+                        'Code': prod['code'],
+                        'Product': prod['name'],
+                        'Category': prod['category'].split(" | Custom:", 1)[0], # Display clean category name
+                        'Price': (' · '.join(f"{size if size != 99 else 'Custom'} oz {money(price)}" for size, price in db.get_product_sizes(prod['id']).items()) if db.get_product_sizes(prod['id']) else money(prod['price_cents'])),
+                        'Stock': prod['stock'],
+                        'Low-stock threshold': prod['low_stock_threshold'],
+                        'Status': 'Active' if prod['active'] else 'Inactive'
+                    } for prod in filtered_items
+                ]), use_container_width=True, hide_index=True)
+            else: 
+                st.info('No catalog products match your search keyword or selected category filter.')
+    
+    elif mode=='Admin' and page=='Sales Transaction History':
+        st.subheader('📜 Sales Transaction History')
+        from datetime import datetime, timedelta
+        ph_today = (datetime.utcnow() + timedelta(hours=8)).date()
+        # Initialize interactive calendar pickers to use local storefront dates on screen load
+        start_date = st.date_input('Start Date', value=ph_today - timedelta(days=7))
+        end_date = st.date_input('End Date', value=ph_today)
+    
+        st.subheader('Sales history')
+        c1,c2=st.columns(2); start_date=c1.date_input('From date',value=date.today()-timedelta(days=30)); end_date=c2.date_input('To date',value=date.today())
+        if start_date>end_date: st.error('The start date must not be after the end date.')
+        else:
+            start=datetime.combine(start_date,time.min).isoformat(); end=datetime.combine(end_date+timedelta(days=1),time.min).isoformat()
+            rows=db.transaction_history(start,end)
+            st.metric('Revenue in selected period',money(sum(r['total_cents'] for r in rows)))
+            if rows:
+                st.dataframe(pd.DataFrame([{'Sale #':r['id'],'Date/time':r['created_at'].replace('T',' '),'Cashier':r['cashier_label'],'Total':money(r['total_cents'])} for r in rows]),use_container_width=True,hide_index=True)
+                chosen=st.selectbox('View sale details',[r['id'] for r in rows],format_func=lambda x:f"Sale #{x}")
+                details=db.transaction_items(chosen)
+                st.dataframe(pd.DataFrame([{'Code':x['product_code'],'Product':x['product_name'],'Size':(f"{x.get('size_oz')} oz" if x.get('size_oz') else '—'),'Options':x.get('customizations',''),'Qty':x['quantity'],'Unit price':money(x['unit_price_cents']),'Subtotal':money(x['subtotal_cents'])} for x in details]),use_container_width=True,hide_index=True)
+                st.download_button('Download filtered sales CSV',pd.DataFrame([{'sale_id':r['id'],'created_at':r['created_at'],'cashier':r['cashier_label'],'total_php':r['total_cents']/100} for r in rows]).to_csv(index=False).encode('utf-8'),'sales_history.csv','text/csv')
+            else: st.info('No transactions were found for the selected dates.')
+    
+    elif mode=='Admin' and page=='Activity History':
+        st.subheader('Admin and staff activity history')
+        st.caption('Persistent audit trail for sales, queue actions, product changes, and inventory updates.')
+        f1,f2=st.columns([1,2])
+        role_filter=f1.selectbox('Mode', ['All','Admin','Cashier','Inventory Manager','System'])
+        activity_search=f2.text_input('Search activity history',placeholder='Search product, order number, sale number, action...')
+        rows=db.activity_history(role_filter,activity_search,limit=1000)
+        if rows:
+            st.dataframe(pd.DataFrame([{'Date/time':r['created_at'].replace('T',' '),'Mode':r['actor_mode'],'Action':r['action'],'Details':r['details']} for r in rows]),use_container_width=True,hide_index=True)
+            st.download_button('Download activity history CSV',pd.DataFrame(rows).to_csv(index=False).encode('utf-8'),'activity_history.csv','text/csv')
+        else:
+            st.info('No activity matches this search yet.')
+    
+    #===================
+    ### CASHIER MODE
+    #==================
+    elif mode == 'Cashier' and page == 'Dashboard':
+        st.subheader('📊 Cashier Shift Workspace Dashboard')
+        from datetime import datetime, time, timedelta
+        today = ph_today()
+        start = datetime.combine(today, time.min).isoformat()
+        end = datetime.combine(
+            today + timedelta(days=1),
+            time.min
+        ).isoformat()
+        shift_summary = db.sales_summary(start, end)
+        recent_sales = db.transaction_history(start, end)[:5]
+        
+        try:
+            with db.connection() as conn:
+                pending_count_row = conn.execute("SELECT COUNT(*) as total FROM pending_orders WHERE status = 'Pending'").fetchone()
+                pending_count = pending_count_row['total'] if pending_count_row else 0
+        except Exception:
+            pending_count = 0
+    
+        # 2. High-Visibility Shift Metric Gauges
+        c_metric1, c_metric2, c_metric3 = st.columns(3)
+        
+        c_metric1.metric(
+            label="My Today's Sales 💰", 
+            value=money(shift_summary['revenue_cents']),
+            delta=f"{shift_summary['transactions']} Receipts printed today"
+        )
+        
+        c_metric2.metric(
+            label="Active Kitchen Queue ⏳", 
+            value=f"{pending_count} Orders",
+            delta="Queue heavy - Focus on speed" if pending_count > 5 else "Queue light / clear",
+            delta_color="inverse" if pending_count > 5 else "normal"
+        )
+        
+        c_metric3.metric(
+            label="Current Work Station", 
+            value="Cashier Desk #1",
+            delta="System Connected & Online"
+        )
+        
+        st.divider()
+        
+        # 3. Full-Width Clean Information Ledger
+        st.markdown("#### 📜 Recent Shift Receipts")
+        st.caption("A quick-reference scroll log of your last few completed checkouts:")
+        
+        if not recent_sales:
+            st.info("No customer transactions have been recorded during your active shift window yet.")
+        else:
+            receipt_ledger = []
+            for r in recent_sales:
+                # Clean up timestamp format for scannability
+                short_time = r['created_at'].replace('T', ' ')[:16]
+                receipt_ledger.append({
+                    "Receipt #": f"TX-{r['id']}",
+                    "Timestamp": short_time,
+                    "Cashier Desk": r['cashier_label'],
+                    "Total Bill": money(r['total_cents'])
+                })
+            st.dataframe(pd.DataFrame(receipt_ledger), use_container_width=True, hide_index=True)
+    
+    elif mode == 'Cashier' and page == 'New Sale':
+        st.subheader('New Sale')
+        all_products = db.list_products(active_only=True)
+        
+        inventory_categories = [
+            'powder', 'drinking cups', 'food cups', 'square plates', 
+            'takeout boxes big', 'takeout boxes small', 'lids flat', 'lids dome'
+        ]
+    
+        # Only show finished menu items to cashiers
+        products = [p for p in all_products if p['category'] not in inventory_categories]
+        
+        left, right = st.columns([1.35, 1], gap='large')
+        with left:
+            st.markdown('#### Available products')
+            query = st.text_input('Find a product', placeholder='Search product name or code')
+            if query.strip():
+                match = product_tree.search(query.strip())
+                if match and match['category'] not in inventory_categories:
+                    shown = [match]
+                else:
+                    shown = [p for p in products if query.casefold() in (p['name'] + ' ' + p['code']).casefold()]
+            else: 
+                shown = products
+                
+            if not shown: 
+                st.info('No matching active products.')
+                
+            for start_idx in range(0, len(shown), 2):
+                cols = st.columns(2)
+                for col, p in zip(cols, shown[start_idx:start_idx+2]):
+                    with col:
+                        sizes = db.get_product_sizes(p['id'])
+                        is_drink = bool(sizes)
+                        if " | Custom:" in p['category']:
+                            cat_parts = p['category'].split(" | Custom:", 1)
+                            display_cat_clean = str(cat_parts[0]).strip()
+                            custom_size_text = str(cat_parts[1]).strip()
+                        else:
+                            display_cat_clean = str(p['category']).strip()
+                            custom_size_text = ""
+    
+                        if is_drink:
+                            price_parts = []
+                            for size, price in sizes.items():
+                                if int(size) == 99 and custom_size_text:
+                                    price_parts.append(f"{custom_size_text} {money(price)}")
+                                else:
+                                    price_parts.append(f"{size} oz {money(price)}")
+                            price_line = ' · '.join(price_parts)
+                        else:
+                            price_line = money(p['price_cents'])
+    
+                        card_html = load_html_template(
+                            'product_card.html',
+                            name=str(p['name']),
+                            product_name=str(p['name']),
+                            code=str(p['code']),
+                            category=str(display_cat_clean),
+                            price=str(price_line),
+                            price_line=str(price_line),
+                            stock=str(int(p['stock']))
+                        )
+                        st.markdown(card_html, unsafe_allow_html=True)
+    
+                        with st.form(f"add_cart_{p['id']}"):
+                            size_oz = None
+                            unit_price = p['price_cents']
+                            
+                            if is_drink:
+                                available_sizes = list(sizes.keys())
+                                
+                                def size_label_formatter(z):
+                                    if int(z) == 99 and custom_size_text:
+                                        return custom_size_text
+                                    return f"{z} oz"
+                                    
+                                size_oz = st.radio('Choose cup size', available_sizes, format_func=size_label_formatter, horizontal=True, key=f"size_{p['id']}")
+                                unit_price = sizes[size_oz]
+                                st.caption(f"Selected size price: {money(unit_price)}")
+                                
+                            chosen_customizations = []
+                            addon_premium = 0
+                            
+                            prod_name_lower = p['name'].lower()
+                            cat_lower = display_cat_clean.lower()
+                            
+                            is_milktea = 'milktea' in cat_lower or 'milktea' in prod_name_lower
+                            is_milkshake = 'milkshake' in cat_lower or 'milkshake' in prod_name_lower
+                            is_lemonade_slushie = 'slushie' in cat_lower or 'slushie' in prod_name_lower
+                            is_lemonade = ('lemonade' in cat_lower or 'lemonade' in prod_name_lower) and not is_lemonade_slushie
+                            is_coffee = 'coffee' in cat_lower or 'coffee' in prod_name_lower
+    
+                            if is_drink:
+                                st.markdown("### Sinker Selection")
+                                
+                                # 1. FIXED: Radio layouts for your mutually exclusive free preset sinker configurations
+                                if is_milktea:
+                                    mt_sinker = st.radio("Included Sinker Options", ["Include Pearls (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                    if mt_sinker == "No Sinkers (None)":
+                                        chosen_customizations.append("❌ NO PEARLS")
+        
+                                elif is_milkshake:
+                                    ms_sinker = st.radio("Included Sinker Options", ["Include Pearls & Nata (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                    if ms_sinker == "No Sinkers (None)":
+                                        chosen_customizations.append("❌ NO SINKERS")
+        
+                                elif is_lemonade:
+                                    lem_sinker = st.radio("Included Sinker Options", ["Include Rainbow Jelly (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                    if lem_sinker == "No Sinkers (None)":
+                                        chosen_customizations.append("❌ NO RAINBOW JELLY")
+        
+                                elif is_lemonade_slushie:
+                                    sl_sinker = st.radio("Included Sinker Options", ["Include Nata (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                    if sl_sinker == "No Sinkers (None)":
+                                        chosen_customizations.append("❌ NO NATA")
+        
+                                elif is_coffee:
+                                    cf_sinker = st.radio("Included Sinker Options", ["Include Coffee Jelly (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                    if cf_sinker == "No Sinkers (None)":
+                                        chosen_customizations.append("❌ NO COFFEE JELLY")
+    
+                                # 2. FIXED: Paid Premium Add-on Checkboxes Layout
+                                st.markdown("### Add-ons")
+                                sk1, sk2, sk3, sk4 = st.columns(4)
+                                
+                                add_extra_pearl = sk1.checkbox("Extra Pearls (+₱5)", key=f"add_p_{p['id']}")
+                                add_extra_nata = sk2.checkbox("Extra Nata (+₱5)", key=f"add_n_{p['id']}")
+                                add_extra_jelly = sk3.checkbox("Extra Jelly (+₱5)", key=f"add_j_{p['id']}")
+                                add_extra_coffee_jelly = sk4.checkbox("Extra Coffee Jelly (+₱5)", key=f"add_c_{p['id']}")
+                                
+                                if add_extra_pearl:
+                                    chosen_customizations.append("➕ Extra Pearls")
+                                    addon_premium += 500
+                                if add_extra_nata:
+                                    chosen_customizations.append("➕ Extra Nata")
+                                    addon_premium += 500
+                                if add_extra_jelly:
+                                    chosen_customizations.append("➕ Extra Jelly")
+                                    addon_premium += 500
+                                if add_extra_coffee_jelly:
+                                    chosen_customizations.append("➕ Extra Coffee Jelly")
+                                    addon_premium += 500
+                                unit_price += addon_premium
+    
+                            # 3. Custom Free-text Notes Box (Allergies, Fry Flavors, Meal Comments)
+                            if is_drink:
+                                note_hint = "e.g., 50% Sugar, Less Ice, Severe Lactose Allergy"
+                            elif "fries" in display_cat_clean.lower() or "snack" in display_cat_clean.lower():
+                                note_hint = "e.g., Barbecue, Cheese, Sour Cream, No Salt"
+                            elif "donut" in display_cat_clean.lower() or "waffle" in display_cat_clean.lower() or "dessert" in display_cat_clean.lower():
+                                note_hint = "e.g., Chocolate Syrup, Maple, Whipped Cream"
+                            else:
+                                note_hint = "e.g., Add notes, flavors, combos, or allergy alerts here..."
+    
+                            # Render the text bar using the adaptive hint text
+                            custom_note = st.text_input(
+                                'Special Notes / Customization', 
+                                placeholder=note_hint,
+                                key=f"note_input_{p['id']}"
+                            ).strip()
+                    
+                            qty = st.number_input('Qty', min_value=1, max_value=max(1, int(p['stock'])), value=1, step=1, key=f"qty_{p['id']}", disabled=p['stock'] < 1)
+                            add = st.form_submit_button('Add to cart', use_container_width=True, disabled=p['stock'] < 1)
+                            
+                        if add:
+                            try:
+                                if qty > p['stock']: 
+                                    raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
+                                    
+                                if size_oz and int(size_oz) == 99 and custom_size_text:
+                                    size_display_name = custom_size_text
+                                elif size_oz:
+                                    size_display_name = f"{size_oz} oz"
+                                else:
+                                    size_display_name = ''
+                                    
+                                # Join customizations array together for the transaction logs
+                                final_notes_list = chosen_customizations.copy()
+                                if custom_note:
+                                    final_notes_list.append(custom_note)
+                                combined_customizations = '; '.join(final_notes_list)
+                                    
+                                st.session_state.cart.add(p, int(qty), size_oz=size_oz, unit_price_cents=unit_price, customizations=combined_customizations)
+                                size_label = f" ({size_display_name})" if size_oz else ''
+                                option_label = f" · Options: '{combined_customizations}'" if combined_customizations else ''
+                                st.success(f"Added {qty} × {p['name']}{size_label}{option_label}.")
+                                st.rerun()
+                            except Exception as e: 
+                                safe_error(e)
+    
+        with right:
+            st.markdown('#### Shopping cart')
+            cart = st.session_state.cart
+            items = cart.items()
+            if not items: st.info('Your cart is empty. Add a product to begin.')
             else:
-                try:
-                    price_cents = cents_from_peso(price)
-                    generated_code = db.generate_product_code(classification)
-                    starting_stock = 0
-                    
-                    db.add_product(
-                        code=generated_code, name=clean_name, category=clean_category, price_cents=price_cents, 
-                        stock=starting_stock, threshold=low_stock_threshold,
-                        size_prices=size_prices if classification == 'Drinks (Gulps)' else None
+                for item in items:
+                    with st.container(border=True):
+                        # --- FIXED: Format size 99 dynamically to '22 oz' in your cart display column ---
+                        if item.get('size_oz'):
+                            size_lbl = "22 oz" if int(item['size_oz']) == 99 else f"{item['size_oz']} oz"
+                            display_title = f"**{item['name']} ({size_lbl})**"
+                        else:
+                            display_title = f"**{item['name']}**"
+                        options_label = f"\n\n<small style='color:gray;'>{item['customizations']}</small>" if item.get('customizations') else ""
+                        
+                        c1, c2 = st.columns([2, 1])
+                        c1.markdown(f"{display_title}{options_label}\n\n{money(item['unit_price_cents'])} each", unsafe_allow_html=True)
+                        c2.markdown(f"**{money(item['subtotal_cents'])}**")
+    
+                        qcol, rmcol = st.columns([2, 1])
+                        new_q = qcol.number_input(
+                            'Quantity', 
+                            min_value=1, 
+                            max_value=1000000, 
+                            value=int(item['quantity']), 
+                            step=1, 
+                            key=f"cart_q_{item['product_id']}_{item.get('size_oz') or 'std'}_{abs(hash(str(item.get('customizations', ''))))}"
+                        )
+                        if qcol.button('Update', key=f"update_{item['product_id']}_{item.get('size_oz') or 'std'}_{abs(hash(str(item.get('customizations',''))))}"):
+                            try:
+                                p=db.get_product(item['product_id'])
+                                if not p or not p['active']: raise ValueError('This product is no longer available. Remove it from the cart.')
+                                if int(new_q)>p['stock']: raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
+                                cart.set_quantity(item['product_id'],int(new_q),item.get('size_oz'),item.get('customizations','')); st.rerun()
+                            except Exception as e: safe_error(e)
+                        
+                        if rmcol.button('Remove', key=f"remove_{item['product_id']}_{item.get('size_oz') or 'std'}_{abs(hash(str(item.get('customizations',''))))}"):
+                            cart.remove(item['product_id'],item.get('size_oz'),item.get('customizations','')); st.rerun()
+    
+                st.divider(); st.markdown(f"### Total: {money(cart.total_cents())}")
+                
+                with st.form('checkout_form'):
+                    customer_name = st.text_input('Customer name *', placeholder='e.g. John Doe')
+                    priority_level = st.select_slider(
+                        'Priority level', 
+                        options=[1, 2, 3], 
+                        value=3, 
+                        format_func=lambda x: {1: '1 · Urgent', 2: '2 · High', 3: '3 · Normal'}[x]
                     )
-                    
-                    success_msg = f"✨ SUCCESS: Product '{clean_name}' successfully added to catalog under category '{clean_category}' (Code: {generated_code})."
-                    st.success(success_msg)
-                    db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
-                    logging.info(success_msg)
+                    cashier_label = st.text_input('Cashier label (optional)', value='Cashier')
+                    confirm = st.form_submit_button('Confirm sale', type='primary', use_container_width=True)
+    
+                if confirm:
+                    try:
+                        if not customer_name.strip():
+                            raise ValueError("Please enter the customer name.")
+    
+                        sale = db.checkout(cart.items(), cashier_label.strip() or 'Cashier')
+                        st.session_state.last_sale = sale
+    
+                        order_details_str = ", ".join([f"{item['quantity']}x {item['name']}" for item in cart.items()])
+                        db.add_order(customer_name.strip(), order_details_str, int(priority_level))
+    
+                        cart.clear()
+                        st.success(f"Sale #{sale['transaction_id']} completed & added to pickup queue — {money(sale['total_cents'])}.")
+                        st.rerun()
+                    except Exception as e:
+                        safe_error(e)
+    
+    
+    elif mode == 'Cashier' and page == 'Pickup Queue Priority':
+        st.subheader('Cashier - Order Priority & Pickup Queue')
+        st.caption('Orders are automatically added to this priority queue upon finalizing sales at checkout.')
+    
+        heap = rebuild_heap()
+        next_order = heap.peek()
+        
+        if next_order:
+            st.markdown("### 🔔 Next Priority Order in Queue")
+            st.info(f"**Order #{next_order.order_id}** — {next_order.payload['customer_name']} | **Priority Level:** {next_order.priority} | **Details:** {next_order.payload['details']}")
+            if st.button('Mark Next Order Completed', type='primary'):
+                try:
+                    db.update_order_status(next_order.order_id, 'Completed')
+                    st.success(f'Order #{next_order.order_id} marked as completed.')
                     st.rerun()
                 except Exception as e: safe_error(e)
-
-        with tab2:
-            st.subheader("Edit or Delete Product")
-            
-            # Load all products using your uniform list call
-            all_products = db.list_products(active_only=False)
-            if not all_products:
-                st.info("No active products available to edit.")
-            else:
-                labels = {f"{prod['code']} — {prod['name']} {'(Inactive)' if not prod['active'] else ''}": prod for prod in all_products}
-                selected_label = st.selectbox('Select product to modify', list(labels.keys()), key='edit_select')
-                p = labels[selected_label]
-                
-                if p['active']:
-                    # Pull saved size details up front
-                    current_sizes = db.get_product_sizes(p['id'])
-                    
-                    # Parse custom descriptions out of the category string
-                    orig_category = p['category']
-                    is_custom_drink = " | Custom:" in orig_category
-                    if is_custom_drink:
-                        base_cat_name, custom_sz_label = orig_category.split(" | Custom:", 1)
-                    else:
-                        base_cat_name = orig_category
-                        custom_sz_label = ""
-
-                    st.markdown("#### Product Details")
-                    ec1, ec2 = st.columns(2)
-                    ec1.text_input('Product code (automatically assigned)', value=p['code'], disabled=True)
-                    new_name = ec2.text_input('Product name', value=p['name']).strip()
-                    
-                    # Identify if item structural layout tracks as a drink type
-                    is_a_drink = is_custom_drink or any(d in base_cat_name.lower() for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage'])
-                    
-                    size_inputs = {}
-                    if is_a_drink:
-                        new_base_cat = st.text_input('Category Name *', value=base_cat_name).strip()
-                        
-                        st.markdown('**Available drink size pricing**')
-                        standard_sizes = {k: v for k, v in current_sizes.items() if k in (8, 12, 16)}
-                        
-                        if not standard_sizes:
-                            standard_sizes = {12: p['price_cents'], 16: p['price_cents']}
-                            
-                        size_cols = st.columns(len(standard_sizes))
-                        for size_idx, size in enumerate(sorted(standard_sizes.keys())):
-                            size_inputs[size] = size_cols[size_idx].number_input(
-                                f'{size} oz price (₱)', 
-                                min_value=0.0, 
-                                value=float(standard_sizes[size]/100), 
-                                step=5.0, 
-                                format='%.2f', 
-                                key=f'form_price_{p["id"]}_{size}'
-                            )
-                            
-                        st.divider()
-                        st.markdown('**🥤 Other / Custom Size Configuration**')
-                        has_custom = st.checkbox("Enable a different custom size profile for this product", value=is_custom_drink, key=f"form_has_cust_{p['id']}")
-                        
-                        c_col1, c_col2 = st.columns(2)
-                        edit_custom_label = c_col1.text_input("Custom Size Description Label", value=custom_sz_label, placeholder="e.g., 22oz, 1-Liter", disabled=not has_custom, key=f"form_lbl_cust_{p['id']}").strip()
-                        edit_custom_price = c_col2.number_input("Custom Size Price (₱)", min_value=0.0, value=float(current_sizes.get(99, 0.0) / 100), step=5.0, format='%.2f', disabled=not has_custom, key=f"form_val_cust_{p['id']}")
-                        
-                        new_cat = f"{new_base_cat} | Custom:{edit_custom_label}" if (has_custom and edit_custom_label) else new_base_cat
-                
-                        updated_sizes = {}
-                        for sz_key, cents_val in current_sizes.items():
-                            updated_sizes[int(sz_key)] = int(cents_val)
-                        
-                        # 2. Layer on screen inputs ONLY if they are active and contain a changed price > 0.0
-                        for sz, pr_val in size_inputs.items():
-                            if float(pr_val) > 0.0:
-                                updated_sizes[int(sz)] = cents_from_peso(pr_val)
-                        
-                        # 3. Add or update the custom size (99) profile completely independently
-                        if has_custom and edit_custom_label:
-                            # If a valid premium price was typed, map it; otherwise, carry over pre-saved custom cents
-                            if float(edit_custom_price) > 0.0:
-                                updated_sizes[99] = cents_from_peso(edit_custom_price)
-                            elif 99 in current_sizes:
-                                updated_sizes[99] = int(current_sizes[99])
-                            else:
-                                updated_sizes[99] = 0 # Default fallback if brand-new and unpriced
-                                
-                            new_cat = f"{new_base_cat} | Custom:{edit_custom_label}"
-                        else:
-                            new_cat = new_base_cat
-                            if 99 in updated_sizes:
-                                del updated_sizes[99]
-                        
-                        # Set a stable base price from the first available size to satisfy main database integrity constraints
-                        if updated_sizes:
-                            new_base_price_cents = next(iter(updated_sizes.values()))
-                        else:
-                            new_base_price_cents = p['price_cents']
-                    else:
-                        new_cat = st.text_input('Category', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
-                        new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents']/100), step=5.0, format='%.2f', key=f"edit_price_food_{p['id']}")
-                        new_base_price_cents = cents_from_peso(new_price_val)
-                        updated_sizes = None
-
-                    st.divider()
-                    new_threshold = st.number_input('Low-stock alert at', min_value=0, max_value=1000000, value=int(p['low_stock_threshold']), step=1)
-                    
-                    save_changes = st.button('Save All Product Details', type='primary', key=f"unified_save_btn_{p['id']}")
-
-                    if save_changes:
-                        if not new_name or not new_cat: 
-                            st.error("Product name and category definitions cannot be left blank.")
-                        else:
-                            try: 
-                                db.update_product(p['id'], p['code'], new_name, new_cat, int(new_base_price_cents), int(new_threshold))
-                                
-                                # --- FIXED: Only update sizing tables if this specific item is verified as a drink ---
-                                if is_a_drink and updated_sizes is not None:
-                                    db.set_product_sizes(p['id'], updated_sizes)
-                                else:
-                                    # If it's a food item, cleanly purge any old accidentally attached size metrics from the DB
-                                    with db.connection() as clean_conn:
-                                        clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
-                                        
-                                st.success('Product details saved successfully!')
-                                st.rerun()
-                            except Exception as e: safe_error(e)
-
-                   # --- Permanent Force Hard-Delete Interface Module ---
-                    st.divider()
-                    st.error('### 🚨 DANGER ZONE: PERMANENT PURGE')
-                    
-                    # HTML and Bold styling fixed to render properly together
-                    st.markdown(
-                        "<span style='font-size: 20px;'>Clicking delete below will execute a <b style='color: #c92a2a;'>HARD DELETE</b>. "
-                        "This completely wipes the item profile row from the database catalog and cannot be undone.</span>", 
-                        unsafe_allow_html=True
-                    )
-                
-                    # FIXED: Indentation aligned correctly inside your active product block
-                    with st.container(key="danger_zone_box"):    
-                        check_step1 = st.checkbox("Confirm: I want to permanently delete this product profile, not deactivate it.", key=f"force_del_c1_{p['id']}")
-                        check_step2 = st.checkbox("Confirm: I understand this action completely removes it from all search logs.", key=f"force_del_c2_{p['id']}")
-                        # Button lights up ONLY when both safety checks are explicitly marked
-                        if st.button('Permanently Delete From Database', key=f"hard_purge_action_{p['id']}", type='primary', disabled=not (check_step1 and check_step2)):
-                            try:
-                                success, msg = db.delete_product(p['id'])
-                                
-                                if success:
-                                    # --- SUCCESS TRANSACTION PRINTS & AUDITS ---
-                                    success_msg = f"🗑️ SUCCESS: Product '{p['code']} — {p['name']}' was permanently deleted from the database catalog."
-                                    st.success(success_msg)
-                                    db.log_activity('Admin', 'Product Deleted', f"{p['code']} · {p['name']}")
-                                    logging.info(success_msg)
-                                    
-                                    st.rerun()
-                                else: st.error(msg)
-                            except Exception as e: safe_error(e)
-
-
-    with tab3:
-        # Global Catalog Search Inventory Matrix View Frames
-        st.markdown("---")
-        st.markdown("#### 🔍 Filter & Sort Product Catalog")
-        
-        # Split sorting filters into 3 clean, balanced columns
-        search_col, category_col, sort_col = st.columns([2, 1.2, 1.2])
-        
-        with search_col:
-            search = st.text_input('Search by code or product name', key='product_search_input')
-            
-        with category_col:
-            raw_categories = {prod['category'].split(" | Custom:", 1)[0].strip() for prod in all_products}
-            category_options = ["All Categories"] + sorted(list(raw_categories))
-            selected_search_category = st.selectbox("Filter by Category", category_options, key='product_category_filter')
-            
-        with sort_col:
-            # 1. Provide arrangement sorting choices
-            sort_option = st.selectbox(
-                "Arrange Products By",
-                [
-                    "Product Name (A-Z)", 
-                    "Product Name (Z-A)", 
-                    "Product Code (Ascending)", 
-                    "Highest Price First", 
-                    "Lowest Price First",
-                    "Lowest Stock Level First",
-                    "Highest Stock Level First"
-                ],
-                key='catalog_sort_selector'
-            )
-
-        # 2. Filter list by BOTH keyword search AND category selection simultaneously
-        filtered_items = []
-        for prod in all_products:
-            matches_keyword = search.casefold() in (prod['code'] + ' ' + prod['name']).casefold()
-            clean_item_category = prod['category'].split(" | Custom:", 1)[0].strip()
-            matches_category = (selected_search_category == "All Categories") or (clean_item_category == selected_search_category)
-            
-            if matches_keyword and matches_category:
-                filtered_items.append(prod)
-
-        # 3. Dynamic Sorting Execution Logic
-        if sort_option == "Product Name (A-Z)":
-            filtered_items.sort(key=lambda x: x['name'].lower())
-        elif sort_option == "Product Name (Z-A)":
-            filtered_items.sort(key=lambda x: x['name'].lower(), reverse=True)
-        elif sort_option == "Product Code (Ascending)":
-            filtered_items.sort(key=lambda x: x['code'].lower())
-        elif sort_option == "Highest Price First":
-            filtered_items.sort(key=lambda x: x['price_cents'], reverse=True)
-        elif sort_option == "Lowest Price First":
-            filtered_items.sort(key=lambda x: x['price_cents'])
-        elif sort_option == "Lowest Stock Level First":
-            filtered_items.sort(key=lambda x: x['stock'])
-        elif sort_option == "Highest Stock Level First":
-            filtered_items.sort(key=lambda x: x['stock'], reverse=True)
-
-        # 4. Render Sorted Dataframe Results Matrix
-        if filtered_items:
-            st.dataframe(pd.DataFrame([
-                {
-                    'Code': prod['code'],
-                    'Product': prod['name'],
-                    'Category': prod['category'].split(" | Custom:", 1)[0], # Display clean category name
-                    'Price': (' · '.join(f"{size if size != 99 else 'Custom'} oz {money(price)}" for size, price in db.get_product_sizes(prod['id']).items()) if db.get_product_sizes(prod['id']) else money(prod['price_cents'])),
-                    'Stock': prod['stock'],
-                    'Low-stock threshold': prod['low_stock_threshold'],
-                    'Status': 'Active' if prod['active'] else 'Inactive'
-                } for prod in filtered_items
-            ]), use_container_width=True, hide_index=True)
-        else: 
-            st.info('No catalog products match your search keyword or selected category filter.')
-
-elif mode=='Admin' and page=='Sales Transaction History':
-    st.subheader('📜 Sales Transaction History')
-    from datetime import datetime, timedelta
-    ph_today = (datetime.utcnow() + timedelta(hours=8)).date()
-    # Initialize interactive calendar pickers to use local storefront dates on screen load
-    start_date = st.date_input('Start Date', value=ph_today - timedelta(days=7))
-    end_date = st.date_input('End Date', value=ph_today)
-
-    st.subheader('Sales history')
-    c1,c2=st.columns(2); start_date=c1.date_input('From date',value=date.today()-timedelta(days=30)); end_date=c2.date_input('To date',value=date.today())
-    if start_date>end_date: st.error('The start date must not be after the end date.')
-    else:
-        start=datetime.combine(start_date,time.min).isoformat(); end=datetime.combine(end_date+timedelta(days=1),time.min).isoformat()
-        rows=db.transaction_history(start,end)
-        st.metric('Revenue in selected period',money(sum(r['total_cents'] for r in rows)))
-        if rows:
-            st.dataframe(pd.DataFrame([{'Sale #':r['id'],'Date/time':r['created_at'].replace('T',' '),'Cashier':r['cashier_label'],'Total':money(r['total_cents'])} for r in rows]),use_container_width=True,hide_index=True)
-            chosen=st.selectbox('View sale details',[r['id'] for r in rows],format_func=lambda x:f"Sale #{x}")
-            details=db.transaction_items(chosen)
-            st.dataframe(pd.DataFrame([{'Code':x['product_code'],'Product':x['product_name'],'Size':(f"{x.get('size_oz')} oz" if x.get('size_oz') else '—'),'Options':x.get('customizations',''),'Qty':x['quantity'],'Unit price':money(x['unit_price_cents']),'Subtotal':money(x['subtotal_cents'])} for x in details]),use_container_width=True,hide_index=True)
-            st.download_button('Download filtered sales CSV',pd.DataFrame([{'sale_id':r['id'],'created_at':r['created_at'],'cashier':r['cashier_label'],'total_php':r['total_cents']/100} for r in rows]).to_csv(index=False).encode('utf-8'),'sales_history.csv','text/csv')
-        else: st.info('No transactions were found for the selected dates.')
-
-elif mode=='Admin' and page=='Activity History':
-    st.subheader('Admin and staff activity history')
-    st.caption('Persistent audit trail for sales, queue actions, product changes, and inventory updates.')
-    f1,f2=st.columns([1,2])
-    role_filter=f1.selectbox('Mode', ['All','Admin','Cashier','Inventory Manager','System'])
-    activity_search=f2.text_input('Search activity history',placeholder='Search product, order number, sale number, action...')
-    rows=db.activity_history(role_filter,activity_search,limit=1000)
-    if rows:
-        st.dataframe(pd.DataFrame([{'Date/time':r['created_at'].replace('T',' '),'Mode':r['actor_mode'],'Action':r['action'],'Details':r['details']} for r in rows]),use_container_width=True,hide_index=True)
-        st.download_button('Download activity history CSV',pd.DataFrame(rows).to_csv(index=False).encode('utf-8'),'activity_history.csv','text/csv')
-    else:
-        st.info('No activity matches this search yet.')
-
-#===================
-### CASHIER MODE
-#==================
-elif mode == 'Cashier' and page == 'Dashboard':
-    st.subheader('📊 Cashier Shift Workspace Dashboard')
-    from datetime import datetime, time, timedelta
-    today = ph_today()
-    start = datetime.combine(today, time.min).isoformat()
-    end = datetime.combine(
-        today + timedelta(days=1),
-        time.min
-    ).isoformat()
-    shift_summary = db.sales_summary(start, end)
-    recent_sales = db.transaction_history(start, end)[:5]
-    
-    try:
-        with db.connection() as conn:
-            pending_count_row = conn.execute("SELECT COUNT(*) as total FROM pending_orders WHERE status = 'Pending'").fetchone()
-            pending_count = pending_count_row['total'] if pending_count_row else 0
-    except Exception:
-        pending_count = 0
-
-    # 2. High-Visibility Shift Metric Gauges
-    c_metric1, c_metric2, c_metric3 = st.columns(3)
-    
-    c_metric1.metric(
-        label="My Today's Sales 💰", 
-        value=money(shift_summary['revenue_cents']),
-        delta=f"{shift_summary['transactions']} Receipts printed today"
-    )
-    
-    c_metric2.metric(
-        label="Active Kitchen Queue ⏳", 
-        value=f"{pending_count} Orders",
-        delta="Queue heavy - Focus on speed" if pending_count > 5 else "Queue light / clear",
-        delta_color="inverse" if pending_count > 5 else "normal"
-    )
-    
-    c_metric3.metric(
-        label="Current Work Station", 
-        value="Cashier Desk #1",
-        delta="System Connected & Online"
-    )
-    
-    st.divider()
-    
-    # 3. Full-Width Clean Information Ledger
-    st.markdown("#### 📜 Recent Shift Receipts")
-    st.caption("A quick-reference scroll log of your last few completed checkouts:")
-    
-    if not recent_sales:
-        st.info("No customer transactions have been recorded during your active shift window yet.")
-    else:
-        receipt_ledger = []
-        for r in recent_sales:
-            # Clean up timestamp format for scannability
-            short_time = r['created_at'].replace('T', ' ')[:16]
-            receipt_ledger.append({
-                "Receipt #": f"TX-{r['id']}",
-                "Timestamp": short_time,
-                "Cashier Desk": r['cashier_label'],
-                "Total Bill": money(r['total_cents'])
-            })
-        st.dataframe(pd.DataFrame(receipt_ledger), use_container_width=True, hide_index=True)
-
-elif mode == 'Cashier' and page == 'New Sale':
-    st.subheader('New Sale')
-    all_products = db.list_products(active_only=True)
-    
-    inventory_categories = [
-        'powder', 'drinking cups', 'food cups', 'square plates', 
-        'takeout boxes big', 'takeout boxes small', 'lids flat', 'lids dome'
-    ]
-
-    # Only show finished menu items to cashiers
-    products = [p for p in all_products if p['category'] not in inventory_categories]
-    
-    left, right = st.columns([1.35, 1], gap='large')
-    with left:
-        st.markdown('#### Available products')
-        query = st.text_input('Find a product', placeholder='Search product name or code')
-        if query.strip():
-            match = product_tree.search(query.strip())
-            if match and match['category'] not in inventory_categories:
-                shown = [match]
-            else:
-                shown = [p for p in products if query.casefold() in (p['name'] + ' ' + p['code']).casefold()]
-        else: 
-            shown = products
-            
-        if not shown: 
-            st.info('No matching active products.')
-            
-        for start_idx in range(0, len(shown), 2):
-            cols = st.columns(2)
-            for col, p in zip(cols, shown[start_idx:start_idx+2]):
-                with col:
-                    sizes = db.get_product_sizes(p['id'])
-                    is_drink = bool(sizes)
-                    if " | Custom:" in p['category']:
-                        cat_parts = p['category'].split(" | Custom:", 1)
-                        display_cat_clean = str(cat_parts[0]).strip()
-                        custom_size_text = str(cat_parts[1]).strip()
-                    else:
-                        display_cat_clean = str(p['category']).strip()
-                        custom_size_text = ""
-
-                    if is_drink:
-                        price_parts = []
-                        for size, price in sizes.items():
-                            if int(size) == 99 and custom_size_text:
-                                price_parts.append(f"{custom_size_text} {money(price)}")
-                            else:
-                                price_parts.append(f"{size} oz {money(price)}")
-                        price_line = ' · '.join(price_parts)
-                    else:
-                        price_line = money(p['price_cents'])
-
-                    card_html = load_html_template(
-                        'product_card.html',
-                        name=str(p['name']),
-                        product_name=str(p['name']),
-                        code=str(p['code']),
-                        category=str(display_cat_clean),
-                        price=str(price_line),
-                        price_line=str(price_line),
-                        stock=str(int(p['stock']))
-                    )
-                    st.markdown(card_html, unsafe_allow_html=True)
-
-                    with st.form(f"add_cart_{p['id']}"):
-                        size_oz = None
-                        unit_price = p['price_cents']
-                        
-                        if is_drink:
-                            available_sizes = list(sizes.keys())
-                            
-                            def size_label_formatter(z):
-                                if int(z) == 99 and custom_size_text:
-                                    return custom_size_text
-                                return f"{z} oz"
-                                
-                            size_oz = st.radio('Choose cup size', available_sizes, format_func=size_label_formatter, horizontal=True, key=f"size_{p['id']}")
-                            unit_price = sizes[size_oz]
-                            st.caption(f"Selected size price: {money(unit_price)}")
-                            
-                        chosen_customizations = []
-                        addon_premium = 0
-                        
-                        prod_name_lower = p['name'].lower()
-                        cat_lower = display_cat_clean.lower()
-                        
-                        is_milktea = 'milktea' in cat_lower or 'milktea' in prod_name_lower
-                        is_milkshake = 'milkshake' in cat_lower or 'milkshake' in prod_name_lower
-                        is_lemonade_slushie = 'slushie' in cat_lower or 'slushie' in prod_name_lower
-                        is_lemonade = ('lemonade' in cat_lower or 'lemonade' in prod_name_lower) and not is_lemonade_slushie
-                        is_coffee = 'coffee' in cat_lower or 'coffee' in prod_name_lower
-
-                        if is_drink:
-                            st.markdown("### Sinker Selection")
-                            
-                            # 1. FIXED: Radio layouts for your mutually exclusive free preset sinker configurations
-                            if is_milktea:
-                                mt_sinker = st.radio("Included Sinker Options", ["Include Pearls (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
-                                if mt_sinker == "No Sinkers (None)":
-                                    chosen_customizations.append("❌ NO PEARLS")
-    
-                            elif is_milkshake:
-                                ms_sinker = st.radio("Included Sinker Options", ["Include Pearls & Nata (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
-                                if ms_sinker == "No Sinkers (None)":
-                                    chosen_customizations.append("❌ NO SINKERS")
-    
-                            elif is_lemonade:
-                                lem_sinker = st.radio("Included Sinker Options", ["Include Rainbow Jelly (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
-                                if lem_sinker == "No Sinkers (None)":
-                                    chosen_customizations.append("❌ NO RAINBOW JELLY")
-    
-                            elif is_lemonade_slushie:
-                                sl_sinker = st.radio("Included Sinker Options", ["Include Nata (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
-                                if sl_sinker == "No Sinkers (None)":
-                                    chosen_customizations.append("❌ NO NATA")
-    
-                            elif is_coffee:
-                                cf_sinker = st.radio("Included Sinker Options", ["Include Coffee Jelly (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
-                                if cf_sinker == "No Sinkers (None)":
-                                    chosen_customizations.append("❌ NO COFFEE JELLY")
-
-                            # 2. FIXED: Paid Premium Add-on Checkboxes Layout
-                            st.markdown("### Add-ons")
-                            sk1, sk2, sk3, sk4 = st.columns(4)
-                            
-                            add_extra_pearl = sk1.checkbox("Extra Pearls (+₱5)", key=f"add_p_{p['id']}")
-                            add_extra_nata = sk2.checkbox("Extra Nata (+₱5)", key=f"add_n_{p['id']}")
-                            add_extra_jelly = sk3.checkbox("Extra Jelly (+₱5)", key=f"add_j_{p['id']}")
-                            add_extra_coffee_jelly = sk4.checkbox("Extra Coffee Jelly (+₱5)", key=f"add_c_{p['id']}")
-                            
-                            if add_extra_pearl:
-                                chosen_customizations.append("➕ Extra Pearls")
-                                addon_premium += 500
-                            if add_extra_nata:
-                                chosen_customizations.append("➕ Extra Nata")
-                                addon_premium += 500
-                            if add_extra_jelly:
-                                chosen_customizations.append("➕ Extra Jelly")
-                                addon_premium += 500
-                            if add_extra_coffee_jelly:
-                                chosen_customizations.append("➕ Extra Coffee Jelly")
-                                addon_premium += 500
-                            unit_price += addon_premium
-
-                        # 3. Custom Free-text Notes Box (Allergies, Fry Flavors, Meal Comments)
-                        if is_drink:
-                            note_hint = "e.g., 50% Sugar, Less Ice, Severe Lactose Allergy"
-                        elif "fries" in display_cat_clean.lower() or "snack" in display_cat_clean.lower():
-                            note_hint = "e.g., Barbecue, Cheese, Sour Cream, No Salt"
-                        elif "donut" in display_cat_clean.lower() or "waffle" in display_cat_clean.lower() or "dessert" in display_cat_clean.lower():
-                            note_hint = "e.g., Chocolate Syrup, Maple, Whipped Cream"
-                        else:
-                            note_hint = "e.g., Add notes, flavors, combos, or allergy alerts here..."
-
-                        # Render the text bar using the adaptive hint text
-                        custom_note = st.text_input(
-                            'Special Notes / Customization', 
-                            placeholder=note_hint,
-                            key=f"note_input_{p['id']}"
-                        ).strip()
-                
-                        qty = st.number_input('Qty', min_value=1, max_value=max(1, int(p['stock'])), value=1, step=1, key=f"qty_{p['id']}", disabled=p['stock'] < 1)
-                        add = st.form_submit_button('Add to cart', use_container_width=True, disabled=p['stock'] < 1)
-                        
-                    if add:
-                        try:
-                            if qty > p['stock']: 
-                                raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
-                                
-                            if size_oz and int(size_oz) == 99 and custom_size_text:
-                                size_display_name = custom_size_text
-                            elif size_oz:
-                                size_display_name = f"{size_oz} oz"
-                            else:
-                                size_display_name = ''
-                                
-                            # Join customizations array together for the transaction logs
-                            final_notes_list = chosen_customizations.copy()
-                            if custom_note:
-                                final_notes_list.append(custom_note)
-                            combined_customizations = '; '.join(final_notes_list)
-                                
-                            st.session_state.cart.add(p, int(qty), size_oz=size_oz, unit_price_cents=unit_price, customizations=combined_customizations)
-                            size_label = f" ({size_display_name})" if size_oz else ''
-                            option_label = f" · Options: '{combined_customizations}'" if combined_customizations else ''
-                            st.success(f"Added {qty} × {p['name']}{size_label}{option_label}.")
-                            st.rerun()
-                        except Exception as e: 
-                            safe_error(e)
-
-    with right:
-        st.markdown('#### Shopping cart')
-        cart = st.session_state.cart
-        items = cart.items()
-        if not items: st.info('Your cart is empty. Add a product to begin.')
         else:
-            for item in items:
-                with st.container(border=True):
-                    # --- FIXED: Format size 99 dynamically to '22 oz' in your cart display column ---
-                    if item.get('size_oz'):
-                        size_lbl = "22 oz" if int(item['size_oz']) == 99 else f"{item['size_oz']} oz"
-                        display_title = f"**{item['name']} ({size_lbl})**"
-                    else:
-                        display_title = f"**{item['name']}**"
-                    options_label = f"\n\n<small style='color:gray;'>{item['customizations']}</small>" if item.get('customizations') else ""
-                    
-                    c1, c2 = st.columns([2, 1])
-                    c1.markdown(f"{display_title}{options_label}\n\n{money(item['unit_price_cents'])} each", unsafe_allow_html=True)
-                    c2.markdown(f"**{money(item['subtotal_cents'])}**")
-
-                    qcol, rmcol = st.columns([2, 1])
-                    new_q = qcol.number_input(
-                        'Quantity', 
-                        min_value=1, 
-                        max_value=1000000, 
-                        value=int(item['quantity']), 
-                        step=1, 
-                        key=f"cart_q_{item['product_id']}_{item.get('size_oz') or 'std'}_{abs(hash(str(item.get('customizations', ''))))}"
-                    )
-                    if qcol.button('Update', key=f"update_{item['product_id']}_{item.get('size_oz') or 'std'}_{abs(hash(str(item.get('customizations',''))))}"):
-                        try:
-                            p=db.get_product(item['product_id'])
-                            if not p or not p['active']: raise ValueError('This product is no longer available. Remove it from the cart.')
-                            if int(new_q)>p['stock']: raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
-                            cart.set_quantity(item['product_id'],int(new_q),item.get('size_oz'),item.get('customizations','')); st.rerun()
-                        except Exception as e: safe_error(e)
-                    
-                    if rmcol.button('Remove', key=f"remove_{item['product_id']}_{item.get('size_oz') or 'std'}_{abs(hash(str(item.get('customizations',''))))}"):
-                        cart.remove(item['product_id'],item.get('size_oz'),item.get('customizations','')); st.rerun()
-
-            st.divider(); st.markdown(f"### Total: {money(cart.total_cents())}")
-            
-            with st.form('checkout_form'):
-                customer_name = st.text_input('Customer name *', placeholder='e.g. John Doe')
-                priority_level = st.select_slider(
-                    'Priority level', 
-                    options=[1, 2, 3], 
-                    value=3, 
-                    format_func=lambda x: {1: '1 · Urgent', 2: '2 · High', 3: '3 · Normal'}[x]
-                )
-                cashier_label = st.text_input('Cashier label (optional)', value='Cashier')
-                confirm = st.form_submit_button('Confirm sale', type='primary', use_container_width=True)
-
-            if confirm:
-                try:
-                    if not customer_name.strip():
-                        raise ValueError("Please enter the customer name.")
-
-                    sale = db.checkout(cart.items(), cashier_label.strip() or 'Cashier')
-                    st.session_state.last_sale = sale
-
-                    order_details_str = ", ".join([f"{item['quantity']}x {item['name']}" for item in cart.items()])
-                    db.add_order(customer_name.strip(), order_details_str, int(priority_level))
-
-                    cart.clear()
-                    st.success(f"Sale #{sale['transaction_id']} completed & added to pickup queue — {money(sale['total_cents'])}.")
-                    st.rerun()
-                except Exception as e:
-                    safe_error(e)
-
-
-elif mode == 'Cashier' and page == 'Pickup Queue Priority':
-    st.subheader('Cashier - Order Priority & Pickup Queue')
-    st.caption('Orders are automatically added to this priority queue upon finalizing sales at checkout.')
-
-    heap = rebuild_heap()
-    next_order = heap.peek()
+            st.success('No pending pickup orders in queue.')
     
-    if next_order:
-        st.markdown("### 🔔 Next Priority Order in Queue")
-        st.info(f"**Order #{next_order.order_id}** — {next_order.payload['customer_name']} | **Priority Level:** {next_order.priority} | **Details:** {next_order.payload['details']}")
-        if st.button('Mark Next Order Completed', type='primary'):
-            try:
-                db.update_order_status(next_order.order_id, 'Completed')
-                st.success(f'Order #{next_order.order_id} marked as completed.')
-                st.rerun()
-            except Exception as e: safe_error(e)
-    else:
-        st.success('No pending pickup orders in queue.')
-
-    st.markdown("#### All Pending Pickup Orders")
-    all_orders = db.list_orders()
-    if all_orders:
-        st.dataframe(
-            pd.DataFrame([
-                {
-                    'Order #': o['id'], 
-                    'Customer': o['customer_name'], 
-                    'Details': o['details'], 
-                    'Priority': o['priority'], 
-                    'Status': o['status'], 
-                    'Created': o['created_at'].replace('T', ' ')
-                } for o in all_orders
-            ]), 
-            use_container_width=True, 
-            hide_index=True
-        )
-    else:
-        st.info('No pickup orders found in the database.')
-
-elif mode == 'Cashier' and page == 'Last Transaction':
-    st.subheader('Last Transaction')
-    sale = st.session_state.last_sale
-    if not sale: st.info('Complete a sale in New Sale to display details here.')
-    else:
-        st.success(f"Sale #{sale['transaction_id']} · {sale['created_at'].replace('T', ' ')}")
-        st.metric('Total Paid', money(sale['total_cents']))
-        st.dataframe(pd.DataFrame([{'Code': x['code'], 'Product': x['name'], 'Qty': x['quantity'], 'Unit price': money(x['unit_price_cents']), 'Subtotal': money(x['subtotal_cents'])} for x in sale['items']]), use_container_width=True, hide_index=True) 
-
-elif mode=='Cashier' and page=='Sales History':
-    st.subheader('📜 Sales Transaction History')
-    from datetime import datetime, timedelta
-    today = ph_today()
-    start = datetime.combine(today, time.min).isoformat()
-    end = datetime.combine(
-        today + timedelta(days=1),
-        time.min
-    ).isoformat()
+        st.markdown("#### All Pending Pickup Orders")
+        all_orders = db.list_orders()
+        if all_orders:
+            st.dataframe(
+                pd.DataFrame([
+                    {
+                        'Order #': o['id'], 
+                        'Customer': o['customer_name'], 
+                        'Details': o['details'], 
+                        'Priority': o['priority'], 
+                        'Status': o['status'], 
+                        'Created': o['created_at'].replace('T', ' ')
+                    } for o in all_orders
+                ]), 
+                use_container_width=True, 
+                hide_index=True
+            )
+        else:
+            st.info('No pickup orders found in the database.')
     
-    st.subheader('Cashier history')
-    st.caption('Search completed sales and cashier actions. Records remain saved in SQLite after the app is closed.')
-    h1,h2=st.columns([1,2])
-    cashier_history_search=h1.text_input('Search sales / actions',placeholder='sale number, product, customer')
-    cashier_role_filter=h2.selectbox('History type',['All cashier activity','Completed sales','Queue actions'])
-    sales=db.transaction_history()
-    term=cashier_history_search.casefold().strip()
-    if cashier_role_filter!='Queue actions':
-        sale_rows=[]
-        for r in sales:
-            details=db.transaction_items(r['id'])
-            searchable=f"{r['id']} {r['cashier_label']} "+' '.join(x['product_name']+' '+x.get('customizations','') for x in details)
-            if not term or term in searchable.casefold():
-                sale_rows.append({'Sale #':r['id'],'Date/time':r['created_at'].replace('T',' '),'Cashier':r['cashier_label'],'Items':', '.join(f"{x['quantity']}x {x['product_name']}" for x in details),'Total':money(r['total_cents'])})
-        st.markdown('#### Completed sales')
-        if sale_rows: st.dataframe(pd.DataFrame(sale_rows),use_container_width=True,hide_index=True)
-        else: st.info('No sales match this search.')
-    if cashier_role_filter!='Completed sales':
-        activity=db.activity_history('Cashier',cashier_history_search,limit=500)
-        st.markdown('#### Cashier actions and queue history')
-        if activity: st.dataframe(pd.DataFrame([{'Date/time':r['created_at'].replace('T',' '),'Action':r['action'],'Details':r['details']} for r in activity]),use_container_width=True,hide_index=True)
-        else: st.info('No cashier activity matches this search.')
-#=====================
-### INVENTORY MANAGER
-#=====================
-elif mode=='Inventory Manager' and page=='Stock Overview':
-    st.subheader('Inventory stock overview')
-    products=db.list_products()
-    search=st.text_input('Search products by name, code, or category')
-    term=search.casefold().strip()
-    shown=[p for p in products if term in (p['name']+' '+p['code']+' '+p['category']).casefold()]
-    if shown:
-        st.dataframe(pd.DataFrame([{'Code':p['code'],'Product':p['name'],'Category':p['category'],'Stock':p['stock'],'Low-stock threshold':p['low_stock_threshold'],'Status':'Active' if p['active'] else 'Inactive','Stock alert':'LOW' if p['stock']<=p['low_stock_threshold'] else 'OK'} for p in shown]),use_container_width=True,hide_index=True)
-    else:
-        st.info('No product records yet. Admin must add menu products first.')
-    st.caption('Inventory Manager monitors physical stock. Admin owns menu names, categories, and prices.')
-
-elif mode=='Inventory Manager' and page=='Restock Products':
-    st.subheader('Inventory Stock Adjustments')
-    active_products = db.list_products(active_only=True)
+    elif mode == 'Cashier' and page == 'Last Transaction':
+        st.subheader('Last Transaction')
+        sale = st.session_state.last_sale
+        if not sale: st.info('Complete a sale in New Sale to display details here.')
+        else:
+            st.success(f"Sale #{sale['transaction_id']} · {sale['created_at'].replace('T', ' ')}")
+            st.metric('Total Paid', money(sale['total_cents']))
+            st.dataframe(pd.DataFrame([{'Code': x['code'], 'Product': x['name'], 'Qty': x['quantity'], 'Unit price': money(x['unit_price_cents']), 'Subtotal': money(x['subtotal_cents'])} for x in sale['items']]), use_container_width=True, hide_index=True) 
     
-    if not active_products:
-        st.info('There are no active menu products to manage. Admin must add products first.')
-    else:
-        # Build the product choices dictionary mapping
-        choices = {f"{p['code']} — {p['name']} (current stock: {p['stock']})": p for p in active_products}
+    elif mode=='Cashier' and page=='Sales History':
+        st.subheader('📜 Sales Transaction History')
+        from datetime import datetime, timedelta
+        today = ph_today()
+        start = datetime.combine(today, time.min).isoformat()
+        end = datetime.combine(
+            today + timedelta(days=1),
+            time.min
+        ).isoformat()
         
-        # Split features into 3 clean, operational tabs
-        itab1, itab2, itab3 = st.tabs(["➕ Add Stock (Restock)", "➖ Deduct Stock (Waste/Spoilage)", "✏️ Direct Edit (Stock Audit)"])
+        st.subheader('Cashier history')
+        st.caption('Search completed sales and cashier actions. Records remain saved in SQLite after the app is closed.')
+        h1,h2=st.columns([1,2])
+        cashier_history_search=h1.text_input('Search sales / actions',placeholder='sale number, product, customer')
+        cashier_role_filter=h2.selectbox('History type',['All cashier activity','Completed sales','Queue actions'])
+        sales=db.transaction_history()
+        term=cashier_history_search.casefold().strip()
+        if cashier_role_filter!='Queue actions':
+            sale_rows=[]
+            for r in sales:
+                details=db.transaction_items(r['id'])
+                searchable=f"{r['id']} {r['cashier_label']} "+' '.join(x['product_name']+' '+x.get('customizations','') for x in details)
+                if not term or term in searchable.casefold():
+                    sale_rows.append({'Sale #':r['id'],'Date/time':r['created_at'].replace('T',' '),'Cashier':r['cashier_label'],'Items':', '.join(f"{x['quantity']}x {x['product_name']}" for x in details),'Total':money(r['total_cents'])})
+            st.markdown('#### Completed sales')
+            if sale_rows: st.dataframe(pd.DataFrame(sale_rows),use_container_width=True,hide_index=True)
+            else: st.info('No sales match this search.')
+        if cashier_role_filter!='Completed sales':
+            activity=db.activity_history('Cashier',cashier_history_search,limit=500)
+            st.markdown('#### Cashier actions and queue history')
+            if activity: st.dataframe(pd.DataFrame([{'Date/time':r['created_at'].replace('T',' '),'Action':r['action'],'Details':r['details']} for r in activity]),use_container_width=True,hide_index=True)
+            else: st.info('No cashier activity matches this search.')
+    #=====================
+    ### INVENTORY MANAGER
+    #=====================
+    elif mode=='Inventory Manager' and page=='Stock Overview':
+        st.subheader('Inventory stock overview')
+        products=db.list_products()
+        search=st.text_input('Search products by name, code, or category')
+        term=search.casefold().strip()
+        shown=[p for p in products if term in (p['name']+' '+p['code']+' '+p['category']).casefold()]
+        if shown:
+            st.dataframe(pd.DataFrame([{'Code':p['code'],'Product':p['name'],'Category':p['category'],'Stock':p['stock'],'Low-stock threshold':p['low_stock_threshold'],'Status':'Active' if p['active'] else 'Inactive','Stock alert':'LOW' if p['stock']<=p['low_stock_threshold'] else 'OK'} for p in shown]),use_container_width=True,hide_index=True)
+        else:
+            st.info('No product records yet. Admin must add menu products first.')
+        st.caption('Inventory Manager monitors physical stock. Admin owns menu names, categories, and prices.')
+    
+    elif mode=='Inventory Manager' and page=='Restock Products':
+        st.subheader('Inventory Stock Adjustments')
+        active_products = db.list_products(active_only=True)
         
-        # --- TAB 1: ADD STOCK (RESTOCK) ---
-        with itab1:
-            st.markdown("#### Record Incoming Deliveries")
-            with st.form('inventory_manager_restock', clear_on_submit=True):
-                selected = st.selectbox('Product to Restock', list(choices.keys()), index=None, placeholder="Select product...", key='restock_add_select')
-                quantity = st.number_input('Quantity received (+)', min_value=1, value=1, step=1, key='restock_add_qty')
-                submit = st.form_submit_button('Save Restock Entry', type='primary')
-                
-            if submit:
-                if selected is None: 
-                    st.error("Please select a valid menu product from the dropdown box first.")
-                else:
-                    try:
-                        item = choices[selected]
-                        new_total = item['stock'] + int(quantity)
-                        db.update_product_stock_direct(item['id'], new_total, actor="Inventory Manager")
-                        db.log_activity('Inventory Manager', 'Stock Added', f"{item['code']} · +{int(quantity)} units")
-                        st.success(f"Successfully added {quantity} units to '{item['name']}'! New balance: {new_total}")
-                        st.rerun()
-                    except Exception as exc: 
-                        safe_error(exc)
-
-        # --- TAB 2: DEDUCT STOCK (WASTE/SPOILAGE) ---
-        with itab2:
-            st.markdown("#### Record Spoilage, Damage, or Waste")
-            with st.form('inventory_manager_deduct', clear_on_submit=True):
-                selected = st.selectbox('Product to Deduct From', list(choices.keys()), index=None, placeholder="Select product...", key='restock_sub_select')
-                quantity = st.number_input('Quantity lost / damaged (-)', min_value=1, value=1, step=1, key='restock_sub_qty')
-                reason = st.text_input('Reason for Deduction *', placeholder='e.g., Expired ingredients, Spilled drink, Counter error').strip()
-                submit = st.form_submit_button('Confirm Stock Deduction', type='primary')
-                
-            if submit:
-                if selected is None: 
-                    st.error("Please select a valid menu product from the dropdown box first.")
-                elif not reason: 
-                    st.error("A validation reason is required to process inventory deductions.")
-                else:
-                    try:
-                        item = choices[selected]
-                        if int(quantity) > item['stock']:
-                            st.error(f"Cannot deduct {quantity} units. Product only has {item['stock']} units currently in stock.")
-                        else:
-                            new_total = item['stock'] - int(quantity)
-                            db.update_product_stock_direct(item['id'], new_total, actor=f"Inventory Manager ({reason})")
-                            db.log_activity('Inventory Manager', 'Stock Deducted', f"{item['code']} · -{int(quantity)} units ({reason})")
-                            st.success(f"Successfully deducted {quantity} units from '{item['name']}'. New balance: {new_total}")
-                            st.rerun()
-                    except Exception as exc: 
-                        safe_error(exc)
-
-        # --- TAB 3: DIRECT EDIT (STOCK AUDIT) ---
-        with itab3:
-            st.markdown("#### Direct Physical Inventory Audit Override")
-            st.caption("Use this only during physical inventory audits to calibrate exact database counts.")
+        if not active_products:
+            st.info('There are no active menu products to manage. Admin must add products first.')
+        else:
+            # Build the product choices dictionary mapping
+            choices = {f"{p['code']} — {p['name']} (current stock: {p['stock']})": p for p in active_products}
             
-            selected = st.selectbox('Select Product to Audit', list(choices.keys()), index=None, placeholder="Select product...", key='restock_audit_select')
+            # Split features into 3 clean, operational tabs
+            itab1, itab2, itab3 = st.tabs(["➕ Add Stock (Restock)", "➖ Deduct Stock (Waste/Spoilage)", "✏️ Direct Edit (Stock Audit)"])
             
-            if selected:
-                item = choices[selected]
-                st.info(f"Current recorded database level for **{item['name']}** is **{item['stock']}** units.")
-                
-                with st.form('inventory_manager_audit'):
-                    exact_stock = st.number_input('Actual physical count on shelf', min_value=0, value=int(item['stock']), step=1)
-                    submit = st.form_submit_button('Overwrite Stock Balance Value', type='primary')
+            # --- TAB 1: ADD STOCK (RESTOCK) ---
+            with itab1:
+                st.markdown("#### Record Incoming Deliveries")
+                with st.form('inventory_manager_restock', clear_on_submit=True):
+                    selected = st.selectbox('Product to Restock', list(choices.keys()), index=None, placeholder="Select product...", key='restock_add_select')
+                    quantity = st.number_input('Quantity received (+)', min_value=1, value=1, step=1, key='restock_add_qty')
+                    submit = st.form_submit_button('Save Restock Entry', type='primary')
                     
                 if submit:
-                    try:
-                        db.update_product_stock_direct(item['id'], int(exact_stock), actor="Inventory Manager Audit Override")
-                        db.log_activity('Inventory Manager', 'Stock Count Audited', f"{item['code']} · Overwrote to {int(exact_stock)}")
-                        st.success(f"Inventory database successfully calibrated to exactly {exact_stock} units.")
-                        st.rerun()
-                    except Exception as exc: 
-                        safe_error(exc)
-elif mode=='Inventory Manager' and page== 'Dashboard':
-    st.subheader('📦 Inventory Operations Dashboard')
-        # Load running baseline metrics from your central database
-    all_products = db.list_products(active_only=True)
+                    if selected is None: 
+                        st.error("Please select a valid menu product from the dropdown box first.")
+                    else:
+                        try:
+                            item = choices[selected]
+                            new_total = item['stock'] + int(quantity)
+                            db.update_product_stock_direct(item['id'], new_total, actor="Inventory Manager")
+                            db.log_activity('Inventory Manager', 'Stock Added', f"{item['code']} · +{int(quantity)} units")
+                            st.success(f"Successfully added {quantity} units to '{item['name']}'! New balance: {new_total}")
+                            st.rerun()
+                        except Exception as exc: 
+                            safe_error(exc)
     
-    if not all_products:
-        st.info("No active catalog items found. Dashboard analytics will populate once items are added.")
-    else:
-        # 1. Calculate operational thresholds using your alert boundaries
-        out_of_stock = [p for p in all_products if p['stock'] == 0]
-        low_stock = [p for p in all_products if 0 < p['stock'] <= p['low_stock_threshold']]
-        overstocked = [p for p in all_products if p['stock'] >= p.get('high_stock_threshold', 50)]
-        healthy_stock = len(all_products) - len(out_of_stock) - len(low_stock) - len(overstocked)
-        
-        # 2. Render High-Visibility Operational Gauges
-        st.markdown("##### 🚨 Stock Urgency Indicators")
-        g1, g2, g3, g4 = st.columns(4)
-        
-        g1.metric("Total Items Managed", len(all_products))
-        
-        g2.metric(
-            "Out of Stock 🛑", 
-            len(out_of_stock), 
-            delta=f"CRITICAL FIX" if out_of_stock else "All Available",
-            delta_color="inverse" if out_of_stock else "normal"
-        )
-        
-        g3.metric(
-            "Low-Stock Warning ⚠️", 
-            len(low_stock), 
-            delta=f"Needs Restock" if low_stock else "Levels Safe",
-            delta_color="inverse" if low_stock else "normal"
-        )
-        
-        g4.metric(
-            "Overstocked Rows 📦", 
-            len(overstocked), 
-            delta=f"Freeze Orders" if overstocked else "Within Limits",
-            delta_color="off" if overstocked else "normal"
-        )
-        
-        st.divider()
-        
-        # 3. Two-Column Analytical Breakdown Layout
-        left_dash, right_dash = st.columns(2)
-        
-        with left_dash:
-            st.markdown("#### 🚨 Fast Action Restock Checklist")
-            st.caption("Items sorted by lowest current stock count to show what needs immediate loading.")
-            
-            # Combine items needing attention and sort them by lowest stock level first
-            urgency_list = sorted(out_of_stock + low_stock, key=lambda x: x['stock'])
-            
-            if not urgency_list:
-                st.success("🎉 Excellent! All inventory shelf counts match healthy threshold levels.")
-            else:
-                checklist_data = []
-                for item in urgency_list:
-                    status = "🔴 OUT OF STOCK" if item['stock'] == 0 else "⚠️ LOW STOCK"
-                    checklist_data.append({
-                        "Code": item['code'],
-                        "Product Name": item['name'],
-                        "Current Stock": item['stock'],
-                        "Alert Threshold": item['low_stock_threshold'],
-                        "Urgency": status
-                    })
-                st.dataframe(pd.DataFrame(checklist_data), use_container_width=True, hide_index=True)
+            # --- TAB 2: DEDUCT STOCK (WASTE/SPOILAGE) ---
+            with itab2:
+                st.markdown("#### Record Spoilage, Damage, or Waste")
+                with st.form('inventory_manager_deduct', clear_on_submit=True):
+                    selected = st.selectbox('Product to Deduct From', list(choices.keys()), index=None, placeholder="Select product...", key='restock_sub_select')
+                    quantity = st.number_input('Quantity lost / damaged (-)', min_value=1, value=1, step=1, key='restock_sub_qty')
+                    reason = st.text_input('Reason for Deduction *', placeholder='e.g., Expired ingredients, Spilled drink, Counter error').strip()
+                    submit = st.form_submit_button('Confirm Stock Deduction', type='primary')
+                    
+                if submit:
+                    if selected is None: 
+                        st.error("Please select a valid menu product from the dropdown box first.")
+                    elif not reason: 
+                        st.error("A validation reason is required to process inventory deductions.")
+                    else:
+                        try:
+                            item = choices[selected]
+                            if int(quantity) > item['stock']:
+                                st.error(f"Cannot deduct {quantity} units. Product only has {item['stock']} units currently in stock.")
+                            else:
+                                new_total = item['stock'] - int(quantity)
+                                db.update_product_stock_direct(item['id'], new_total, actor=f"Inventory Manager ({reason})")
+                                db.log_activity('Inventory Manager', 'Stock Deducted', f"{item['code']} · -{int(quantity)} units ({reason})")
+                                st.success(f"Successfully deducted {quantity} units from '{item['name']}'. New balance: {new_total}")
+                                st.rerun()
+                        except Exception as exc: 
+                            safe_error(exc)
+    
+            # --- TAB 3: DIRECT EDIT (STOCK AUDIT) ---
+            with itab3:
+                st.markdown("#### Direct Physical Inventory Audit Override")
+                st.caption("Use this only during physical inventory audits to calibrate exact database counts.")
                 
-        with right_dash:
-            st.markdown("#### 📉 Recent Stock Movements & Audits")
-            st.caption("Live timeline logging additions, wastage data, and physical overrides.")
-            
-            try:
-                with db.connection() as conn:
-                    recent_movements = conn.execute('''
-                        SELECT m.quantity_change, m.reason, p.name 
-                        FROM inventory_movements m
-                        JOIN products p ON m.product_id = p.id
-                        ORDER BY m.created_at DESC LIMIT 6
-                    ''').fetchall()
+                selected = st.selectbox('Select Product to Audit', list(choices.keys()), index=None, placeholder="Select product...", key='restock_audit_select')
                 
-                if recent_movements:
-                    for move in recent_movements:
-                        qty = move['quantity_change']
-                        icon = "🟢" if qty > 0 else "🔴"
-                        sign = "+" if qty > 0 else ""
-                        st.markdown(f"{icon} **{sign}{qty} units** — {move['name']} <br><small style='color:gray;'>Reason: {move['reason']}</small>", unsafe_allow_html=True)
+                if selected:
+                    item = choices[selected]
+                    st.info(f"Current recorded database level for **{item['name']}** is **{item['stock']}** units.")
+                    
+                    with st.form('inventory_manager_audit'):
+                        exact_stock = st.number_input('Actual physical count on shelf', min_value=0, value=int(item['stock']), step=1)
+                        submit = st.form_submit_button('Overwrite Stock Balance Value', type='primary')
+                        
+                    if submit:
+                        try:
+                            db.update_product_stock_direct(item['id'], int(exact_stock), actor="Inventory Manager Audit Override")
+                            db.log_activity('Inventory Manager', 'Stock Count Audited', f"{item['code']} · Overwrote to {int(exact_stock)}")
+                            st.success(f"Inventory database successfully calibrated to exactly {exact_stock} units.")
+                            st.rerun()
+                        except Exception as exc: 
+                            safe_error(exc)
+    elif mode=='Inventory Manager' and page== 'Dashboard':
+        st.subheader('📦 Inventory Operations Dashboard')
+            # Load running baseline metrics from your central database
+        all_products = db.list_products(active_only=True)
+        
+        if not all_products:
+            st.info("No active catalog items found. Dashboard analytics will populate once items are added.")
+        else:
+            # 1. Calculate operational thresholds using your alert boundaries
+            out_of_stock = [p for p in all_products if p['stock'] == 0]
+            low_stock = [p for p in all_products if 0 < p['stock'] <= p['low_stock_threshold']]
+            overstocked = [p for p in all_products if p['stock'] >= p.get('high_stock_threshold', 50)]
+            healthy_stock = len(all_products) - len(out_of_stock) - len(low_stock) - len(overstocked)
+            
+            # 2. Render High-Visibility Operational Gauges
+            st.markdown("##### 🚨 Stock Urgency Indicators")
+            g1, g2, g3, g4 = st.columns(4)
+            
+            g1.metric("Total Items Managed", len(all_products))
+            
+            g2.metric(
+                "Out of Stock 🛑", 
+                len(out_of_stock), 
+                delta=f"CRITICAL FIX" if out_of_stock else "All Available",
+                delta_color="inverse" if out_of_stock else "normal"
+            )
+            
+            g3.metric(
+                "Low-Stock Warning ⚠️", 
+                len(low_stock), 
+                delta=f"Needs Restock" if low_stock else "Levels Safe",
+                delta_color="inverse" if low_stock else "normal"
+            )
+            
+            g4.metric(
+                "Overstocked Rows 📦", 
+                len(overstocked), 
+                delta=f"Freeze Orders" if overstocked else "Within Limits",
+                delta_color="off" if overstocked else "normal"
+            )
+            
+            st.divider()
+            
+            # 3. Two-Column Analytical Breakdown Layout
+            left_dash, right_dash = st.columns(2)
+            
+            with left_dash:
+                st.markdown("#### 🚨 Fast Action Restock Checklist")
+                st.caption("Items sorted by lowest current stock count to show what needs immediate loading.")
+                
+                # Combine items needing attention and sort them by lowest stock level first
+                urgency_list = sorted(out_of_stock + low_stock, key=lambda x: x['stock'])
+                
+                if not urgency_list:
+                    st.success("🎉 Excellent! All inventory shelf counts match healthy threshold levels.")
                 else:
-                    st.info("No database movements logged yet.")
-            except Exception:
-                st.caption("Unable to stream live adjustment logs.")
+                    checklist_data = []
+                    for item in urgency_list:
+                        status = "🔴 OUT OF STOCK" if item['stock'] == 0 else "⚠️ LOW STOCK"
+                        checklist_data.append({
+                            "Code": item['code'],
+                            "Product Name": item['name'],
+                            "Current Stock": item['stock'],
+                            "Alert Threshold": item['low_stock_threshold'],
+                            "Urgency": status
+                        })
+                    st.dataframe(pd.DataFrame(checklist_data), use_container_width=True, hide_index=True)
+                    
+            with right_dash:
+                st.markdown("#### 📉 Recent Stock Movements & Audits")
+                st.caption("Live timeline logging additions, wastage data, and physical overrides.")
+                
+                try:
+                    with db.connection() as conn:
+                        recent_movements = conn.execute('''
+                            SELECT m.quantity_change, m.reason, p.name 
+                            FROM inventory_movements m
+                            JOIN products p ON m.product_id = p.id
+                            ORDER BY m.created_at DESC LIMIT 6
+                        ''').fetchall()
+                    
+                    if recent_movements:
+                        for move in recent_movements:
+                            qty = move['quantity_change']
+                            icon = "🟢" if qty > 0 else "🔴"
+                            sign = "+" if qty > 0 else ""
+                            st.markdown(f"{icon} **{sign}{qty} units** — {move['name']} <br><small style='color:gray;'>Reason: {move['reason']}</small>", unsafe_allow_html=True)
+                    else:
+                        st.info("No database movements logged yet.")
+                except Exception:
+                    st.caption("Unable to stream live adjustment logs.")
 st.divider()
 st.caption('Gulps & Grubs POS · SQLite is the persistent source of truth · Prices stored as integer centavos')
