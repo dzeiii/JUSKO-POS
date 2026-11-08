@@ -215,36 +215,35 @@ elif mode == 'Admin' and page == 'Product Management':
         
             return parsed_value
         
-            if classification == 'Drinks (Gulps)':
-                st.markdown("---")
-                st.markdown("##### 🥤 Cup Size & Base Pricing Options")
-                st.caption('Ticking checkboxes will automatically expose size pricing input fields below:')
-                
-                # Render options inside a clean horizontal 3-column sub-grid matrix
-                col8, col12, col16 = st.columns(3)
-                
-                with col8:
-                    use8 = st.checkbox('Offer 8 oz', value=False, key='drink_use_8_final')
-                    price8_input = ""
-                    # ✨ MATCHING FIXED: Input only renders when the checkbox is active
-                    if use8:
-                        price8_input = st.text_input('8 oz Price (₱) *', placeholder='0.00', key='drink_val_8_text_final').strip()
+        if classification == 'Drinks (Gulps)':
+            st.markdown("---")
+            st.markdown("##### 🥤 Cup Size & Base Pricing Options")
+            st.caption('Ticking checkboxes will automatically expose size pricing input fields below:')
+         
+            # Render options inside a clean horizontal 3-column sub-grid matrix
+            col8, col12, col16 = st.columns(3)    
+            with col8:
+                use8 = st.checkbox('Offer 8 oz', value=False, key='drink_use_8_final')
+                price8_input = ""
+                # ✨ MATCHING FIXED: Input only renders when the checkbox is active
+                if use8:
+                    price8_input = st.text_input('8 oz Price (₱) *', placeholder='0.00', key='drink_val_8_text_final').strip()
                     price8 = parse_and_format_price(price8_input) if use8 else 0.0
                         
-                with col12:
-                    use12 = st.checkbox('Offer 12 oz', value=True, key='drink_use_12_final')
-                    price12_input = ""
-                    # ✨ MATCHING FIXED: Input only renders when the checkbox is active
-                    if use12:
-                        price12_input = st.text_input('12 oz Price (₱) *', placeholder='0.00', key='drink_val_12_text_final').strip()
+            with col12:
+                use12 = st.checkbox('Offer 12 oz', value=True, key='drink_use_12_final')
+                price12_input = ""
+                # ✨ MATCHING FIXED: Input only renders when the checkbox is active
+                if use12:
+                    price12_input = st.text_input('12 oz Price (₱) *', placeholder='0.00', key='drink_val_12_text_final').strip()
                     price12 = parse_and_format_price(price12_input) if use12 else 0.0
                         
-                with col16:
-                    use16 = st.checkbox('Offer 16 oz', value=True, key='drink_use_16_final')
-                    price16_input = ""
-                    # ✨ MATCHING FIXED: Input only renders when the checkbox is active
-                    if use16:
-                        price16_input = st.text_input('16 oz Price (₱) *', placeholder='0.00', key='drink_val_16_text_final').strip()
+            with col16:
+                use16 = st.checkbox('Offer 16 oz', value=True, key='drink_use_16_final')
+                price16_input = ""
+                # ✨ MATCHING FIXED: Input only renders when the checkbox is active
+                if use16:
+                    price16_input = st.text_input('16 oz Price (₱) *', placeholder='0.00', key='drink_val_16_text_final').strip()
                     price16 = parse_and_format_price(price16_input) if use16 else 0.0
 
             st.divider()
