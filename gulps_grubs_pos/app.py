@@ -815,8 +815,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                         is_coffee = 'coffee' in cat_lower or 'coffee' in prod_name_lower
                         is_float_or_juice = 'float' in cat_lower or 'float' in prod_name_lower or 'juice' in cat_lower or 'juice' in prod_name_lower
 
-                        # FIXED: This popover creates a clean window that opens ONLY when clicked!
-                        with st.popover("⚙️ Customize Options", use_container_width=True, disabled=p['stock'] < 1):
+                        with st.popover(" Customize", use_container_width=True, disabled=p['stock'] < 1):
                             if is_drink:
                                 st.markdown("##### 🥤 Sizing Configuration")
                                 available_sizes = list(sizes.keys())
@@ -829,7 +828,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                                 
                                 # Sinker logic inside popover window
                                 if not is_float_or_juice:
-                                    st.markdown("##### 🧊 Sinker Options")
+                                    st.markdown("##### Sinker Options")
                                     if is_milktea:
                                         mt_sinker = st.radio("Sinkers:", ["Pearls (Default)", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
                                         if mt_sinker == "None": chosen_customizations.append("❌ NO PEARLS")
@@ -847,7 +846,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                                         if cf_sinker == "None": chosen_customizations.append("❌ NO COFFEE JELLY")
 
                                 # Add-ons options inside popover window
-                                st.markdown("##### ➕ Topping Add-ons (+₱5)")
+                                st.markdown("##### Topping Add-ons (+₱5)")
                                 sk_c1, sk_c2 = st.columns(2)
                                 with sk_c1: add_extra_pearl = st.checkbox("Extra Pearls", key=f"add_p_{p['id']}")
                                 with sk_c2: add_extra_nata = st.checkbox("Extra Nata", key=f"add_n_{p['id']}")
@@ -860,17 +859,16 @@ elif mode == 'Cashier' and page == 'New Sale':
                                 if add_extra_coffee_jelly: chosen_customizations.append("➕ Extra Coffee Jelly"); addon_premium += 500
                                 unit_price += addon_premium
 
-                            st.markdown("##### 📝 Order Specifications")
+                            st.markdown("##### To Note:")
                             if is_drink: note_hint = "e.g., 50% Sugar, Less Ice"
-                            elif "fries" in display_cat_clean.lower() or "snack" in display_cat_clean.lower(): note_hint = "e.g., BBQ, Cheese, Sour Cream"
-                            else: note_hint = "e.g., Syrup, Whipped Cream, Allergy notes..."
+                            elif "fries" in display_cat_clean.lower() or "snack" in display_cat_clean.lower(): note_hint = "e.g., BBQ, Cheese"
+                            else: note_hint = "e.g., Syrup, Whipped Cream..."
 
                             custom_note = st.text_input('Special Notes', placeholder=note_hint, key=f"note_input_{p['id']}").strip()
                             qty = st.number_input('Quantity to Order', min_value=1, max_value=max(1, int(p['stock'])), value=1, step=1, key=f"qty_{p['id']}", disabled=p['stock'] < 1)
-
-                        # This remains the single baseline submit button visible outside the popover window
-                        add = st.form_submit_button('🛒 Add to cart', use_container_width=True, disabled=p['stock'] < 1)
-
+                            
+                            st.write("")
+                            add = st.form_submit_button('🛒 Add to cart', use_container_width=True, disabled=p['stock'] < 1)
                     # PROCESS ADD TO CART
                     if add:
                         try:
