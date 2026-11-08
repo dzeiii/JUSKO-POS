@@ -226,7 +226,7 @@ elif mode == 'Admin' and page == 'Product Management':
             price12_input = st.text_input('12 oz Size Pricing (₱) *',placeholder='0.00',disabled=not use12,key='drink_val_12_text_reactive').strip()
         
             use16 = st.checkbox('Offer 16 oz Size Options',value=True,key='drink_use_16_reactive_layer')
-            price16_input = st.text_input('16 oz Size Pricing (₱) *',placeholder='0.00',disabled=not use16,key='drink_val_16_text_reactive').strip()
+            price16_input = st.text_input('16 oz Size Pricing (₱) *',placeholder='0.00', use16,key='drink_val_16_custom_reactive_field').strip()
         
             st.divider()
             st.markdown("##### 🥤 Other / Custom Sizing Configuration")
