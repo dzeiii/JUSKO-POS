@@ -307,7 +307,7 @@ def checkout(items,cashier_label='Cashier',db_path=DB_PATH,customer_name=None,
 
     current_time = get_ph_iso_timestamp()
 
-    total_cents = sum(int(item['subtotal_cents']) for item in )
+    total_cents = sum(int(item['subtotal_cents']) for item in items )
     with connection(db_path) as c:
         c.execute(
             '''INSERT INTO transactions (total_cents,created_at,cashier_label)
