@@ -166,7 +166,7 @@ elif mode == 'Admin' and page == 'Product Management':
             food_cats, drink_cats, combo_cats = set(), set(), set()
             for p in db_products:
                 if not p['category']: continue
-                clean_cat = p['category'].split(" | Custom:", 1).strip()
+                clean_cat = p['category'].split(" | Custom:", 1)[0].strip()
                 clean_cat_lower = clean_cat.lower()
                 
                 is_drink_cat = any(dk in clean_cat_lower for dk in drink_keywords)
@@ -188,52 +188,85 @@ elif mode == 'Admin' and page == 'Product Management':
             try: return float(clean_digits)
             except ValueError: return 0.0
 
-        # --- 🚨 STEP 1: DECOUPLED PRICING REGISTRY PLACED SAFELY OUTSIDE THE MASTER FORM 🚨 ---
-        # This completely breaks the form lock limitation, making fields lock/unlock instantly!
         size_prices = {}
         price = 0.0
         drink_category_suffix = ""
-
+        drink_config_error = None
+        
         if classification == 'Drinks (Gulps)':
             st.markdown("#### 🥤 Drink Size & Pricing Configuration")
-            st.caption('Configure cup sizes (Fields lock or unlock instantly upon clicking checkboxes):')
+        
+            st.caption("Enable the sizes you want to offer. Enter a price for every enabled size.")
             
-            # 8 oz Size Option Panel
-            use8 = st.checkbox('Offer 8 oz Size Options', value=False, key='drink_use_8_reactive_layer')
-            price8_input = st.text_input('8 oz Size Pricing (₱) *', placeholder='0.00', value="0.00" if not use8 else "", disabled=not use8, key='drink_val_8_text_reactive').strip()
-            price8 = parse_and_format_price(price8_input) if use8 else 0.0
-                
-            # 12 oz Size Option Panel
-            use12 = st.checkbox('Offer 12 oz Size Options', value=True, key='drink_use_12_reactive_layer')
-            price12_input = st.text_input('12 oz Size Pricing (₱) *', placeholder='0.00', disabled=not use12, key='drink_val_12_text_reactive').strip()
-            price12 = parse_and_format_price(price12_input) if use12 else 0.0
-                
-            # 16 oz Size Option Panel
-            use16 = st.checkbox('Offer 16 oz Size Options', value=True, key='drink_use_16_reactive_layer')
-            price16_input = st.text_input('16 oz Size Pricing (₱) *', placeholder='0.00', disabled=not use16, key='drink_val_16_text_reactive').strip()
-            price16 = parse_and_format_price(price16_input) if use16 else 0.0
+            use8 = st.checkbox('Offer 8 oz Size Options',value=False,key='drink_use_8_reactive_layer')
+            price8_input = st.text_input('8 oz Size Pricing (₱) *',placeholder='0.00',disabled=not use8,key='drink_val_8_text_reactive').strip()
+        
+            use12 = st.checkbox('Offer 12 oz Size Options',value=True,key='drink_use_12_reactive_layer')
+            price12_input = st.text_input('12 oz Size Pricing (₱) *',placeholder='0.00',disabled=not use12,key='drink_val_12_text_reactive').strip()
             
+            use16 = st.checkbox('Offer 16 oz Size Options',value=True,key='drink_use_16_reactive_layer')
+            price16_input = st.text_input('16 oz Size Pricing (₱) *',placeholder='0.00',disabled=not use16,key='drink_val_16_text_reactive').strip()
+            
+            # CUSTOM SIZE CONFIGURATION
             st.divider()
             st.markdown("##### 🥤 Other / Custom Sizing Configuration")
-            use_custom = st.checkbox('Enable a different custom size profile', value=False, key='drink_use_custom_reactive_layer')
-            
+            use_custom = st.checkbox('Enable a different custom size profile',value=False,key='drink_use_custom_reactive_layer')
             custom_label = ""
-            custom_price = 0.0
+            custom_price_input = ""
             if use_custom:
                 c_size_col, c_price_col = st.columns(2)
-                with c_size_col: 
-                    custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key='drink_lbl_custom_reactive_field').strip()
-                with c_price_col: 
-                    custom_price_input = st.text_input('Custom Size Price (₱) *', placeholder='0.00', key='drink_val_custom_text_reactive').strip()
-                    custom_price = parse_and_format_price(custom_price_input)
-
-            # Map active size structures securely into the database dictionary
-            if use8 and price8 > 0: size_prices[8] = cents_from_peso(price8)
-            if use12 and price12 > 0: size_prices[12] = cents_from_peso(price12)
-            if use16 and price16 > 0: size_prices[16] = cents_from_peso(price16)
-            if use_custom and custom_label and custom_price > 0:
-                size_prices[99] = cents_from_peso(custom_price)
-                drink_category_suffix = f" | Custom:{custom_label}"
+                with c_size_col:
+                    custom_label = st.text_input(
+                        'Custom Size Description Label',
+                        placeholder='e.g., 22oz, 1-Liter',
+                        key='drink_lbl_custom_reactive_field'
+                    ).strip()
+        
+                with c_price_col:
+                    custom_price_input = st.text_input(
+                        'Custom Size Price (₱) *',
+                        placeholder='0.00',
+                        key='drink_val_custom_text_reactive'
+                    ).strip()
+        
+            # PRICE VALIDATION HELPER
+            def read_drink_price(raw_value, size_label):
+                if not raw_value:
+                    raise ValueError(
+                        f"Please enter the price for {size_label}.")
+                try:
+                    parsed_value = float(
+                        raw_value.replace('₱', '').replace(',', '').strip())
+                except ValueError:
+                    raise ValueError(f"Invalid price for {size_label}.Enter a valid numerical amount.")
+                if parsed_value <= 0:
+                    raise ValueError(f"The price for {size_label} must be greater than ₱0.00.")
+                return parsed_value
+                
+            # REGISTER ENABLED SIZES
+            try:
+                if use8:
+                    price8 = read_drink_price(price8_input, "8 oz")
+                    size_prices[8] = cents_from_peso(price8)
+        
+                if use12:
+                    price12 = read_drink_price(price12_input, "12 oz")
+                    size_prices[12] = cents_from_peso(price12)
+        
+                if use16:
+                    price16 = read_drink_price(price16_input, "16 oz")
+                    size_prices[16] = cents_from_peso(price16)
+        
+                if use_custom:
+                    if not custom_label:
+                        raise ValueError("Please enter a description for your custom drink size.")
+                        
+                    custom_price = read_drink_price(custom_price_input,"custom size")
+                    size_prices[99] = cents_from_peso(custom_price)
+                    drink_category_suffix = f" | Custom:{custom_label}"
+        
+            except ValueError as exc:
+                drink_config_error = str(exc)
             st.markdown("---")
 
         # --- STEP 2: MAIN FORM BLOCK CONTAINER (Now purely handles textual metadata descriptions) ---
@@ -341,8 +374,10 @@ elif mode == 'Admin' and page == 'Product Management':
                 st.error(f"🔴 Context/Classification Mismatch: {mismatch_error} Please allocate your item correctly.")
             elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0: 
                 st.error("🔴 Validation Error: Price field is required and must be greater than ₱0.00.")
-            elif classification == 'Drinks (Gulps)' and not size_prices: 
-                st.error("🔴 Validation Error: Sizing prices are required. Enable and price at least one size option.")
+            elif classification == 'Drinks (Gulps)' and drink_config_error:
+                st.error(f"🔴 Drink Configuration Error: {drink_config_error}")
+            elif classification == 'Drinks (Gulps)' and not size_prices:
+                st.error("🔴 Validation Error: Enable and configure at least one drink size.")
             else:
                 try:
                     price_cents = cents_from_peso(price)
