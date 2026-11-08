@@ -731,7 +731,7 @@ elif mode == 'Cashier' and page == 'New Sale':
     # LEFT COLUMN: AVAILABLE PRODUCTS
     with left:
         st.markdown('#### Available products')
-         selected_catalog_tab = st.radio(
+        selected_catalog_tab = st.radio(
             "Filter Department Menu Context",
             ["✨ All Catalog", "🍔 Foods (Grubs)", "🥤 Drinks (Gulps)"],
             horizontal=True,
