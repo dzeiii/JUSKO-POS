@@ -706,7 +706,9 @@ elif mode == 'Cashier' and page == 'New Sale':
                     card_html = load_html_template('product_card.html',name=str(p['name']),product_name=str(p['name']),code=str(p['code']),
                         category=str(display_cat_clean),price=str(price_line),price_line=str(price_line),stock=str(int(p['stock'])))
                     st.markdown(card_html,unsafe_allow_html=True)
-                    with st.form(f"add_cart_{p['id']}"):size_oz = None, unit_price = p['price_cents']
+                    with st.form(f"add_cart_{p['id']}"):
+                        size_oz = None, 
+                        unit_price = p['price_cents']
                     if is_drink:
                         available_sizes = list(sizes.keys())
                         def size_label_formatter(z):
