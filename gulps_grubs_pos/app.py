@@ -190,6 +190,36 @@ elif mode == 'Admin' and page == 'Product Management':
             except ValueError: 
                 return 0.0
                 
+        # AUTOMATIC PRODUCT FORM RESET
+        if "clear_product_form" not in st.session_state:
+            st.session_state.clear_product_form = False
+
+        if st.session_state.clear_product_form:
+
+            # Clear product information
+            st.session_state[f'f_name_{classification}'] = ""
+            st.session_state[f'f_cat_text_input_lane_{classification}'] = ""
+
+            # Clear food/combo pricing
+            st.session_state[f'f_price_{classification}'] = ""
+
+            # Clear drink pricing
+            st.session_state['drink_val_8_text_final'] = ""
+            st.session_state['drink_val_12_text_final'] = ""
+            st.session_state['drink_val_16_text_final'] = ""
+            st.session_state['drink_lbl_custom_reactive_field'] = ""
+            st.session_state['drink_val_custom_text_reactive'] = ""
+
+            # Reset drink checkboxes
+            st.session_state['drink_use_8_final'] = False
+            st.session_state['drink_use_12_final'] = True
+            st.session_state['drink_use_16_final'] = True
+            st.session_state['drink_use_custom_reactive_layer'] = False
+
+            # Reset initial stock
+            st.session_state[f'starting_stock_{classification}'] = 0
+
+            st.session_state.clear_product_form = False
         # STEP 1: PRODUCT INFORMATION
         size_prices = {}
         price = 0.0
@@ -399,6 +429,13 @@ elif mode == 'Admin' and page == 'Product Management':
                     # Log audit values securely to history trails
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     logging.info(success_msg)
+                    
+                    # Save success message before rerunning
+                    st.session_state.product_success_message = success_msg
+
+                    # Trigger automatic clearing
+                    st.session_state.clear_product_form = True
+                    
                     st.rerun()
                 except Exception as e: safe_error(e)
 
