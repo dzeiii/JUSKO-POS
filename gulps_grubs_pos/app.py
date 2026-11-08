@@ -979,17 +979,29 @@ elif mode == 'Cashier' and page == 'New Sale':
 
             cashier_name = st.text_input('Cashier name (optional)',value='Cashier')
             confirm = st.form_submit_button('Confirm sale',type='primary',use_container_width=True)
-            if confirm:
+            if confirm:  
                 try:
-                    if not customer_name.strip(): raise ValueError("Please enter the customer name.")
+                    if not customer_name.strip(): 
+                        raise ValueError("Please enter the customer name.")
+                
+                    raw_cart_values = list(st.session_state.cart._items.values()) if hasattr(st.session_state.cart, '_items') else list(st.session_state.cart.items())
                     
-                    sale = db.checkout(cart.items(), cashier_label.strip() or 'Cashier')
+                    if not raw_cart_values:
+                        raise ValueError("Your checkout shopping basket is completely empty.")
+
+                    sale = db.checkout(raw_cart_values, cashier_label.strip() or 'Cashier')
                     st.session_state.last_sale = sale
 
-                    order_details_str = ", ".join([f"{item['quantity']}x {item['name']}" for item in cart.items()])
-                    db.add_order(customer_name.strip(), order_details_str, int(priority_level))
-                    cart.clear()
+                    order_details_list = []
+                    for item in raw_cart_values:
+                        size_suffix = f" ({item['custom_size_lbl']})" if item.get('custom_size_lbl') else ""
+                        order_details_list.append(f"{item['quantity']}x {item['name']}{size_suffix}")
+                    order_details_str = ", ".join(order_details_list)
                     
+                    db.add_order(customer_name.strip(), order_details_str, int(priority_level))
+            
+                    st.session_state.cart.clear()
+            
                     # SUCCESS TRANSACTION PRINT RECEIPT FOR CUSTOMER BILLING
                     success_msg = f"🟢 TRANSACTION SUCCESS [CASHIER]: Sale receipt checkout #{sale['transaction_id']} processed successfully! customer invoice balance: {money(sale['total_cents'])} received in cash registry ledger. ticket dispatched to kitchen pickup priority queue."
                     st.success(success_msg)
@@ -997,8 +1009,8 @@ elif mode == 'Cashier' and page == 'New Sale':
                     db.log_activity('Cashier', 'Sale Completed', f"Receipt #{sale['transaction_id']} · Total: {money(sale['total_cents'])}")
                     logging.info(success_msg)
                     st.rerun()
-                except Exception as e: safe_error(e)
-
+                except Exception as e: 
+                    safe_error(e)
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     st.subheader('Cashier - Order Priority & Pickup Queue')
