@@ -205,12 +205,17 @@ elif mode == 'Admin' and page == 'Product Management':
             size_prices = {}
             price = 0.0
 
-            # Single Unified Auto-Suggest Combo Box
-            category_selection = st.selectbox('Category *',options=options_pool,index=None,placeholder="Type a new category OR select a saved one...",key=f'f_cat_select_{classification}')
-            if category_selection is not None:
-                category = str(category_selection).strip()
-            else:
-                category = str(user_typing).strip()
+                        # 2. FIXED: A single required text field that gives you 100% manual typing freedom
+            category = st.text_input(
+                'Category *', 
+                placeholder="Type any category name here (e.g., Waffle, Streetfood)...", 
+                key=f'f_cat_text_input_lane_{classification}'
+            ).strip()
+
+            # Smart Memory Reminder: Lists previously saved categories for this specific classification tab right below the field
+            if existing_saved_cats:
+                st.caption(f"💡 Previously saved categories in this workspace: {', '.join(existing_saved_cats)}")
+
                 
             def parse_and_format_price(raw_text):
                 if not raw_text:
