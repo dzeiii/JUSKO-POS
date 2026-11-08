@@ -830,10 +830,10 @@ elif mode == 'Cashier' and page == 'New Sale':
                                 if not is_float_or_juice:
                                     st.markdown("##### Sinker Options")
                                     if is_milktea:
-                                        mt_sinker = st.radio("Sinkers:", ["Pearls (Default)", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                        mt_sinker = st.radio("Sinkers:", ["Pearls", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
                                         if mt_sinker == "None": chosen_customizations.append("❌ NO PEARLS")
                                     elif is_milkshake:
-                                        ms_sinker = st.radio("Sinkers:", ["Pearls & Nata", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                        ms_sinker = st.radio("Sinkers:", ["Pearls", "Nata", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
                                         if ms_sinker == "None": chosen_customizations.append("❌ NO SINKERS")
                                     elif is_lemonade:
                                         lem_sinker = st.radio("Sinkers:", ["Rainbow Jelly", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
