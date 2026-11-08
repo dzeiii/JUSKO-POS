@@ -820,7 +820,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                                     chosen_customizations.append("❌ NO PEARLS")
                             elif is_milkshake:
                                 ms_sinker = st.radio("Included Sinker Options",
-                                    ["Include Pearls & Nata (Default)", "No Sinkers (None)"],
+                                    ["Include Pearls", "Include Nata", "No Sinkers (None)"],
                                     horizontal=True,key=f"radio_sink_{p['id']}")
                                 if ms_sinker == "No Sinkers (None)":
                                     chosen_customizations.append("❌ NO SINKERS")
