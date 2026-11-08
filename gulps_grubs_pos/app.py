@@ -215,7 +215,6 @@ elif mode == 'Admin' and page == 'Product Management':
         
             return parsed_value
         if classification == 'Drinks (Gulps)':
-            st.markdown("---")
             st.markdown("##### 🥤 Cup Size & Base Pricing Options")
             st.caption('Ticking checkboxes will automatically expose size pricing input fields below:')
 
