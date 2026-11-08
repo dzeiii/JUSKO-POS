@@ -904,16 +904,18 @@ elif mode == 'Cashier' and page == 'New Sale':
         else:
             for item in items:
                 with st.container(border=True):
-                    # Fetch and verify the exact size value mapped from the active checkout instance
+                    # 1. Fetch data keys natively from this specific item dictionary instance
                     size_val = item.get('size_oz')
+                    item_category = item.get('category', '')
+                    
+                    size_lbl = ""
                     if size_val is not None:
-                        # If size is 99 and a custom description string exists, use it; otherwise print the exact selected integer size
-                        if int(size_val) == 99 and custom_size_text: 
-                            size_lbl = custom_size_text
-                        else: 
+                        # FIXED: Extract the custom text name on-the-fly from the item's saved category string!
+                        if int(size_val) == 99 and " | Custom:" in item_category:
+                            cart_cat_parts = item_category.split(" | Custom:", 1)
+                            size_lbl = str(cart_cat_parts[1]).strip()
+                        else:
                             size_lbl = f"{size_val} oz"
-                    else: 
-                        size_lbl = ""
                         
                     display_title = f"**{item['name']} ({size_lbl})**" if size_lbl else f"**{item['name']}**"
                     options_label = f"\n\n<small style='color:gray;'>{item['customizations']}</small>" if item.get('customizations') else ""
