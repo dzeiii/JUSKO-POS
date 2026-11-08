@@ -155,7 +155,6 @@ elif mode == 'Admin' and page == 'Product Management':
     tab1, tab2, tab3 = st.tabs(['Add product', 'Edit / Delete', 'View Catalog'])
     
     with tab1:
-            with tab1:
         classification = st.radio('Product Classification *', ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], horizontal=True)
         st.markdown("---")
         
