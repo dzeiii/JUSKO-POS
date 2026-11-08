@@ -273,17 +273,14 @@ def deactivate_product(product_id, db_path=DB_PATH):
         if cur.rowcount != 1: raise ValueError('Product not found or already inactive.')
 
 def delete_product(product_id, db_path=DB_PATH):
-    """Executes a permanent hard-delete of the target product profile row.
-    
-    WARNING: This skips deactivation and scrubs the profile completely from the system.
-    """
+    """Forced cascade delete to completely purge a product and its history line item logs."""
     with connection(db_path) as c:
-        try:
-            # Executes a complete, permanent scrub of the matching row identifier index
-            c.execute('DELETE FROM products WHERE id = ?', (product_id,))
-            return True, "Product has been permanently purged from the database catalog files."
-        except sqlite3.Error as e:
-            return False, f"Database deletion failed: {str(e)}"
+        c.execute("DELETE FROM transaction_items WHERE product_id = ?", (product_id,))
+        c.execute("DELETE FROM product_sizes WHERE product_id = ?", (product_id,))
+        c.execute("DELETE FROM inventory_movements WHERE product_id = ?", (product_id,))
+        c.execute("DELETE FROM products WHERE id = ?", (product_id,))
+        
+    return True, "Product and all its transaction history lines successfully purged."
 
 def restock_product(product_id, quantity, db_path=DB_PATH):
     if isinstance(quantity,bool) or not isinstance(quantity,int) or quantity<1: raise ValueError('Restock quantity must be a positive whole number.')
