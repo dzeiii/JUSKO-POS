@@ -282,6 +282,26 @@ elif mode == 'Admin' and page == 'Product Management':
 
         # SUBMIT BUTTON
         if submit_form_btn:
+            # --- 🚨 STEP 1: INITIALIZE HELPER FUNCTIONS AT THE VERY TOP OF THE LOOP 🚨 ---
+            def has_consecutive_repetitions(text, max_allowed=3):
+                if not text: return False
+                count = 1
+                for i in range(1, len(text)):
+                    if text[i] == text[i-1] and text[i].isalnum():
+                        count += 1
+                        if count > max_allowed: return True
+                    else: count = 1
+                return False
+
+            def looks_like_gibberish(text):
+                words = [w for w in text.split() if w.isalpha()]
+                if not words: return False
+                vowels = set("aeiou")
+                for word in words:
+                    if len(word) >= 5 and not any(char in vowels for char in word): return True
+                return False
+
+            # --- STEP 2: CLEAN INCOMING INPUT STRINGS ---
             clean_name = name.strip()
             clean_category = category.strip()
             
@@ -289,31 +309,57 @@ elif mode == 'Admin' and page == 'Product Management':
             category_audit = clean_category.lower()
             combined_audit = f"{name_audit} {category_audit}"
 
-            # Fetch active product names from the database for instant duplicate verification
+            food_dictionary = [
+                'food', 'snack', 'grub', 'fry', 'fries', 'potato', 'burger', 'sandwich', 'bun', 'bread', 
+                'waffle', 'donut', 'doughnut', 'cake', 'pastry', 'cookie', 'pie', 'sweet', 'dessert', 
+                'crepe', 'rice', 'meal', 'combo', 'box', 'platter', 'bucket', 'chicken', 'wings', 'pork', 
+                'beef', 'meat', 'fish', 'seafood', 'sauce', 'dip', 'bbq', 'cheese', 'street', 'grill', 
+                'bacon', 'egg', 'noodles', 'soup', 'pasta', 'salad', 'kikiam', 'lumpia', 'siomai', 'balls'
+            ]
+
+            drink_dictionary = [
+                'tea', 'milk', 'coffee', 'juice', 'shake', 'smoothie', 'soda', 'cola', 'drink', 'beverage', 
+                'gulp', 'water', 'brew', 'ice', 'syrup', 'slush', 'frappe', 'float', 'latte', 'milktea', 
+                'milkshake', 'slushie', 'macchiato', 'espresso', 'capuccino', 'lemonade', 'soda', 'pop'
+            ]
+
+            prohibited_keywords = ['person', 'human', 'people', 'teacher', 'student', 'animal', 'object', 'thing']
+
             try:
                 existing_product_names = [str(item['name']).lower().strip() for item in db.list_products(active_only=True)]
             except Exception: 
                 existing_product_names = []
 
-            # --- 🚨 STEP 1: DUPLICATE CHECK EVALUATES FIRST AT THE VERY TOP OF THE TREE 🚨 ---
-            if clean_name and name_audit in existing_product_names: 
-                st.error(f"🔴 Catalog Conflict: A product named '{clean_name}' already exists in your store inventory! Please go to the 'Edit / Delete' tab to modify its details instead of creating a duplicate row.")
+            # Run basic format audits safely now that helpers are compiled
+            is_spam_text = has_consecutive_repetitions(combined_audit, max_allowed=3)
+            is_nonsense_word = looks_like_gibberish(combined_audit)
+            contains_junk = any(junk in combined_audit for junk in prohibited_keywords)
 
-            # --- STEP 2: Empty field validation checks evaluate next downstream ---
+            # Strict field-level context enforcement
+            if classification == 'Drinks (Gulps)':
+                is_valid_context = any(word in category_audit for word in drink_dictionary)
+                mismatch_error = f"Selected 'Drinks (Gulps)' but entered a non-beverage category '{clean_category}'."
+            elif classification == 'Foods (Grubs)':
+                has_drink_trigger_in_food = any(word in category_audit for word in drink_dictionary) or any(word in name_audit for word in drink_dictionary)
+                is_valid_context = any(word in category_audit for word in food_dictionary) and not has_drink_trigger_in_food
+                mismatch_error = f"Selected 'Foods (Grubs)' but entered a drink or non-food asset configuration layer."
+            else:
+                is_valid_context = any(word in combined_audit for word in food_dictionary + drink_dictionary)
+                mismatch_error = "Entered an invalid combo meal category context description."
+
+            # --- STEP 3: RUN THE SELECTION TREE WITH VALIDATED INITIALIZATIONS ---
+            if clean_name and name_audit in existing_product_names: 
+                st.error(f"🔴 Catalog Conflict: A product named '{clean_name}' already exists in your store inventory!")
             elif not clean_name: 
                 st.error("Product name is required.")
             elif not clean_category: 
                 st.error("Category structure specification is required.")
-
-            # --- STEP 3: Remaining contextual and price filters run safely downstream ---
-            elif has_consecutive_repetitions(combined_audit, max_allowed=3) or looks_like_gibberish(combined_audit): 
+            elif is_spam_text or is_nonsense_word: 
                 st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish text patterns.")
-            elif any(junk in combined_audit for junk in prohibited_keywords): 
+            elif contains_junk: 
                 st.error("🔴 Context Validation Alert: Junk classifications (person, human, object) are strictly blocked.")
-            elif classification == 'Drinks (Gulps)' and not any(dk in category_audit for dk in drink_keywords):
-                st.error(f"🔴 Classification Mismatch: Selected 'Drinks (Gulps)' but entered a non-beverage category '{clean_category}'.")
-            elif classification == 'Foods (Grubs)' and (any(dk in category_audit for dk in drink_dictionary) or any(dk in name_audit for dk in drink_dictionary)):
-                st.error(f"🔴 Classification Mismatch: Selected 'Foods (Grubs)' but entered a drink or non-food configuration profile.")
+            elif not is_valid_context:
+                st.error(f"🔴 Context/Classification Mismatch: {mismatch_error} Please allocate your item correctly.")
             elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0: 
                 st.error("🔴 Validation Error: Price field is required and must be greater than ₱0.00.")
             elif classification == 'Drinks (Gulps)' and not size_prices: 
@@ -334,6 +380,7 @@ elif mode == 'Admin' and page == 'Product Management':
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     st.rerun()
                 except Exception as e: safe_error(e)
+
                     
     # EDIT / DELETE TAB
     with tab2:
