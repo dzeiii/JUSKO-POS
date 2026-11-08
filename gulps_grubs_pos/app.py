@@ -367,16 +367,17 @@ elif mode == 'Admin' and page == 'Product Management':
                     db.add_product(
                         code=generated_code, name=clean_name, category=clean_category, price_cents=price_cents, 
                         stock=starting_stock, threshold=low_stock_threshold,
-                        size_prices=size_prices if classification == 'Drinks (Gulps)' else None
-                    )    
-                    formatted_display_price = f"₱{price:,.2f}" if classification != 'Drinks (Gulps)' else "Configured Sizes"
-                    success_msg = f"✨ SUCCESS: Product '{clean_name}' successfully added to catalog under category '{clean_category}' ({formatted_display_price}) (Code: {generated_code})."
+                        size_prices=size_prices if classification == 'Drinks (Gulps)' else None)    
+                
+                    # ✨ SUCCESS TRANSACTION PRINT RECORD
+                    display_price = f"₱{price:,.2f}" if classification != 'Drinks (Gulps)' else "Sizing Profile Configured"
+                    success_msg = f"🟢 SUCCESS [ADMIN]: Product '{clean_name}' successfully added to catalog under category '{clean_category}' at {display_price} (Assigned Code: {generated_code})."
                     st.success(success_msg)
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     logging.info(success_msg)
                     st.rerun()
                 except Exception as e: safe_error(e)
-
+                    
     # EDIT / DELETE TAB
     with tab2:
         st.subheader("Edit or Delete Product")
@@ -451,20 +452,23 @@ elif mode == 'Admin' and page == 'Product Management':
                 new_threshold = st.number_input('Low-stock alert at',min_value=0,max_value=1000000,value=int(p['low_stock_threshold']),step=1)
                 save_changes = st.button('Save All Product Details',type='primary',key=f"unified_save_btn_{p['id']}")
                 if save_changes:
-                    if not new_name or not new_cat:
-                        st.error("Product name and category definitions cannot be left blank.")
+                    if not new_name or not new_cat: st.error("Product name and category definitions cannot be left blank.")
                     else:
-                        try:
-                            db.update_product(p['id'],p['code'],new_name,new_cat,int(new_base_price_cents),int(new_threshold))
+                        try: 
+                            db.update_product(p['id'], p['code'], new_name, new_cat, int(new_base_price_cents), int(new_threshold))
                             if is_a_drink and updated_sizes is not None:
-                                db.set_product_sizes(p['id'],updated_sizes)
+                                db.set_product_sizes(p['id'], updated_sizes)
                             else:
                                 with db.connection() as clean_conn:
-                                    clean_conn.execute("""DELETE FROM product_sizes WHERE product_id = ?""", (p['id'],))
-                            st.success('Product details saved successfully!')
+                                    clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
+                            
+                            # ✨ SUCCESS TRANSACTION PRINT RECORD
+                            success_msg = f"📝 SUCCESS [ADMIN]: Product '{p['code']}' details updated successfully (New Name: '{new_name}', New Category: '{new_cat}')."
+                            st.success(success_msg)
+                            db.log_activity('Admin', 'Product Updated', f"{p['code']} · {new_name}")
+                            logging.info(success_msg)
                             st.rerun()
-                        except Exception as e:
-                            safe_error(e)
+                        except Exception as e: safe_error(e)
                 st.divider()
                 st.error('### 🚨 DANGER ZONE: PERMANENT PURGE')
                 st.markdown("Clicking delete below will execute a HARD DELETE. This completely wipes the item profile row from the database catalog and cannot be undone.", 
@@ -472,19 +476,18 @@ elif mode == 'Admin' and page == 'Product Management':
                 with st.container(key="danger_zone_box"):
                     check_step1 = st.checkbox("Confirm: I want to permanently delete this product profile, not deactivate it.", key=f"force_del_c1_{p['id']}")
                     check_step2 = st.checkbox("Confirm: I understand this action completely removes it from all search logs.", key=f"force_del_c2_{p['id']}")
-                    if st.button('Permanently Delete From Database',key=f"hard_purge_action_{p['id']}",type='primary',disabled=not (check_step1 and check_step2)):
+                    if st.button('Permanently Delete From Database', key=f"hard_purge_action_{p['id']}", type='primary', disabled=not (check_step1 and check_step2)):
                         try:
                             success, msg = db.delete_product(p['id'])
                             if success:
-                                success_msg = (f"🗑️ SUCCESS: Product'{p['code']} — {p['name']}'was permanently deleted from the database catalog.")
+                                # ✨ SUCCESS TRANSACTION PRINT RECORD
+                                success_msg = f"🗑️ SUCCESS [ADMIN]: Product '{p['code']} — {p['name']}' was permanently removed from the master database catalog files."
                                 st.success(success_msg)
-                                db.log_activity('Admin','Product Deleted',{p['code']},{p['name']})
+                                db.log_activity('Admin', 'Product Deleted', f"{p['code']} · {p['name']}")
                                 logging.info(success_msg)
                                 st.rerun()
-                            else:
-                                st.error(msg)
-                        except Exception as e:
-                            safe_error(e)
+                            else: st.error(msg)
+                        except Exception as e: safe_error(e)
     # VIEW CATALOG TAB
     with tab3:
         st.markdown("---")
@@ -614,7 +617,7 @@ elif mode == 'Admin' and page == 'Activity History':
         st.download_button('Download activity history CSV',pd.DataFrame(rows).to_csv(index=False).encode('utf-8'),'activity_history.csv','text/csv')
     else:
         st.info('No activity matches this search yet.')
-    # =========================================================================
+# =========================================================================
 # CASHIER WORKSPACE MODULES
 # =========================================================================
 elif mode == 'Cashier' and page == 'Dashboard':
@@ -866,17 +869,21 @@ elif mode == 'Cashier' and page == 'New Sale':
             confirm = st.form_submit_button('Confirm sale',type='primary',use_container_width=True)
             if confirm:
                 try:
-                    if not customer_name.strip():
-                        raise ValueError("Please enter the customer name.")
-                    sale = db.checkout(cart.items(),cashier_name.strip() or 'Cashier')
+                    if not customer_name.strip(): raise ValueError("Please enter the customer name.")
+                    sale = db.checkout(cart.items(), cashier_label.strip() or 'Cashier')
                     st.session_state.last_sale = sale
+            
                     order_details_str = ", ".join([f"{item['quantity']}x {item['name']}" for item in cart.items()])
-                    db.add_order(customer_name.strip(),order_details_str,int(priority_level))
+                    db.add_order(customer_name.strip(), order_details_str, int(priority_level))
                     cart.clear()
-                    st.success(f"Sale #{sale['transaction_id']} completed & added to pickup queue — {money(sale['total_cents'])}.")
+                    
+                    # ✨ SUCCESS TRANSACTION PRINT RECORD
+                    success_msg = f"💰 SUCCESS [CASHIER]: Sale Checkout #{sale['transaction_id']} processed successfully! Bill Total: {money(sale['total_cents'])} received. Ticket dispatched to kitchen pickup queue."
+                    st.success(success_msg)
+                    db.log_activity('Cashier', 'Sale Completed', f"Receipt #{sale['transaction_id']} · Total: {money(sale['total_cents'])}")
+                    logging.info(success_msg)
                     st.rerun()
-                except Exception as e:
-                    safe_error(e)
+                except Exception as e: safe_error(e)
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     st.subheader('Cashier - Order Priority & Pickup Queue')
@@ -886,13 +893,17 @@ elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     if next_order:
         st.markdown("### 🔔 Next Priority Order in Queue")
         st.info(f"Order #{next_order.order_id} — {next_order.payload['customer_name']} |Priority Level: {next_order.priority} | Details: {next_order.payload['details']}")
-        if st.button('Mark Next Order Completed',type='primary'):
+        if st.button('Mark Next Order Completed', type='primary'):
             try:
-                db.update_order_status(next_order.order_id,'Completed')
-                st.success(f'Order #{next_order.order_id} marked as completed.')
+                db.update_order_status(next_order.order_id, 'Completed')
+                
+                # ✨ SUCCESS TRANSACTION PRINT RECORD
+                success_msg = f"🔔 SUCCESS [KITCHEN/CASHIER]: Pickup Order #{next_order.order_id} for customer '{next_order.payload['customer_name']}' successfully marked as COMPLETED and cleared from active lane."
+                st.success(success_msg)
+                db.log_activity('Cashier', 'Queue Cleared', f"Order #{next_order.order_id} marked complete")
+                logging.info(success_msg)
                 st.rerun()
-            except Exception as e:
-                safe_error(e)
+            except Exception as e: safe_error(e)
     else:
         st.success('No pending pickup orders in queue.')
     st.markdown("#### All Pending Pickup Orders")
@@ -985,7 +996,7 @@ elif mode == 'Cashier' and page == 'Sales History':
             )
         else:
             st.info('No cashier activity matches this search.')
-    # =========================================================================
+# =========================================================================
 # INVENTORY MANAGER WORKSPACE MODULES
 # =========================================================================
 elif mode == 'Inventory Manager' and page == 'Stock Overview':
@@ -1030,19 +1041,21 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
                 selected = st.selectbox('Product to Restock',list(choices.keys()),index=None,placeholder="Select product...",key='restock_add_select')
                 quantity = st.number_input('Quantity received (+)',min_value=1,value=1,step=1,key='restock_add_qty')
                 submit = st.form_submit_button('Save Restock Entry',type='primary')
-                if submit:
-                    if selected is None:
-                        st.error("Please select a valid menu product from the dropdown box first.")
+                if submit:  
+                    if selected is None: st.error("Please select a valid menu product from the dropdown box first.")
                     else:
                         try:
                             item = choices[selected]
                             new_total = item['stock'] + int(quantity)
-                            db.update_product_stock_direct(item['id'],new_total,actor="Inventory Manager")
-                            db.log_activity('Inventory Manager','Stock Added',f"{item['code']} · +{int(quantity)} units")
-                            st.success(f"Successfully added {quantity} units to '{item['name']}'! New balance: {new_total}")
+                            db.update_product_stock_direct(item['id'], new_total, actor="Inventory Manager")
+                            
+                            # ✨ SUCCESS TRANSACTION PRINT RECORD
+                            success_msg = f"📦 SUCCESS [INVENTORY]: Incoming delivery logged for product '{item['name']}' ({item['code']}). Added +{int(quantity)} units. New shelf balance value: {new_total}."
+                            st.success(success_msg)
+                            db.log_activity('Inventory Manager', 'Stock Added', f"{item['code']} · +{int(quantity)} units")
+                            logging.info(success_msg)
                             st.rerun()
-                        except Exception as exc:
-                            safe_error(exc)
+                        except Exception as exc: safe_error(exc)
         # DEDUCT STOCK
         with itab2:
             st.markdown("#### Record Spoilage, Damage, or Waste")
@@ -1052,23 +1065,23 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
                 reason = st.text_input('Reason for Deduction *',placeholder=('e.g., Expired ingredients, ''Spilled drink, Counter error')).strip()
                 submit = st.form_submit_button('Confirm Stock Deduction',type='primary')
                 if submit:
-                    if selected is None:
-                        st.error("Please select a valid menu product from the dropdown box first.")
-                    elif not reason:
-                        st.error("A validation reason is required to process inventory deductions.")
+                    if selected is None: st.error("Please select a valid menu product from the dropdown box first.")
+                    elif not reason: st.error("A validation reason is required to process inventory deductions.")
                     else:
                         try:
                             item = choices[selected]
-                            if int(quantity) > item['stock']:
-                                st.error(f"Cannot deduct {quantity} units. Product only has {item['stock']} units currently in stock.")
+                            if int(quantity) > item['stock']: st.error(f"Cannot deduct {quantity} units. Product only has {item['stock']} units currently in stock.")
                             else:
-                                new_total = (item['stock'] - int(quantity))
-                                db.update_product_stock_direct(item['id'],new_total,actor=f"Inventory Manager ({reason})")
-                                db.log_activity('Inventory Manager','Stock Deducted',(f"{item['code']} - {int(quantity)} units ({reason})"))
-                                st.success(f"Successfully deducted {quantity} units from '{item['name']}'. New balance: {new_total}")
+                                new_total = item['stock'] - int(quantity)
+                                db.update_product_stock_direct(item['id'], new_total, actor=f"Inventory Manager ({reason})")
+                                
+                                # ✨ SUCCESS TRANSACTION PRINT RECORD
+                                success_msg = f"📉 SUCCESS [INVENTORY]: Stock deduction processed for product '{item['name']}' ({item['code']}). Removed -{int(quantity)} units due to: '{reason}'. Current balance: {new_total}."
+                                st.success(success_msg)
+                                db.log_activity('Inventory Manager', 'Stock Deducted', f"{item['code']} · -{int(quantity)} units ({reason})")
+                                logging.info(success_msg)
                                 st.rerun()
-                        except Exception as exc:
-                            safe_error(exc)
+                        except Exception as exc: safe_error(exc)
         # DIRECT STOCK AUDIT
         with itab3:
             st.markdown("#### Direct Physical Inventory Audit Override")
@@ -1082,12 +1095,15 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
                     submit = st.form_submit_button('Overwrite Stock Balance Value',type='primary')
                     if submit:
                         try:
-                            db.update_product_stock_direct(item['id'],int(exact_stock),actor="Inventory Manager Audit Override")
-                            db.log_activity('Inventory Manager','Stock Count Audited',(f"{item['code']}. Overwrote to {int(exact_stock)}"))
-                            st.success(f"Inventory database successfully calibrated to exactly {exact_stock} units.")
+                            db.update_product_stock_direct(item['id'], int(exact_stock), actor="Inventory Manager Audit Override")
+                            
+                            # ✨ SUCCESS TRANSACTION PRINT RECORD
+                            success_msg = f"✏️ SUCCESS [INVENTORY AUDIT]: Manual override executed for product '{item['name']}' ({item['code']}). Database calibrated and locked to match physical stock count value of: exactly {int(exact_stock)} units."
+                            st.success(success_msg)
+                            db.log_activity('Inventory Manager', 'Stock Count Audited', f"{item['code']} · Overwrote to {int(exact_stock)}")
+                            logging.info(success_msg)
                             st.rerun()
-                        except Exception as exc:
-                            safe_error(exc)
+                        except Exception as exc: safe_error(exc)
 
 elif mode == 'Inventory Manager' and page == 'Dashboard':
     st.subheader('📦 Inventory Operations Dashboard')
