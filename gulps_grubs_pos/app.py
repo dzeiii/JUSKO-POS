@@ -392,22 +392,24 @@ elif mode == 'Admin' and page == 'Product Management':
                         stock=starting_stock, threshold=low_stock_threshold,
                         size_prices=size_prices if classification == 'Drinks (Gulps)' else None
                     )    
-                    # --- ADD THESE LINES TO CLEAR FIELDS ON SUCCESSFUL SUBMISSION ---
-                    name_field_key = f'f_name_{classification}'
-                    cat_field_key = f'f_cat_text_input_lane_{classification}'
+                    # --- FIXED: DEFENSIVE STATE CLEARING SEGMENT ---
+                    # This reads keys safely, preventing the pink error banner from crashing the interface
+                    name_key = f'f_name_{classification}'
+                    cat_key = f'f_cat_text_input_lane_{classification}'
+                    price_key = f'f_price_{classification}'
+
+                    if name_key in st.session_state:
+                        st.session_state[name_key] = ""
+                    if cat_key in st.session_state:
+                        st.session_state[cat_key] = ""
+                    if price_key in st.session_state:
+                        st.session_state[price_key] = ""
                         
-                    if name_field_key in st.session_state:
-                        st.session_state[name_field_key] = ""
-                    if cat_field_key in st.session_state:
-                        st.session_state[cat_field_key] = ""
-                            
-                    if f'f_price_{classification}' in st.session_state:
-                        st.session_state[f'f_price_{classification}'] = ""
-                    if 'drink_val_8_text_final' in st.session_state: st.session_state['drink_val_8_text_final'] = ""
-                    if 'drink_val_12_text_final' in st.session_state: st.session_state['drink_val_12_text_final'] = ""
-                    if 'drink_val_16_text_final' in st.session_state: st.session_state['drink_val_16_text_final'] = ""
-                    if 'drink_val_custom_text_final' in st.session_state: st.session_state['drink_val_custom_text_final'] = ""
-                    # -----------------------------------------------------------------
+                    # Safely wipe drink price cache keys if they are active
+                    for size_key in ['drink_val_8_text_final', 'drink_val_12_text_final', 'drink_val_16_text_final', 'drink_val_custom_text_final']:
+                        if size_key in st.session_state:
+                            st.session_state[size_key] = ""
+                    # ---------------------------------------------
 
                     #SUCCESS TRANSACTION PRINT RECEIPT FOR CATALOG CREATION
                     formatted_display_price = f"₱{price:,.2f}" if classification != 'Drinks (Gulps)' else "Configured Sizes Array"
