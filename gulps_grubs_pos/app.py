@@ -198,7 +198,7 @@ elif mode == 'Admin' and page == 'Product Management':
         st.markdown("#### 📝 Product Information")
         name = st.text_input('Product name *',placeholder='Enter product name',key=f'f_name_{classification}', clear_on_submit = True).strip()
     
-        category = st.text_input('Category *',placeholder="Type your category name here (e.g., Waffle, Streetfood)...",key=f'f_cat_text_input_lane_{classification}'clear_on_submit = True).strip()
+        category = st.text_input('Category *',placeholder="Type your category name here (e.g., Waffle, Streetfood)...",key=f'f_cat_text_input_lane_{classification}',clear_on_submit = True).strip()
         
         st.divider()
         
