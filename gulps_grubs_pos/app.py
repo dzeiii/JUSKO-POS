@@ -284,103 +284,85 @@ elif mode == 'Admin' and page == 'Product Management':
         if submit_form_btn:
             clean_name = name.strip()
             clean_category = category.strip()
+            
+            # FIXED: Combine ONLY string descriptive inputs for gibberish/spam checking, leaving price text completely out of it!
+            text_audit_target = f"{clean_name} {clean_category}".lower()
 
-            if ( not clean_category and st.session_state.get(f'f_cat_select_{classification}')):
-                clean_category = str(st.session_state[f'f_cat_select_{classification}']).strip()
-            test_string = f"{clean_name} {clean_category}".lower()
-
+            # Refined keyboard spam checker
             def has_consecutive_repetitions(text, max_allowed=3):
-                if not text:
-                    return False
+                if not text: return False
                 count = 1
                 for i in range(1, len(text)):
-                    if text[i] == text[i - 1] and text[i].isalnum():
+                    if text[i] == text[i-1] and text[i].isalnum():
                         count += 1
-                        if count > max_allowed:
-                            return True
-                    else:
-                        count = 1
+                        if count > max_allowed: return True
+                    else: count = 1
                 return False
-                
+
+            # FIXED: Smart gibberish checking algorithm that validates words natively without choking on standard menu terms
             def looks_like_gibberish(text):
-                words = [w for w in text.split()if w.isalpha()]
-                if not words:
-                    return False
+                # Isolate pure alphabetic words (ignores items like "10.00" entirely)
+                words = [w for w in text.split() if w.isalpha()]
+                if not words: return False
+                
                 vowels = set("aeiou")
                 for word in words:
-                    if (len(word) >= 4and not any(char in vowels for char in word)):
+                    # standalone strings must contain at least one vowel sound group to prevent 'xcvbnm' spams
+                    if len(word) >= 5 and not any(char in vowels for char in word): 
                         return True
                 return False
+
             culinary_dictionary = [
-                'tea', 'milk', 'coffee', 'juice', 'shake', 'smoothie', 'soda', 'cola', 'drink', 'beverage','water', 'brew', 'ice', 'syrup', 'slush','lumpia',
-                'frappe', 'float', 'latte', 'food', 'snack','fry', 'fries', 'potato', 'burger', 'sandwich','bun', 'bread', 'waffle', 'donut', 'doughnut', 'kikiam', 
-                'cake', 'pastry', 'cookie', 'pie', 'sweet','dessert', 'crepe', 'rice', 'meal', 'combo','box', 'platter', 'bucket', 'chicken', 'wings', 'salad',
-                'pork', 'beef', 'meat', 'fish', 'seafood','sauce', 'dip', 'bbq', 'cheese', 'street','grill', 'bacon', 'egg', 'noodles', 'soup','pasta', 
+                'tea', 'milk', 'coffee', 'juice', 'shake', 'smoothie', 'soda', 'cola', 'drink', 'beverage',
+                'water', 'brew', 'ice', 'syrup', 'slush', 'frappe', 'float', 'latte', 'food', 'snack',
+                'fry', 'fries', 'potato', 'burger', 'sandwich', 'bun', 'bread', 'waffle', 'donut', 'doughnut',
+                'cake', 'pastry', 'cookie', 'pie', 'sweet', 'dessert', 'crepe', 'rice', 'meal', 'combo', 'box',
+                'platter', 'bucket', 'chicken', 'wings', 'pork', 'beef', 'meat', 'fish', 'seafood', 'sauce',
+                'dip', 'bbq', 'cheese', 'street', 'grill', 'bacon', 'egg', 'noodles', 'soup', 'pasta', 'salad', 'kikiam', 'lumpia'
             ]
 
-            prohibited_keywords = [
-                'person', 'human', 'people', 'teacher','student', 'animal', 'object', 'thing'
-            ]
-
-            drink_keywords = [
-                'milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe','drink', 'beverage', 'juice', 'tea', 'brew', 'gulp'
-            ]
+            prohibited_keywords = ['person', 'human', 'people', 'teacher', 'student', 'animal', 'object', 'thing']
+            drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe', 'drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
 
             try:
-                existing_product_names = [str(item['name']).lower().strip() for item in db.list_products(active_only=True)
-                ]
-            except Exception:
-                existing_product_names = []
+                existing_product_names = [str(item['name']).lower().strip() for item in db.list_products(active_only=True)]
+            except Exception: existing_product_names = []
 
-            is_spam_text = (has_consecutive_repetitions(test_string,max_allowed=3) or has_consecutive_repetitions(clean_category,max_allowed=3))
-            is_nonsense_word = (looks_like_gibberish(test_string)or looks_like_gibberish(clean_category))
-            contains_junk = any(junk in test_string for junk in prohibited_keywords)
+            # FIXED: Run checks strictly on descriptive strings alone
+            is_spam_text = has_consecutive_repetitions(text_audit_target, max_allowed=3)
+            is_nonsense_word = looks_like_gibberish(text_audit_target)
+            contains_junk = any(junk in text_audit_target for junk in prohibited_keywords)
             category_has_drink_terms = any(dk in clean_category.lower() for dk in drink_keywords)
-            is_valid_culinary = any(word in test_string for word in culinary_dictionary)
-            if not clean_name:
-                st.error("Product name is required.")
-            elif not clean_category:
-                st.error("Category structure specification is required.")
-            elif clean_name.lower() in existing_product_names:
-                st.error(f"🔴 Catalog Conflict: A product named '{clean_name}' already exists!")
-            elif is_spam_text or is_nonsense_word:
-                st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish.")
-            elif contains_junk:
-                st.error("🔴 Context Validation Alert: Junk classifications are blocked.")
-            elif (classification == 'Drinks (Gulps)'and not category_has_drink_terms):
-                st.error("🔴 Classification Mismatch: Selected 'Drinks (Gulps)' but entered a non-beverage category.")
-            elif (classification == 'Foods (Grubs)'and category_has_drink_terms):
-                st.error("🔴 Classification Mismatch: Selected'Foods (Grubs)' but entered a drink category.")
-            elif not is_valid_culinary:
-                st.error("🔴 Context Validation Alert: Category must be related to food or beverages.")
-            elif (classification in ['Foods (Grubs)','Others (Combo/Meal Plan)']and price <= 0.0):
-                st.error("🔴 Validation Error: Price field is required and must be greater than ₱0.00.")
-            elif (classification == 'Drinks (Gulps)'and not size_prices):
-                st.error("🔴 Validation Error: Sizing prices are required. Enable and price at least one size option.")
+            is_valid_culinary = any(word in text_audit_target for word in culinary_dictionary)
+
+            if not clean_name: st.error("Product name is required.")
+            elif not clean_category: st.error("Category structure specification is required.")
+            elif clean_name.lower() in existing_product_names: st.error(f"🔴 Catalog Conflict: A product named '{clean_name}' already exists!")
+            elif is_spam_text or is_nonsense_word: st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish text patterns. Please use genuine descriptive words.")
+            elif contains_junk: st.error("🔴 Context Validation Alert: Junk classifications are blocked.")
+            elif classification == 'Drinks (Gulps)' and not category_has_drink_terms: st.error(f"🔴 Classification Mismatch: Selected 'Drinks (Gulps)' but entered a non-beverage category.")
+            elif classification == 'Foods (Grubs)' and category_has_drink_terms: st.error(f"🔴 Classification Mismatch: Selected 'Foods (Grubs)' but entered a drink category.")
+            elif not is_valid_culinary: st.error(f"🔴 Context Validation Alert: '{clean_category}' does not fit a relevant food or beverage catalog profile.")
+            elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0: st.error("🔴 Validation Error: Price field is required and must be greater than ₱0.00.")
+            elif classification == 'Drinks (Gulps)' and not size_prices: st.error("🔴 Validation Error: Sizing prices are required. Enable and price at least one size option.")
             else:
                 try:
                     price_cents = cents_from_peso(price)
                     generated_code = db.generate_product_code(classification)
                     starting_stock = 0
                     db.add_product(
-                        code=generated_code,
-                        name=clean_name,
-                        category=clean_category,
-                        price_cents=price_cents,
-                        stock=starting_stock,
-                        threshold=low_stock_threshold,
-                        size_prices=(size_prices if classification == 'Drinks (Gulps)'else None)
-                    )
-
-                    st.session_state[text_state_key] = ""
-                    formatted_display_price = (f"₱{price:,.2f}" if classification != 'Drinks (Gulps)' else "Configured Sizes")
-                    success_msg = (f"✨ SUCCESS: Product '{clean_name}'successfully added to catalog under category'{clean_category}' at ({formatted_display_price}) (Code: {generated_code}).")
+                        code=generated_code, name=clean_name, category=clean_category, price_cents=price_cents, 
+                        stock=starting_stock, threshold=low_stock_threshold,
+                        size_prices=size_prices if classification == 'Drinks (Gulps)' else None
+                    )    
+                    formatted_display_price = f"₱{price:,.2f}" if classification != 'Drinks (Gulps)' else "Configured Sizes"
+                    success_msg = f"✨ SUCCESS: Product '{clean_name}' added successfully under '{clean_category}' ({formatted_display_price}) (Code: {generated_code})."
                     st.success(success_msg)
-                    db.log_activity('Admin','Product Created',f"{generated_code} · {clean_name}")
+                    db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     logging.info(success_msg)
                     st.rerun()
-                except Exception as e:
-                    safe_error(e)
+                except Exception as e: safe_error(e)
+
     # EDIT / DELETE TAB
     with tab2:
         st.subheader("Edit or Delete Product")
