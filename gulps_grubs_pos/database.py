@@ -310,9 +310,11 @@ def checkout(items, cashier_label='Cashier', db_path=DB_PATH):
         transaction_id = cursor.lastrowid # ✨ FIXED: Read from cursor instead of c
         
         for item in items:
-            p_id = item['id']
+            p_id = item.get('id') if item.get('id') is not None else item.get('product_id')
             qty = item['quantity']
-            
+            if p_id is None:
+                raise ValueError("Could not find a valid product ID reference inside the cart payload.")
+    
             prod = c.execute('SELECT * FROM products WHERE id=?', (p_id,)).fetchone()
             if not prod:
                 raise ValueError(f"Product reference ID {p_id} could not be found.")
