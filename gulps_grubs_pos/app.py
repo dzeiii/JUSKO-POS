@@ -225,17 +225,6 @@ elif mode == 'Admin' and page == 'Product Management':
 
             # PATH 2: DRINKS
             elif classification == 'Drinks (Gulps)':
-                # 1. FIXED: Clean manual category text entry lane inside the drinks path
-                category = st.text_input(
-                    'Category Name *', 
-                    placeholder="Type your drink category name here (e.g., Milktea, Shake, Coffee)...", 
-                    key=f'f_cat_text_input_lane_{classification}'
-                ).strip()
-
-                # Smart Memory Reminder: Displays your beverage history list directly under the field
-                if existing_saved_cats:
-                    st.caption(f"💡 Previously saved beverage categories: {', '.join(existing_saved_cats)}")
-
                 st.divider()
                 st.caption('Configure your cup sizes and pricing details:')
                 
