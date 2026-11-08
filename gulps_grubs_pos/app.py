@@ -761,7 +761,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                         price_line = ' · '.join(price_parts)
                     else:
                         price_line = money(p['price_cents'])
-                        category=str(display_cat_clean),price=str(price_line),price_line=str(price_line),stock=str(int(p['stock'])))
+                        category=str(display_cat_clean),price=str(price_line),price_line=str(price_line),stock=str(int(p['stock']))
                     
                                         # --- CASHIER PRODUCT CARD INTERFACE ---
                     card_html = load_html_template('product_card.html', name=str(p['name']), product_name=str(p['name']), code=str(p['code']), category=str(display_cat_clean), price=str(price_line), price_line=str(price_line), stock=str(int(p['stock'])))
