@@ -185,11 +185,14 @@ elif mode == 'Admin' and page == 'Product Management':
         except Exception:
             existing_saved_cats = []
 
-        # 1. Product Name Box
-        name = st.text_input('Product name *', placeholder='Enter product name', key=f'prod_name_state_holder_{classification}').strip()
-        category = ""
-        size_prices = {}
-        price = 0.0
+        # Product Name BoX
+        name = st.text_input(
+            'Product name *', 
+            value=st.session_state.get(f'prod_name_state_holder_{classification}', ''), 
+            placeholder='Enter product name', 
+            key=f'prod_name_state_holder_{classification}'
+        ).strip()
+
 
         # 2. Category Dropdown Search Bar
         category_selection = st.selectbox(
