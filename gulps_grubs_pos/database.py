@@ -237,7 +237,6 @@ def get_product_sizes(product_id, db_path=DB_PATH):
         rows = c.execute('SELECT size_oz,price_cents FROM product_sizes WHERE product_id=? ORDER BY size_oz', (product_id,)).fetchall()
         return {int(r['size_oz']): int(r['price_cents']) for r in rows}
 
-
 def set_product_sizes(product_id, sizes_dict, db_path=DB_PATH):
     # --- FIND AND FIX THIS EXACT VALIDATION CHECK IN DATABASE.PY ---
     # Ensure it allows key 99 (custom size) alongside 8, 12, and 16
@@ -255,8 +254,6 @@ def set_product_sizes(product_id, sizes_dict, db_path=DB_PATH):
                 INSERT INTO product_sizes (product_id, size_oz, price_cents)
                 VALUES (?, ?, ?)
             ''', (product_id, int(size_oz), int(price_cents)))
-
-
 
 def update_product(product_id, code, name, category, price_cents, threshold, db_path=DB_PATH):
     code, name, category = code.strip().upper(), name.strip(), category.strip()
@@ -295,73 +292,102 @@ def restock_product(product_id, quantity, db_path=DB_PATH):
         if cur.rowcount != 1: raise ValueError('Product not found or inactive.')
         c.execute('INSERT INTO inventory_movements(product_id,quantity_change,reason,created_at) VALUES(?,?,?,?)', (product_id,quantity,'Restock',now))
 
-def checkout(items, cashier_label='Cashier', db_path=DB_PATH):
-    """Safely processes and persists sales transactions into table records."""
+def checkout(items,cashier_label='Cashier',db_path=DB_PATH,customer_name=None,
+    order_details=None,priority=None, order_type='Drink'):
+    """Atomically processes a sale, deducts inventory, saves transaction items, and optionally createsa pickup queue order."""
     if not items:
-        raise ValueError("Cannot checkout an empty shopping cart configuration.")
-        
+        raise ValueError("Cannot checkout an empty shopping cart.")
+    create_pickup_order = customer_name is not None
+    if create_pickup_order:
+        if not customer_name.strip():
+            raise ValueError("Please enter the customer name.")
+
+        if order_details is None or priority is None:
+            raise ValueError("Missing pickup order information.")
+
     current_time = get_ph_iso_timestamp()
-    
+
+    total_cents = sum(int(item['subtotal_cents']) for item in )
     with connection(db_path) as c:
-        # 1. Compute total cents values securely
-        total_cents = sum(item['subtotal_cents'] for item in items)
-        
-        # 2. Insert new transaction entry row
         c.execute(
-            'INSERT INTO transactions (total_cents, created_at, cashier_label) VALUES (?, ?, ?)',
-            (total_cents, current_time, cashier_label.strip() or 'Cashier')
-        )
+            '''INSERT INTO transactions (total_cents,created_at,cashier_label)
+            VALUES (?, ?, ?)
+            ''',
+            (total_cents,current_time,cashier_label.strip() or 'Cashier'))
         transaction_id = c.lastrowid
-        
-        # 3. Process individual transaction items row records
+
         for item in items:
             p_id = item['id']
-            qty = item['quantity']
-            
-            # Fetch the baseline product data row to verify stock balances safely
-            prod = c.execute('SELECT * FROM products WHERE id=?', (p_id,)).fetchone()
+            qty = int(item['quantity'])
+            if qty <= 0:
+                raise ValueError("Invalid product quantity.")
+            prod = c.execute('SELECT * FROM products WHERE id = ?',(p_id,)).fetchone()
             if not prod:
                 raise ValueError(f"Product reference ID {p_id} could not be found.")
+            if int(prod['stock']) < qty:
+                raise ValueError(f"Insufficient stock for '{prod['name']}'. "f"Only {prod['stock']} units remain.")
                 
-            if prod['stock'] < qty:
-                raise ValueError(f"Insufficient stock for '{prod['name']}'. Only {prod['stock']} units remain.")
-                
-            # Deduct inventory count balances securely 
-            new_stock = prod['stock'] - qty
-            c.execute('UPDATE products SET stock=?, updated_at=? WHERE id=?', (new_stock, current_time, p_id))
-            
-            # Log active database movement records downstream
+            new_stock = int(prod['stock']) - qty
             c.execute(
-                'INSERT INTO inventory_movements (product_id, quantity_change, reason, created_at) VALUES (?, ?, ?, ?)',
-                (p_id, -qty, f"Sale Checkout #{transaction_id}", current_time)
-            )
+                '''UPDATE products SET stock = ?, updated_at = ? WHERE id = ? ''',
+                (new_stock, current_time, p_id))
             
-            # Extract configuration options safely 
+            c.execute(
+                '''INSERT INTO inventory_movements (product_id,quantity_change,reason,created_at)
+                VALUES (?, ?, ?, ?)
+                ''',
+                (p_id,-qty,f"Sale Checkout #{transaction_id}",current_time))
             size_oz = item.get('size_oz')
             customizations = item.get('customizations', '')
-            
-            # Use item name since it already carries custom sizes cleanly (e.g. "Iced Coffee (22oz)")
             item_name = item.get('name', prod['name'])
+            c.execute(
+                ''' INSERT INTO transaction_items (transaction_id, product_id, product_code, product_name, unit_price_cents, quantity, subtotal_cents, size_oz, customizations)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''',
+                (transaction_id, p_id, prod['code'], item_name, int(item['unit_price_cents']), qty,
+                    int(item['subtotal_cents']),size_oz, customizations))
             
-            # 4. Insert transaction ledger details
-            c.execute('''
-                INSERT INTO transaction_items (
-                    transaction_id, product_id, product_code, product_name, 
-                    unit_price_cents, quantity, subtotal_cents, size_oz, customizations
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                transaction_id, p_id, prod['code'], item_name,
-                item['unit_price_cents'], qty, item['subtotal_cents'],
-                size_oz if size_oz is not None else None, customizations
-            ))
+        order_id = None
+        if create_pickup_order:
+            max_seq_row = c.execute(
+                '''
+                SELECT MAX(sequence_no) AS max_seq
+                FROM pending_orders
+                '''
+            ).fetchone()
+
+            next_sequence_no = (max_seq_row['max_seq'] + 1 if max_seq_row and max_seq_row['max_seq'] is not None else 1)
+            c.execute(
+                '''
+                INSERT INTO pending_orders (
+                    customer_name,
+                    details,
+                    order_type,
+                    priority,
+                    sequence_no,
+                    status,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?, ?, 'Pending', ?)
+                ''',
+                (
+                    customer_name.strip(),
+                    order_details.strip(),
+                    order_type,
+                    int(priority),
+                    next_sequence_no,
+                    current_time
+                )
+            )
+            order_id = c.lastrowid
             
         return {
             'transaction_id': transaction_id,
             'total_cents': total_cents,
             'created_at': current_time,
-            'cashier_label': cashier_label
+            'cashier_label': cashier_label,
+            'order_id': order_id
         }
-
 def sales_summary(start_iso, end_iso, db_path=DB_PATH):
     with connection(db_path) as c:
         row=c.execute('SELECT COALESCE(SUM(total_cents),0) total, COUNT(*) count FROM transactions WHERE created_at>=? AND created_at<?', (start_iso,end_iso)).fetchone()
