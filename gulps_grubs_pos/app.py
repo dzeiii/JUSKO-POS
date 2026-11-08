@@ -163,34 +163,56 @@ elif mode == 'Admin' and page == 'Product Management':
         if 'add_category' not in st.session_state: st.session_state.add_category = ""
         if 'add_price_text' not in st.session_state: st.session_state.add_price_text = ""
 
-        # 2. Automatically pull all distinct categories from your live database
+        # 2. FIXED: Dynamically filter categories based on the active Product Classification state
         try:
             db_products = db.list_products(active_only=False)
-            # Gather unique categories and remove custom sizing text tags
-            existing_saved_cats = sorted(list({p['category'].split(" | Custom:", 1)[0].strip() for p in db_products if p['category']}))
+            
+            # Group keywords together to accurately identify existing drink mappings
+            drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe', 'drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
+            
+            filtered_saved_cats = set()
+            for p in db_products:
+                if not p['category']:
+                    continue
+                # Extract the clean category name before any custom sizing split text
+                clean_cat = p['category'].split(" | Custom:", 1)[0].strip()
+                clean_cat_lower = clean_cat.lower()
+                
+                # Check if the item's category name fits a drink profile
+                is_drink_cat = any(dk in clean_cat_lower for dk in drink_keywords)
+                
+                # Route categories into lists that match the selected layout view
+                if classification == 'Drinks (Gulps)' and is_drink_cat:
+                    filtered_saved_cats.add(clean_cat)
+                elif classification == 'Foods (Grubs)' and not is_drink_cat and 'combo' not in clean_cat_lower:
+                    filtered_saved_cats.add(clean_cat)
+                elif classification == 'Others (Combo/Meal Plan)' and 'combo' in clean_cat_lower:
+                    filtered_saved_cats.add(clean_cat)
+                    
+            existing_saved_cats = sorted(list(filtered_saved_cats))
         except Exception:
             existing_saved_cats = []
 
-        # Product Name Input - Tied directly to state to clear on submit
+        # Product Name Input
         name = st.text_input('Product name *', value=st.session_state.add_name, placeholder='Enter product name', key='prod_name_input_field').strip()
         category = ""
         size_prices = {}
         price = 0.0
-        
+
+        # --- 3. DYNAMIC CLASSIFICATION-FILTERED SELECTION FIELD ---
         category_selection = st.selectbox(
             'Category *',
             options=existing_saved_cats,
             index=None, 
-            placeholder="Type a new category OR select a saved one...",
-            key='active_dropdown_cat_selector'
+            placeholder=f"Type a new category OR select an existing {classification.split(' ')[0].lower()} category...",
+            key=f'dropdown_cat_selector_{classification}' # Unique key per classification to prevent widget state collisions
         )
-    
+        
+        # Isolate selection string value types safely
         if category_selection is None:
-            # Look directly inside the text input buffer search keys safely
-            category = str(st.session_state.get('active_dropdown_cat_selector', '') or '').strip()
+            category = str(st.session_state.get(f'dropdown_cat_selector_{classification}', '') or '').strip()
         else:
             category = str(category_selection).strip()
-
 
         # --- PATH 1: FOODS ---
         if classification == 'Foods (Grubs)':
