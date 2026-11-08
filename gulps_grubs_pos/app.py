@@ -158,9 +158,8 @@ elif mode == 'Admin' and page == 'Product Management':
         classification = st.radio('Product Classification *', ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], horizontal=True)
         st.markdown("---")
         
-        # --- FIXED: Use clean, isolated form components without conflicting external session setups ---
-        with st.form(key=f'add_product_master_form_{classification}', clear_on_submit=False):
-            # Pull unique categories dynamically from the database to build historical recommendations
+        # --- FIXED: Added clear_on_submit=True to natively handle form wiping safely ---
+        with st.form(key=f'add_product_master_form_{classification}', clear_on_submit=True):
             try:
                 db_products = db.list_products(active_only=False)
                 drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe', 'drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
@@ -168,7 +167,7 @@ elif mode == 'Admin' and page == 'Product Management':
                 filtered_saved_cats = set()
                 for p in db_products:
                     if not p['category']: continue
-                    clean_cat = p['category'].split(" | Custom:", 1)[0].strip()
+                    clean_cat = p['category'].split(" | Custom:", 1).strip()
                     clean_cat_lower = clean_cat.lower()
                     is_drink_cat = any(dk in clean_cat_lower for dk in drink_keywords)
                     
@@ -179,13 +178,13 @@ elif mode == 'Admin' and page == 'Product Management':
             except Exception:
                 existing_saved_cats = []
 
-            # 1. Product Name Input - Clean, standalone definition
+            # 1. Product Name Input
             name = st.text_input('Product name *', placeholder='Enter product name', key=f'f_name_{classification}').strip()
             category = ""
             size_prices = {}
             price = 0.0
 
-            # 2. Category Searchable Selection Field
+            # 2. Category Dropdown Search Selection
             category_selection = st.selectbox(
                 'Category *',
                 options=existing_saved_cats,
@@ -194,7 +193,6 @@ elif mode == 'Admin' and page == 'Product Management':
                 key=f'f_cat_{classification}'
             )
             
-            # Extract choice cleanly from form context
             if category_selection is None:
                 category = str(st.session_state.get(f'f_cat_{classification}', '') or '').strip()
             else:
@@ -282,7 +280,7 @@ elif mode == 'Admin' and page == 'Product Management':
                 'fry', 'fries', 'potato', 'burger', 'sandwich', 'bun', 'bread', 'waffle', 'donut', 'doughnut',
                 'cake', 'pastry', 'cookie', 'pie', 'sweet', 'dessert', 'crepe', 'rice', 'meal', 'combo', 'box',
                 'platter', 'bucket', 'chicken', 'wings', 'pork', 'beef', 'meat', 'fish', 'seafood', 'sauce',
-                'dip', 'bbq', 'cheese', 'street', 'grill', 'bacon', 'egg', 'noodles', 'soup', 'pasta', 'salad', 'kikiam'
+                'dip', 'bbq', 'cheese', 'street', 'grill', 'bacon', 'egg', 'noodles', 'soup', 'pasta', 'salad', 'kikiam', 'lumpia'
             ]
 
             prohibited_keywords = ['person', 'human', 'people', 'teacher', 'student', 'animal', 'object', 'thing']
@@ -307,7 +305,7 @@ elif mode == 'Admin' and page == 'Product Management':
             elif classification == 'Foods (Grubs)' and category_has_drink_terms: st.error(f"🔴 Classification Mismatch: Selected 'Foods (Grubs)' but entered a drink category.")
             elif not is_valid_culinary: st.error("🔴 Context Validation Alert: Category must be related to food or beverages.")
             elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0: st.error("🔴 Validation Error: Price field is required and must be greater than ₱0.00.")
-            elif classification == 'Drinks(Gulps)' and not size_prices: st.error("🔴 Validation Error:Sizing prices are required.")
+            elif classification == 'Drinks (Gulps)' and not size_prices: st.error("🔴 Validation Error: Sizing prices are required.")
             else:
                 try:
                     price_cents = cents_from_peso(price)
@@ -317,12 +315,7 @@ elif mode == 'Admin' and page == 'Product Management':
                         code=generated_code, name=clean_name, category=clean_category, price_cents=price_cents, 
                         stock=starting_stock, threshold=low_stock_threshold,
                         size_prices=size_prices if classification == 'Drinks (Gulps)' else None
-                    )
-                    st.session_state[f'f_name_{classification}'] = ""
-                    st.session_state[f'f_cat_{classification}'] = None
-                    if f'f_price_{clasfficiation}' in st.session_state:
-                        st.session_state[f'f_price_{classification}'] = ""
-
+                    )    
                     formatted_display_price = f"₱{price:,.2f}"
                     success_msg = f"✨ SUCCESS: Product '{clean_name}' successfully added to catalog under category '{clean_category}' at {formatted_display_price}(Code: {generated_code})."
                     st.success(success_msg)
