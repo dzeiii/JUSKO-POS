@@ -158,25 +158,55 @@ elif mode == 'Admin' and page == 'Product Management':
         classification = st.radio('Product Classification *', ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], horizontal=True)
         st.markdown("---")
         
-        # --- FIXED: Bind input fields directly to st.session_state keys to enable manual clearing ---
+        # Initialize master session state variables cleanly
         if 'add_name' not in st.session_state: st.session_state.add_name = ""
         if 'add_category' not in st.session_state: st.session_state.add_category = ""
         if 'add_price_text' not in st.session_state: st.session_state.add_price_text = ""
+        if 'show_new_cat_input' not in st.session_state: st.session_state.show_new_cat_input = False
 
-        name = st.text_input('Product name *', value=st.session_state.add_name, placeholder='Enter product name', key='prod_name_input_field').strip()
+        # Isolate all distinct pre-saved category values inside your live database to build your memory dropdown
+        try:
+            db_products = db.list_products(active_only=False)
+            # Extract clean base names before the custom sizing tag split markers
+            existing_saved_cats = sorted(list({p['category'].split(" | Custom:", 1)[0].strip() for p in db_products if p['category']}))
+        except Exception:
+            existing_saved_cats = []
+
+        # 1. Product Name Input - Tied directly to its state key to allow automatic clearing
+        name = st.text_input('Product name *', value=st.session_state.add_name, placeholder='Enter product name', key='add_name').strip()
         category = ""
         size_prices = {}
         price = 0.0
         
+        # Helper function to render a smart category memory selector layout
+        def render_adaptive_category_selector(classification_prefix, saved_list):
+            st.markdown("**Category Allocation ***")
+            
+            # Offer an open text box if the database list is empty or the user toggles the creation flag
+            if not saved_list or st.session_state.show_new_cat_input:
+                chosen_cat = st.text_input('Type New Category *', value=st.session_state.add_category, placeholder='e.g. Streetfood, Donut and Waffles', key='add_category').strip()
+                if saved_list:
+                    if st.button("⬅️ Choose from existing saved categories", key=f"toggle_old_list_{classification_prefix}"):
+                        st.session_state.show_new_cat_input = False
+                        st.rerun()
+            else:
+                # Provide an interactive lookup dropdown of every historical category saved in your POS system
+                chosen_cat = st.selectbox('Select from existing saved categories', saved_list, key='active_dropdown_cat_selector')
+                if st.button("➕ Type a brand-new custom category", key=f"toggle_new_input_{classification_prefix}"):
+                    st.session_state.show_new_cat_input = True
+                    st.session_state.add_category = ""
+                    st.rerun()
+            return chosen_cat
+
         # --- PATH 1: FOODS ---
         if classification == 'Foods (Grubs)':
-            category = st.text_input('Category *', value=st.session_state.add_category, placeholder='e.g. Streetfood, Donut and Waffles', key='food_cat_input_field').strip()
-            price_input = st.text_input('Price (₱) *', value=st.session_state.add_price_text, placeholder='0.00', key='food_price_text_input_field').strip()
+            category = render_adaptive_category_selector('foods', existing_saved_cats)
+            price_input = st.text_input('Price (₱) *', value=st.session_state.add_price_text, placeholder='0.00', key='add_price_text').strip()
             price = float(price_input) if (price_input and price_input.replace('.', '', 1).isdigit()) else 0.0
             
         # --- PATH 2: DRINKS ---
         elif classification == 'Drinks (Gulps)':
-            base_category = st.text_input('Category Name *', value=st.session_state.add_category, placeholder='e.g. Milkshake, Float, Milktea', key='drink_cat_input_field').strip()
+            base_category = render_adaptive_category_selector('drinks', existing_saved_cats)
             category = base_category
             
             st.caption('Configure your cup sizes and pricing:')
@@ -216,8 +246,8 @@ elif mode == 'Admin' and page == 'Product Management':
                 
         # --- PATH 3: OTHERS ---
         elif classification == 'Others (Combo/Meal Plan)':
-            category = st.text_input('Category *', value=st.session_state.add_category, placeholder='e.g. Combo Meal, Promo Bundle', key='combo_cat_input_field').strip()
-            price_input = st.text_input('Price (₱) *', value=st.session_state.add_price_text, placeholder='0.00', key='combo_price_text_input_field').strip()
+            category = render_adaptive_category_selector('combos', existing_saved_cats)
+            price_input = st.text_input('Price (₱) *', value=st.session_state.add_price_text, placeholder='0.00', key='add_price_text').strip()
             price = float(price_input) if (price_input and price_input.replace('.', '', 1).isdigit()) else 0.0
 
         st.divider()
@@ -280,7 +310,7 @@ elif mode == 'Admin' and page == 'Product Management':
                 st.error(f"🔴 Classification Mismatch: You selected 'Foods (Grubs)' but entered a drink-related category '{category}'.")
             elif not is_valid_culinary:
                 st.error("🔴 Context Validation Alert: Category must be related to food or beverages.")
-            elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and (not price_input or price <= 0.0):
+            elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0:
                 st.error("🔴 Validation Error: Price field is required. Please type a valid numeric amount greater than ₱0.00.")
             elif classification == 'Drinks (Gulps)' and not size_prices:
                 st.error("🔴 Validation Error: Sizing prices are required. Please enable and price at least one cup size option.")
