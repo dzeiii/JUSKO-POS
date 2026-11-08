@@ -236,9 +236,8 @@ elif mode=='Admin' and page=='Product Management':
         high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
         
         # Submit Button Action Block
-                # Submit Button Action Block
         if st.button('Add product to Catalog', type='primary'):
-            # Clean inputs for formatting and semantic analysis
+            # Clean and isolate inputs for formatting analysis
             clean_name = name.strip()
             clean_category = category.strip()
             test_string = f"{clean_name} {clean_category}".lower()
@@ -272,27 +271,27 @@ elif mode=='Admin' and page=='Product Management':
                 'cake', 'pastry', 'cookie', 'pie', 'sweet', 'dessert', 'crepe', 'rice', 'meal', 'combo', 'box',
                 'platter', 'bucket', 'chicken', 'wings', 'pork', 'beef', 'meat', 'fish', 'seafood', 'sauce',
                 'dip', 'bbq', 'cheese', 'street', 'grill', 'bacon', 'egg', 'noodles', 'soup', 'pasta', 'salad',
-                'grub', 'gulp']
+                'grub', 'gulp'
+            ]
 
             # --- 4. EXPLICIT NON-FOOD BLACKLIST ---
             prohibited_keywords = ['person', 'human', 'people', 'teacher', 'student', 'animal', 'object', 'thing']
             
             # Run calculations
-            is_spam_text = has_consecutive_repetitions(test_string, max_allowed=3)
-            is_nonsense_word = looks_like_gibberish(test_string)
+            is_spam_text = has_consecutive_repetitions(test_string, max_allowed=3) or has_consecutive_repetitions(clean_category, max_allowed=3)
+            is_nonsense_word = looks_like_gibberish(test_string) or looks_like_gibberish(clean_category)
             contains_junk = any(junk in test_string for junk in prohibited_keywords)
             is_valid_culinary = any(word in test_string for word in culinary_dictionary)
 
-            # Execution Gatekeeping Tree
-            if not clean_name:
+            # --- FIXED EXECUTION ORDER: Check for spam first regardless of empty neighbors ---
+            if clean_category and (is_spam_text or is_nonsense_word):
+                st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish patterns. Please use genuine descriptions.")
+            elif clean_category and (contains_junk or not is_valid_culinary):
+                st.error("🔴 Context Validation Alert: Category must be related to food or beverages.")
+            elif not clean_name:
                 st.error("Product name is required.")
             elif not clean_category:
                 st.error("Category structure specification is required.")
-            # --- ✨ ACTIVE ENTRY SECURITY GATEKEEPER BANNER ---
-            elif is_spam_text or is_nonsense_word:
-                st.error(f"Invalid Entry: Input contains keyboard spam or gibberish patterns. Please use genuine descriptions.")
-            elif contains_junk or not is_valid_culinary:
-                st.error(f"Context Validation Alert: '{category}' is not a valid menu classification. Category must be related to food or beverages.")
             elif classification == 'Drinks (Gulps)' and not size_prices:
                 st.error("Please enable at least one size configuration option for drink catalog items.")
             else:
@@ -309,7 +308,6 @@ elif mode=='Admin' and page=='Product Management':
                     st.success(f"Successfully registered '{clean_name}' under '{clean_category}' (Code: {generated_code})!")
                     st.rerun()
                 except Exception as e: safe_error(e)
-
 
         with tab2:
             st.subheader("Edit or Delete Product")
