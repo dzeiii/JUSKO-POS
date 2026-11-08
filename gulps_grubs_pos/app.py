@@ -294,7 +294,7 @@ elif mode=='Admin' and page=='Product Management':
                 st.error("Category structure specification is required.")
             elif classification == 'Drinks (Gulps)' and not size_prices:
                 st.error("Please enable at least one size configuration option for drink catalog items.")
-            else:
+                        else:
                 try:
                     price_cents = cents_from_peso(price)
                     generated_code = db.generate_product_code()
@@ -305,7 +305,13 @@ elif mode=='Admin' and page=='Product Management':
                         stock=starting_stock, threshold=low_stock_threshold,
                         size_prices=size_prices if classification == 'Drinks (Gulps)' else None
                     )
-                    st.success(f"Successfully registered '{clean_name}' under '{clean_category}' (Code: {generated_code})!")
+                    
+                    # --- SUCCESS TRANSACTION PRINTS & AUDITS ---
+                    success_msg = f"✨ SUCCESS: Product '{clean_name}' successfully added to catalog under category '{clean_category}' (Code: {generated_code})."
+                    st.success(success_msg)
+                    db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
+                    logging.info(success_msg)
+                    
                     st.rerun()
                 except Exception as e: safe_error(e)
 
@@ -404,9 +410,8 @@ elif mode=='Admin' and page=='Product Management':
                         else:
                             new_base_price_cents = p['price_cents']
                     else:
-                        # Standard Food Processing Workflow Paths
-                        new_cat = st.text_input('Category', value=p['category']).strip()
-                        new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents']/100), step=5.0, format='%.2f')
+                        new_cat = st.text_input('Category', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
+                        new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents']/100), step=5.0, format='%.2f', key=f"edit_price_food_{p['id']}")
                         new_base_price_cents = cents_from_peso(new_price_val)
                         updated_sizes = None
 
@@ -416,22 +421,21 @@ elif mode=='Admin' and page=='Product Management':
                     save_changes = st.button('Save All Product Details', type='primary', key=f"unified_save_btn_{p['id']}")
 
                     if save_changes:
-                        if not new_name or not new_cat:
-                            st.error("Product name and category definitions cannot be left blank.")
+                        if not new_name or not new_cat: st.error("Product name and category definitions cannot be left blank.")
                         else:
                             try: 
-                                # 1. Update Core Blueprint Specifications
                                 db.update_product(p['id'], p['code'], new_name, new_cat, int(new_base_price_cents), int(new_threshold))
+                                if is_a_drink and updated_sizes: db.set_product_sizes(p['id'], updated_sizes)
                                 
-                                # 2. Update Multi-size Arrays if mapping drink layout structures
-                                if is_a_drink and updated_sizes:
-                                    db.set_product_sizes(p['id'], updated_sizes)
-                                    
-                                db.log_activity('Admin', 'Product updated', f"{p['code']} · {new_name}")
-                                st.success('Product and all matching sizing configurations saved successfully!')
+                                # --- SUCCESS TRANSACTION PRINTS & AUDITS ---
+                                success_msg = f"📝 SUCCESS: Product details for '{p['code']}' updated successfully (Name: '{new_name}', Category: '{new_cat}')."
+                                st.success(success_msg)
+                                db.log_activity('Admin', 'Product Updated', f"{p['code']} · {new_name}")
+                                logging.info(success_msg)
+                                
                                 st.rerun()
-                            except Exception as e: 
-                                safe_error(e)
+                            except Exception as e: safe_error(e)
+
 
                    # --- Permanent Force Hard-Delete Interface Module ---
                     st.divider()
@@ -451,17 +455,19 @@ elif mode=='Admin' and page=='Product Management':
                         # Button lights up ONLY when both safety checks are explicitly marked
                         if st.button('Permanently Delete From Database', key=f"hard_purge_action_{p['id']}", type='primary', disabled=not (check_step1 and check_step2)):
                             try:
-                                # Triggers the forced hard delete execution function method
                                 success, msg = db.delete_product(p['id'])
-                                db.log_activity('Admin', 'Forced hard delete executed', f"{p['code']} · {p['name']}")
                                 
                                 if success:
-                                    st.success(msg)
+                                    # --- SUCCESS TRANSACTION PRINTS & AUDITS ---
+                                    success_msg = f"🗑️ SUCCESS: Product '{p['code']} — {p['name']}' was permanently deleted from the database catalog."
+                                    st.success(success_msg)
+                                    db.log_activity('Admin', 'Product Deleted', f"{p['code']} · {p['name']}")
+                                    logging.info(success_msg)
+                                    
                                     st.rerun()
-                                else:
-                                    st.error(msg)
-                            except Exception as e:
-                                safe_error(e)
+                                else: st.error(msg)
+                            except Exception as e: safe_error(e)
+
 
     with tab3:
         # Global Catalog Search Inventory Matrix View Frames
