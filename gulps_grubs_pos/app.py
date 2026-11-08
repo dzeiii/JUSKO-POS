@@ -155,153 +155,117 @@ elif mode == 'Admin' and page == 'Product Management':
     tab1, tab2, tab3 = st.tabs(['Add product','Edit / Delete','View Catalog'])
        
     with tab1:
-        classification = st.radio('Product Classification *',['Foods (Grubs)','Drinks (Gulps)','Others (Combo/Meal Plan)'],horizontal=True)
+        classification = st.radio('Product Classification *', ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], horizontal=True)
         st.markdown("---")
+
+        # Dynamically pull pre-saved category lists
         try:
             db_products = db.list_products(active_only=False)
-            drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade','slushie', 'slush', 'coffee', 'float', 'frappe','drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
-            food_cats = set()
-            drink_cats = set()
-            combo_cats = set()
-
+            drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe', 'drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
+            
+            food_cats, drink_cats, combo_cats = set(), set(), set()
             for p in db_products:
-                if not p['category']:
-                    continue
-                clean_cat = p['category'].split(" | Custom:", 1)[0].strip()
+                if not p['category']: continue
+                clean_cat = p['category'].split(" | Custom:", 1).strip()
                 clean_cat_lower = clean_cat.lower()
+                
                 is_drink_cat = any(dk in clean_cat_lower for dk in drink_keywords)
-                is_combo_cat = ('combo' in clean_cat_lower or 'promo' in clean_cat_lower or 'bundle' in clean_cat_lower)
-                if is_drink_cat:
-                    drink_cats.add(clean_cat)
-                elif is_combo_cat:
-                    combo_cats.add(clean_cat)
-                else:
-                    food_cats.add(clean_cat)
-
-            if classification == 'Drinks (Gulps)':
-                existing_saved_cats = sorted(list(drink_cats))
-
-            elif classification == 'Others (Combo/Meal Plan)':
-                existing_saved_cats = sorted(list(combo_cats))
-
-            else:
-                existing_saved_cats = sorted(list(food_cats))
+                is_combo_cat = any(ck in clean_cat_lower for ck in ['combo', 'promo', 'bundle'])
+                
+                if is_drink_cat: drink_cats.add(clean_cat)
+                elif is_combo_cat: combo_cats.add(clean_cat)
+                else: food_cats.add(clean_cat)
+            
+            if classification == 'Drinks (Gulps)': existing_saved_cats = sorted(list(drink_cats))
+            elif classification == 'Others (Combo/Meal Plan)': existing_saved_cats = sorted(list(combo_cats))
+            else: existing_saved_cats = sorted(list(food_cats))
         except Exception:
             existing_saved_cats = []
 
-        # Setup real-time string pool memory mapping
-        text_state_key = f"raw_typing_buffer_{classification}"
-        if text_state_key not in st.session_state:
-            st.session_state[text_state_key] = ""
-        options_pool = existing_saved_cats.copy()
-        user_typing = st.session_state[text_state_key].strip()
-        if user_typing and user_typing not in options_pool:
-            options_pool.insert(0, user_typing)
+        def parse_and_format_price(raw_text):
+            if not raw_text: return 0.0
+            clean_digits = raw_text.replace('₱', '').strip()
+            try: return float(clean_digits)
+            except ValueError: return 0.0
 
-        # MAIN FORM BLOCK CONTAINER
-        with st.form( key=f'add_product_submit_form_{classification}',clear_on_submit=True):
-            name = st.text_input('Product name *',placeholder='Enter product name',key=f'f_name_{classification}').strip()
-            category = ""
-            size_prices = {}
-            price = 0.0
+        # --- 🚨 STEP 1: DECOUPLED PRICING REGISTRY PLACED SAFELY OUTSIDE THE MASTER FORM 🚨 ---
+        # This completely breaks the form lock limitation, making fields lock/unlock instantly!
+        size_prices = {}
+        price = 0.0
+        drink_category_suffix = ""
+
+        if classification == 'Drinks (Gulps)':
+            st.markdown("#### 🥤 Drink Size & Pricing Configuration")
+            st.caption('Configure cup sizes (Fields lock or unlock instantly upon clicking checkboxes):')
+            
+            # 8 oz Size Option Panel
+            use8 = st.checkbox('Offer 8 oz Size Options', value=False, key='drink_use_8_reactive_layer')
+            price8_input = st.text_input('8 oz Size Pricing (₱) *', placeholder='0.00', value="0.00" if not use8 else "", disabled=not use8, key='drink_val_8_text_reactive').strip()
+            price8 = parse_and_format_price(price8_input) if use8 else 0.0
+                
+            # 12 oz Size Option Panel
+            use12 = st.checkbox('Offer 12 oz Size Options', value=True, key='drink_use_12_reactive_layer')
+            price12_input = st.text_input('12 oz Size Pricing (₱) *', placeholder='0.00', disabled=not use12, key='drink_val_12_text_reactive').strip()
+            price12 = parse_and_format_price(price12_input) if use12 else 0.0
+                
+            # 16 oz Size Option Panel
+            use16 = st.checkbox('Offer 16 oz Size Options', value=True, key='drink_use_16_reactive_layer')
+            price16_input = st.text_input('16 oz Size Pricing (₱) *', placeholder='0.00', disabled=not use16, key='drink_val_16_text_reactive').strip()
+            price16 = parse_and_format_price(price16_input) if use16 else 0.0
+            
+            st.divider()
+            st.markdown("##### 🥤 Other / Custom Sizing Configuration")
+            use_custom = st.checkbox('Enable a different custom size profile', value=False, key='drink_use_custom_reactive_layer')
+            
+            custom_label = ""
+            custom_price = 0.0
+            if use_custom:
+                c_size_col, c_price_col = st.columns(2)
+                with c_size_col: 
+                    custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key='drink_lbl_custom_reactive_field').strip()
+                with c_price_col: 
+                    custom_price_input = st.text_input('Custom Size Price (₱) *', placeholder='0.00', key='drink_val_custom_text_reactive').strip()
+                    custom_price = parse_and_format_price(custom_price_input)
+
+            # Map active size structures securely into the database dictionary
+            if use8 and price8 > 0: size_prices[8] = cents_from_peso(price8)
+            if use12 and price12 > 0: size_prices[12] = cents_from_peso(price12)
+            if use16 and price16 > 0: size_prices[16] = cents_from_peso(price16)
+            if use_custom and custom_label and custom_price > 0:
+                size_prices[99] = cents_from_peso(custom_price)
+                drink_category_suffix = f" | Custom:{custom_label}"
+            st.markdown("---")
+
+        # --- STEP 2: MAIN FORM BLOCK CONTAINER (Now purely handles textual metadata descriptions) ---
+        with st.form(key=f'add_product_master_form_{classification}', clear_on_submit=True):
+            name = st.text_input('Product name *', placeholder='Enter product name', key=f'f_name_{classification}').strip()
+            
             category = st.text_input(
                 'Category *', 
-                placeholder="Type any category name here (e.g., Waffle, Streetfood)...", 
+                placeholder="Type your category name here (e.g., Waffle, Streetfood)...", 
                 key=f'f_cat_text_input_lane_{classification}'
             ).strip()
-                
-            def parse_and_format_price(raw_text):
-                if not raw_text:
-                    return 0.0
-                clean_digits = raw_text.replace('₱', '').strip()
-                try:
-                    return float(clean_digits)
-                except ValueError:
-                    return 0.0
-            # PATH 1: FOODS
+
+            if existing_saved_cats:
+                st.caption(f"💡 Previously saved categories in this workspace: {', '.join(existing_saved_cats)}")
+
+            # Render single-price fields inside the form container for non-drink items only
             if classification == 'Foods (Grubs)':
-                price_input = st.text_input('Price (₱) *',placeholder='0.00',key=f'f_price_{classification}').strip()
+                price_input = st.text_input('Price (₱) *', placeholder='0.00', key=f'f_price_{classification}').strip()
                 price = parse_and_format_price(price_input)
-
-            # PATH 2: DRINKS
-            elif classification == 'Drinks (Gulps)':
-                st.divider()
-                st.caption('Configure your cup sizes and pricing details:')
                 
-                # Render Size 8 oz Lane - FIXED: Tied explicitly to session state keys for instant unlocking reactivity
-                use8 = st.checkbox('Offer 8 oz Size Options', value=False, key=f'{classification}_use_8')
-                price8_input = st.text_input(
-                    '8 oz Size Pricing (₱) *', 
-                    placeholder='0.00', 
-                    disabled=not st.session_state.get(f'{classification}_use_8', False), 
-                    key=f'{classification}_val_8_text'
-                ).strip()
-                price8 = parse_and_format_price(price8_input) if use8 else 0.0
-                    
-                # Render Size 12 oz Lane - FIXED: Tied explicitly to session state keys for instant unlocking reactivity
-                use12 = st.checkbox('Offer 12 oz Size Options', value=True, key=f'{classification}_use_12')
-                price12_input = st.text_input(
-                    '12 oz Size Pricing (₱) *', 
-                    placeholder='0.00', 
-                    disabled=not st.session_state.get(f'{classification}_use_12', True), 
-                    key=f'{classification}_val_12_text'
-                ).strip()
-                price12 = parse_and_format_price(price12_input) if use12 else 0.0
-                    
-                # Render Size 16 oz Lane - FIXED: Tied explicitly to session state keys for instant unlocking reactivity
-                use16 = st.checkbox('Offer 16 oz Size Options', value=True, key=f'{classification}_use_16')
-                price16_input = st.text_input(
-                    '16 oz Size Pricing (₱) *', 
-                    placeholder='0.00', 
-                    disabled=not st.session_state.get(f'{classification}_use_16', True), 
-                    key=f'{classification}_val_16_text'
-                ).strip()
-                price16 = parse_and_format_price(price16_input) if use16 else 0.0
-                
-                st.divider()
-                st.markdown("##### 🥤 Other / Custom Sizing Configuration")
-                use_custom = st.checkbox('Enable a different custom size profile', value=False, key=f'{classification}_use_custom')
-                
-                custom_label = ""
-                custom_price = 0.0
-                if use_custom:
-                    c_size_col, c_price_col = st.columns(2)
-                    with c_size_col: 
-                        custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key=f'{classification}_lbl_custom').strip()
-                    with c_price_col: 
-                        custom_price_input = st.text_input(
-                            'Custom Size Price (₱) *', 
-                            placeholder='0.00', 
-                            disabled=not st.session_state.get(f'{classification}_use_custom', False),
-                            key=f'{classification}_val_custom_text'
-                        ).strip()
-                        custom_price = parse_and_format_price(custom_price_input)
-
-                # Route size information securely to satisfy your active insertion structures
-                if use8 and price8 > 0: size_prices[8] = cents_from_peso(price8)
-                if use12 and price12 > 0: size_prices[12] = cents_from_peso(price12)
-                if use16 and price16 > 0: size_prices[16] = cents_from_peso(price16)
-                if use_custom and custom_label and custom_price > 0:
-                    size_prices[99] = cents_from_peso(custom_price)
-                    category = f"{category} | Custom:{custom_label}"
-
-
-            # PATH 3: OTHERS
             elif classification == 'Others (Combo/Meal Plan)':
-
-                price_input = st.text_input('Price (₱) *',placeholder='0.00',key=f'f_price_{classification}').strip()
+                price_input = st.text_input('Price (₱) *', placeholder='0.00', key=f'f_price_{classification}').strip()
                 price = parse_and_format_price(price_input)
 
             st.divider()
-            low_stock_threshold = st.number_input('Low-stock alert boundary count',min_value=0,value=5,step=1)
-            high_stock_threshold = st.number_input('High-stock alert boundary count',min_value=0,value=50,step=1)
+            low_stock_threshold = st.number_input('Low-stock alert boundary count', min_value=0, value=5, step=1)
+            high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
+            
+            submit_form_btn = st.form_submit_button('Add product to Catalog', type='primary', use_container_width=True)
 
-            submit_form_btn = st.form_submit_button('Add product to Catalog',type='primary',use_container_width=True)
-
-        # OUTSIDE FORM CONTAINER
-                # --- OUTSIDE FORM CONTAINER: Process alerts safely ---
+        # --- OUTSIDE FORM CONTAINER: Form data routing checks execute safely downstream ---
         if submit_form_btn:
-            # --- 🚨 STEP 1: INITIALIZE HELPER FUNCTIONS AT THE VERY TOP OF THE LOOP 🚨 ---
             def has_consecutive_repetitions(text, max_allowed=3):
                 if not text: return False
                 count = 1
@@ -320,12 +284,11 @@ elif mode == 'Admin' and page == 'Product Management':
                     if len(word) >= 5 and not any(char in vowels for char in word): return True
                 return False
 
-            # --- STEP 2: CLEAN INCOMING INPUT STRINGS ---
             clean_name = name.strip()
-            clean_category = category.strip()
+            clean_category = f"{category.strip()}{drink_category_suffix}" if classification == 'Drinks (Gulps)' else category.strip()
             
             name_audit = clean_name.lower()
-            category_audit = clean_category.lower()
+            category_audit = category.strip().lower()
             combined_audit = f"{name_audit} {category_audit}"
 
             food_dictionary = [
@@ -335,33 +298,30 @@ elif mode == 'Admin' and page == 'Product Management':
                 'beef', 'meat', 'fish', 'seafood', 'sauce', 'dip', 'bbq', 'cheese', 'street', 'grill', 
                 'bacon', 'egg', 'noodles', 'soup', 'pasta', 'salad', 'kikiam', 'lumpia', 'siomai', 'balls'
             ]
-
             drink_dictionary = [
                 'tea', 'milk', 'coffee', 'juice', 'shake', 'smoothie', 'soda', 'cola', 'drink', 'beverage', 
                 'gulp', 'water', 'brew', 'ice', 'syrup', 'slush', 'frappe', 'float', 'latte', 'milktea', 
                 'milkshake', 'slushie', 'macchiato', 'espresso', 'capuccino', 'lemonade', 'soda', 'pop'
             ]
-
             prohibited_keywords = ['person', 'human', 'people', 'teacher', 'student', 'animal', 'object', 'thing']
 
             try:
                 existing_product_names = [str(item['name']).lower().strip() for item in db.list_products(active_only=True)]
-            except Exception: 
+            except Exception:
                 existing_product_names = []
 
-            # Run basic format audits safely now that helpers are compiled
             is_spam_text = has_consecutive_repetitions(combined_audit, max_allowed=3)
             is_nonsense_word = looks_like_gibberish(combined_audit)
             contains_junk = any(junk in combined_audit for junk in prohibited_keywords)
 
-            # Strict field-level context enforcement
             if classification == 'Drinks (Gulps)':
                 is_valid_context = any(word in category_audit for word in drink_dictionary)
-                mismatch_error = f"Selected 'Drinks (Gulps)' but entered a non-beverage category '{clean_category}'."
+                mismatch_error = f"Selected 'Drinks (Gulps)' but entered a non-beverage category '{category}'."
             elif classification == 'Foods (Grubs)':
                 has_drink_trigger_in_food = any(word in category_audit for word in drink_dictionary) or any(word in name_audit for word in drink_dictionary)
                 is_valid_context = any(word in category_audit for word in food_dictionary) and not has_drink_trigger_in_food
-                mismatch_error = f"Selected 'Foods (Grubs)' but entered a drink or non-food asset configuration layer."
+                mismatch_error = f"Selected 'Foods (Grubs)' but entered a drink or non-food layout configuration."
+
             else:
                 is_valid_context = any(word in combined_audit for word in food_dictionary + drink_dictionary)
                 mismatch_error = "Entered an invalid combo meal category context description."
