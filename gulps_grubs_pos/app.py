@@ -236,32 +236,81 @@ elif mode=='Admin' and page=='Product Management':
         high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
         
         # Submit Button Action Block
+                # Submit Button Action Block
         if st.button('Add product to Catalog', type='primary'):
-            if not name:
+            # Clean inputs for formatting and semantic analysis
+            clean_name = name.strip()
+            clean_category = category.strip()
+            test_string = f"{clean_name} {clean_category}".lower()
+
+            # --- 1. REPEATING KEYBOARD SPAM CHECKER ---
+            def has_consecutive_repetitions(text, max_allowed=3):
+                if not text: return False
+                count = 1
+                for i in range(1, len(text)):
+                    if text[i] == text[i-1] and text[i].isalnum():
+                        count += 1
+                        if count > max_allowed: return True
+                    else: count = 1
+                return False
+
+            # --- 2. GIBBERISH VOWEL CORE CHECKER ---
+            def looks_like_gibberish(text):
+                words = [w for w in text.split() if w.isalpha()]
+                if not words: return False
+                vowels = set("aeiou")
+                for word in words:
+                    if len(word) >= 4 and not any(char in vowels for char in word):
+                        return True
+                return False
+
+            # --- 3. BROAD FOOD-INDUSTRY DICTIONARY ---
+           culinary_dictionary = [
+                'tea', 'milk', 'coffee', 'juice', 'shake', 'smoothie', 'soda', 'cola', 'drink', 'beverage', 'gulp',
+                'water', 'brew', 'ice', 'syrup', 'slush', 'frappe', 'float', 'latte', 'grub', 'food', 'snack',
+                'fry', 'fries', 'potato', 'burger', 'sandwich', 'bun', 'bread', 'waffle', 'donut', 'doughnut',
+                'cake', 'pastry', 'cookie', 'pie', 'sweet', 'dessert', 'crepe', 'rice', 'meal', 'combo', 'box',
+                'platter', 'bucket', 'chicken', 'wings', 'pork', 'beef', 'meat', 'fish', 'seafood', 'sauce',
+                'dip', 'bbq', 'cheese', 'street', 'grill', 'bacon', 'egg', 'noodles', 'soup', 'pasta', 'salad',
+                'grub', 'gulp'
+            ]
+
+            # --- 4. EXPLICIT NON-FOOD BLACKLIST ---
+            prohibited_keywords = ['person', 'human', 'people', 'teacher', 'student', 'animal', 'object', 'thing']
+            
+            # Run calculations
+            is_spam_text = has_consecutive_repetitions(test_string, max_allowed=3)
+            is_nonsense_word = looks_like_gibberish(test_string)
+            contains_junk = any(junk in test_string for junk in prohibited_keywords)
+            is_valid_culinary = any(word in test_string for word in culinary_dictionary)
+
+            # Execution Gatekeeping Tree
+            if not clean_name:
                 st.error("Product name is required.")
-            elif not category:
+            elif not clean_category:
                 st.error("Category structure specification is required.")
+            # --- ✨ ACTIVE ENTRY SECURITY GATEKEEPER BANNER ---
+            elif is_spam_text or is_nonsense_word:
+                st.error(f"Invalid Entry: Input contains keyboard spam or gibberish patterns. Please use genuine descriptions.")
+            elif contains_junk or not is_valid_culinary:
+                st.error(f"Context Validation Alert: '{category}' is not a valid menu classification. Category must be related to food or beverages.")
             elif classification == 'Drinks (Gulps)' and not size_prices:
                 st.error("Please enable at least one size configuration option for drink catalog items.")
             else:
                 try:
                     price_cents = cents_from_peso(price)
                     generated_code = db.generate_product_code()
-                    starting_stock = 0 # Default to 0, Managed via Inventory Manager Workspace
+                    starting_stock = 0
                     
                     db.add_product(
-                        code=generated_code,
-                        name=name, 
-                        category=category, 
-                        price_cents=price_cents, 
-                        stock=starting_stock,
-                        threshold=low_stock_threshold,
+                        code=generated_code, name=clean_name, category=clean_category, price_cents=price_cents, 
+                        stock=starting_stock, threshold=low_stock_threshold,
                         size_prices=size_prices if classification == 'Drinks (Gulps)' else None
                     )
-                    st.success(f"Successfully registered '{name}' under '{category}' (Code: {generated_code})!")
+                    st.success(f"Successfully registered '{clean_name}' under '{clean_category}' (Code: {generated_code})!")
                     st.rerun()
-                except Exception as e:
-                    safe_error(e)
+                except Exception as e: safe_error(e)
+
 
         with tab2:
             st.subheader("Edit or Delete Product")
