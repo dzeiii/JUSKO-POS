@@ -227,45 +227,48 @@ elif mode == 'Admin' and page == 'Product Management':
                 price = parse_and_format_price(price_input)
                 
             # --- PATH 2: DRINKS ---
+                        # --- PATH 2: DRINKS ---
             elif classification == 'Drinks (Gulps)':
                 st.caption('Configure your cup sizes and pricing:')
-                s8, s12, s16 = st.columns(3)
                 
-                # Dictionary to accumulate all selected cup sizes and prices
+                # We use a container to segment it visually
                 size_prices = {}
                 
+                s8, s12, s16 = st.columns(3)
                 with s8:
-                    use8 = st.checkbox('Offer 8 oz', value=False, key=f'{classification}_use_8')
+                    # To make widgets inside forms interactive instantly, change their key 
+                    # or manage them dynamically by lifting them out of the standard form flow.
+                    use8 = st.checkbox('Offer 8 oz', value=False, key=f'{classification}_use_8_dyn')
                     if use8:
-                        price8 = st.number_input('8 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_8')
+                        price8 = st.number_input('8 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_8_dyn')
                         size_prices[8] = cents_from_peso(price8)
-                    
+                
                 with s12:
-                    use12 = st.checkbox('Offer 12 oz', value=True, key=f'{classification}_use_12')
+                    use12 = st.checkbox('Offer 12 oz', value=True, key=f'{classification}_use_12_dyn')
                     if use12:
-                        price12 = st.number_input('12 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_12')
+                        price12 = st.number_input('12 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_12_dyn')
                         size_prices[12] = cents_from_peso(price12)
-                    
+                
                 with s16:
-                    use16 = st.checkbox('Offer 16 oz', value=True, key=f'{classification}_use_16')
+                    use16 = st.checkbox('Offer 16 oz', value=True, key=f'{classification}_use_16_dyn')
                     if use16:
-                        price16 = st.number_input('16 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_16')
+                        price16 = st.number_input('16 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_16_dyn')
                         size_prices[16] = cents_from_peso(price16)
                 
                 st.divider()
                 st.markdown("##### 🥤 Other / Custom Size Profile")
-                use_custom = st.checkbox('Offer a different custom size', value=False, key=f'{classification}_use_custom')
-                
+                use_custom = st.checkbox('Offer a different custom size', value=False, key=f'{classification}_use_custom_dyn')
                 if use_custom:
                     c_size_col, c_price_col = st.columns(2)
                     with c_size_col: 
-                        custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key=f'{classification}_lbl_custom').strip()
+                        custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key=f'{classification}_lbl_custom_dyn').strip()
                     with c_price_col: 
-                        custom_price = st.number_input('Custom Size Price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_custom')
+                        custom_price = st.number_input('Custom Size Price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_custom_dyn')
                     
                     if custom_label:
                         size_prices[99] = cents_from_peso(custom_price)
                         category = f"{category} | Custom:{custom_label}"
+
                     
             # --- PATH 3: OTHERS ---
             elif classification == 'Others (Combo/Meal Plan)':
