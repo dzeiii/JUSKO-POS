@@ -279,7 +279,8 @@ elif mode == 'Admin' and page == 'Product Management':
         st.divider()
         low_stock_threshold = st.number_input('Low-stock alert boundary count', min_value=0, value=5, step=1)
         high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
-        
+
+        #Submitted button
         if st.button('Add product to Catalog', type='primary'):
             clean_name = name.strip()
             clean_category = category.strip()
@@ -321,11 +322,23 @@ elif mode == 'Admin' and page == 'Product Management':
             contains_junk = any(junk in test_string for junk in prohibited_keywords)
             category_has_drink_terms = any(dk in clean_category.lower() for dk in drink_keywords)
             is_valid_culinary = any(word in test_string for word in culinary_dictionary)
+                        # --- ✨ 1. RE-FETCH LIVE INSTANCES FROM DATABASE FOR COLLISION TESTING ---
+            try:
+                all_current_menu_items = db.list_products(active_only=True)
+                # Lowercase all saved names for a bulletproof, case-insensitive comparison
+                existing_product_names = [str(item['name']).lower().strip() for item in all_current_menu_items]
+            except Exception:
+                existing_product_names = []
 
+            # Execution Gatekeeping Tree
             if not clean_name:
                 st.error("Product name is required.")
             elif not clean_category:
                 st.error("Category structure specification is required.")
+                
+            elif clean_name.lower() in existing_product_names:
+                st.error(f"🔴 Catalog Conflict: A product named '{clean_name}' already exists in your store inventory! Please go to the 'Edit / Delete' tab to adjust its price instead of creating a duplicate row.")
+                
             elif is_spam_text or is_nonsense_word:
                 st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish patterns. Please use genuine descriptions.")
             elif contains_junk:
@@ -334,10 +347,8 @@ elif mode == 'Admin' and page == 'Product Management':
                 st.error(f"🔴 Classification Mismatch: You selected 'Drinks (Gulps)' but entered a non-beverage category '{category}'.")
             elif classification == 'Foods (Grubs)' and category_has_drink_terms:
                 st.error(f"🔴 Classification Mismatch: You selected 'Foods (Grubs)' but entered a drink-related category '{category}'.")
-            elif not is_valid_culinary:
-                st.error("🔴 Context Validation Alert: Category must be related to food or beverages.")
             elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0:
-                st.error("🔴 Validation Error: Price field is required. Please type a valid numeric amount greater than ₱0.00.")
+                st.error("🔴 Validation Error: Price field is required. Product price must be greater than ₱0.00.")
             elif classification == 'Drinks (Gulps)' and not size_prices:
                 st.error("🔴 Validation Error: Sizing prices are required. Please enable and price at least one cup size option.")
             else:
