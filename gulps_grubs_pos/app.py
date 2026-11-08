@@ -731,17 +731,36 @@ elif mode == 'Cashier' and page == 'New Sale':
     # LEFT COLUMN: AVAILABLE PRODUCTS
     with left:
         st.markdown('#### Available products')
+         selected_catalog_tab = st.radio(
+            "Filter Department Menu Context",
+            ["✨ All Catalog", "🍔 Foods (Grubs)", "🥤 Drinks (Gulps)"],
+            horizontal=True,
+            label_visibility="collapsed",
+            key="cashier_department_filter_tabs"
+        )
+        st.write("")
+
         query = st.text_input('Find a product', placeholder='Search product name or code')
+        # Apply filter modifications based on active selection loops
         if query.strip():
             match = product_tree.search(query.strip())
-            if (match and str(match['category']).split(" | Custom:", 1)[0].strip().casefold() not in inventory_categories):
-                shown = [match]
+            if match and match['category'] not in inventory_categories:
+                base_shown = [match]
             else:
-                shown = [p for p in products if query.casefold() in (str(p['name']) + ' ' + str(p['code'])).casefold()]
+                base_shown = [p for p in products if query.casefold() in (p['name'] + ' ' + p['code']).casefold()]
         else:
-            shown = products
+            base_shown = products
+
+        # 2. ADDED: Route matching products based on active department context grids
+        if selected_catalog_tab == "🍔 Foods (Grubs)":
+            shown = [p for p in base_shown if not db.get_product_sizes(p['id'])]
+        elif selected_catalog_tab == "🥤 Drinks (Gulps)":
+            shown = [p for p in base_shown if bool(db.get_product_sizes(p['id']))]
+        else:
+            shown = base_shown
+
         if not shown:
-            st.info('No matching active products.')
+            st.info('No matching active products found inside this department menu lane.')
             
         # PRODUCT DISPLAY
         for start_idx in range(0, len(shown), 2):
@@ -803,7 +822,7 @@ elif mode == 'Cashier' and page == 'New Sale':
 
                         prod_name_lower = str(p['name']).lower()
                         cat_lower = display_cat_clean.lower()
-
+                        
                         is_milktea = ('milktea' in cat_lower or 'milktea' in prod_name_lower)
                         is_milkshake = ('milkshake' in cat_lower or 'milkshake' in prod_name_lower)
                         is_lemonade_slushie = ('slushie' in cat_lower or 'slushie' in prod_name_lower)
@@ -812,36 +831,37 @@ elif mode == 'Cashier' and page == 'New Sale':
                         
                         # SINKER SELECTION
                         if is_drink:
-                            st.markdown("### Sinker Selection")
-                            if is_milktea:
-                                mt_sinker = st.radio("Included Sinker Options",
-                                    ["Include Pearls (Default)","No Sinkers (None)"],horizontal=True,key=f"radio_sink_{p['id']}")
-                                if mt_sinker == "No Sinkers (None)":
-                                    chosen_customizations.append("❌ NO PEARLS")
-                            elif is_milkshake:
-                                ms_sinker = st.radio("Included Sinker Options",
-                                    ["Include Pearls", "Include Nata", "No Sinkers (None)"],
-                                    horizontal=True,key=f"radio_sink_{p['id']}")
-                                if ms_sinker == "No Sinkers (None)":
-                                    chosen_customizations.append("❌ NO SINKERS")
-                            elif is_lemonade:
-                                lem_sinker = st.radio("Included Sinker Options",
-                                    ["Include Rainbow Jelly (Default)","No Sinkers (None)"],
-                                    horizontal=True,key=f"radio_sink_{p['id']}")
-                                if lem_sinker == "No Sinkers (None)":
-                                    chosen_customizations.append("❌ NO RAINBOW JELLY")
-                            elif is_lemonade_slushie:
-                                sl_sinker = st.radio("Included Sinker Options",
-                                    ["Include Nata (Default)","No Sinkers (None)"],
-                                    horizontal=True,key=f"radio_sink_{p['id']}")
-                                if sl_sinker == "No Sinkers (None)":
-                                    chosen_customizations.append("❌ NO NATA")
-                            elif is_coffee:
-                                cf_sinker = st.radio("Included Sinker Options",
-                                    ["Include Coffee Jelly (Default)","No Sinkers (None)"],
-                                    horizontal=True,key=f"radio_sink_{p['id']}")
-                                if cf_sinker == "No Sinkers (None)":
-                                    chosen_customizations.append("❌ NO COFFEE JELLY")
+                            if not is_float:
+                                st.markdown("### Sinker Selection")
+                                if is_milktea:
+                                    mt_sinker = st.radio("Included Sinker Options",
+                                        ["Include Pearls (Default)","No Sinkers (None)"],horizontal=True,key=f"radio_sink_{p['id']}")
+                                    if mt_sinker == "No Sinkers (None)":
+                                        chosen_customizations.append("❌ NO PEARLS")
+                                elif is_milkshake:
+                                    ms_sinker = st.radio("Included Sinker Options",
+                                        ["Include Pearls", "Include Nata", "No Sinkers (None)"],
+                                        horizontal=True,key=f"radio_sink_{p['id']}")
+                                    if ms_sinker == "No Sinkers (None)":
+                                        chosen_customizations.append("❌ NO SINKERS")
+                                elif is_lemonade:
+                                    lem_sinker = st.radio("Included Sinker Options",
+                                        ["Include Rainbow Jelly (Default)","No Sinkers (None)"],
+                                        horizontal=True,key=f"radio_sink_{p['id']}")
+                                    if lem_sinker == "No Sinkers (None)":
+                                        chosen_customizations.append("❌ NO RAINBOW JELLY")
+                                elif is_lemonade_slushie:
+                                    sl_sinker = st.radio("Included Sinker Options",
+                                        ["Include Nata (Default)","No Sinkers (None)"],
+                                        horizontal=True,key=f"radio_sink_{p['id']}")
+                                    if sl_sinker == "No Sinkers (None)":
+                                        chosen_customizations.append("❌ NO NATA")
+                                elif is_coffee:
+                                    cf_sinker = st.radio("Included Sinker Options",
+                                        ["Include Coffee Jelly (Default)","No Sinkers (None)"],
+                                        horizontal=True,key=f"radio_sink_{p['id']}")
+                                    if cf_sinker == "No Sinkers (None)":
+                                        chosen_customizations.append("❌ NO COFFEE JELLY")
                             
                             # ADD-ONS
                             st.markdown("### Add-ons")
@@ -931,15 +951,24 @@ elif mode == 'Cashier' and page == 'New Sale':
         else:
             for item in items:
                 with st.container(border=True):
-                    if item.get('size_oz'):
-                        size_lbl = ("22 oz" if int(item['size_oz']) == 99 else f"{item['size_oz']} oz")
-                    else:
+                    # Fetch and verify the exact size value mapped from the active checkout instance
+                    size_val = item.get('size_oz')
+                    if size_val is not None:
+                        # If size is 99 and a custom description string exists, use it; otherwise print the exact selected integer size
+                        if int(size_val) == 99 and custom_size_text: 
+                            size_lbl = custom_size_text
+                        else: 
+                            size_lbl = f"{size_val} oz"
+                    else: 
                         size_lbl = ""
-                    display_title = (f"{item['name']} ({size_lbl})" if size_lbl else f"{item['name']}")
-                    options_label = (f"\n\n{item['customizations']}" if item.get('customizations') else "")
-                    c1, c2 = st.columns([2, 1])
-                    c1.markdown(f"{display_title}{options_label}\n\n"f"{money(item['unit_price_cents'])} each",unsafe_allow_html=True)
-                    c2.markdown(f"{money(item['subtotal_cents'])}")
+                        
+                    display_title = f"**{item['name']} ({size_lbl})**" if size_lbl else f"**{item['name']}**"
+                    options_label = f"\n\n<small style='color:gray;'>{item['customizations']}</small>" if item.get('customizations') else ""
+                    
+                    c1, c2 = st.columns(2)
+                    c1.markdown(f"{display_title}{options_label}\n\n{money(item['unit_price_cents'])} each", unsafe_allow_html=True)
+                    c2.markdown(f"**{money(item['subtotal_cents'])}**")
+
                     qcol, rmcol = st.columns([2, 1])
                     new_q = qcol.number_input('Quantity',min_value=1,max_value=1000000,value=int(item['quantity']),step=1,
                         key=(f"cart_q_{item['product_id']} {item.get('size_oz') or 'std'} {abs(hash(str(item.get('customizations', ''))))}"))
