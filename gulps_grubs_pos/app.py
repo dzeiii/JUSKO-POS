@@ -979,37 +979,45 @@ elif mode == 'Cashier' and page == 'New Sale':
 
             cashier_name = st.text_input('Cashier name (optional)',value='Cashier')
             confirm = st.form_submit_button('Confirm sale',type='primary',use_container_width=True)
-            if confirm:  
+            if confirm:
                 try:
-                    if not customer_name.strip(): 
+                    if not customer_name.strip():
                         raise ValueError("Please enter the customer name.")
-                
-                    raw_cart_values = list(st.session_state.cart._items.values()) if hasattr(st.session_state.cart, '_items') else list(st.session_state.cart.items())
-                    
+                    raw_cart_values = (
+                        list(st.session_state.cart._items.values())
+                        if hasattr(st.session_state.cart, '_items')
+                        else list(st.session_state.cart.items())
+                    )
+            
                     if not raw_cart_values:
-                        raise ValueError("Your checkout shopping basket is completely empty.")
-
-                    sale = db.checkout(raw_cart_values, cashier_label.strip() or 'Cashier')
-                    st.session_state.last_sale = sale
-
+                        raise ValueError("Your shopping cart is empty.")
+            
                     order_details_list = []
                     for item in raw_cart_values:
-                        size_suffix = f" ({item['custom_size_lbl']})" if item.get('custom_size_lbl') else ""
+                        size_suffix = (
+                            f" ({item['custom_size_lbl']})"
+                            if item.get('custom_size_lbl')
+                            else ""
+                        )            
                         order_details_list.append(f"{item['quantity']}x {item['name']}{size_suffix}")
                     order_details_str = ", ".join(order_details_list)
-                    
-                    db.add_order(customer_name.strip(), order_details_str, int(priority_level))
+                    sale = db.checkout(
+                        raw_cart_values,
+                        cashier_label=cashier_label.strip() or 'Cashier',
+                        customer_name=customer_name.strip(),
+                        order_details=order_details_str,
+                        priority=int(priority_level)
+                    )
             
+                    st.session_state.last_sale = sale
                     st.session_state.cart.clear()
-            
-                    # SUCCESS TRANSACTION PRINT RECEIPT FOR CUSTOMER BILLING
-                    success_msg = f"🟢 TRANSACTION SUCCESS [CASHIER]: Sale receipt checkout #{sale['transaction_id']} processed successfully! customer invoice balance: {money(sale['total_cents'])} received in cash registry ledger. ticket dispatched to kitchen pickup priority queue."
-                    st.success(success_msg)
-                    
-                    db.log_activity('Cashier', 'Sale Completed', f"Receipt #{sale['transaction_id']} · Total: {money(sale['total_cents'])}")
+                    success_msg = (f"TRANSACTION SUCCESS [CASHIER]: Receipt #{sale['transaction_id']} processed successfully! Customer: {customer_name.strip()} | Total: {money(sale['total_cents'])}")
+                    db.log_activity('Cashier','Sale Completed',"Receipt #{sale['transaction_id']}", "Total: {money(sale['total_cents'])}")
                     logging.info(success_msg)
+                    st.success(success_msg)
                     st.rerun()
-                except Exception as e: 
+                except Exception as e:
+                    logging.exception("Cashier checkout failed.")
                     safe_error(e)
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
