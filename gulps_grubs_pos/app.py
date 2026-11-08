@@ -1,5 +1,12 @@
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
+from pathlib import Path
+import logging
+import sqlite3
+import streamlit as st
+import pandas as pd
+from data_structures import LinkedListCart, AVLTree, MinHeap, HeapEntry
+import database as db
 
 # Official Philippine timezone
 PH_TZ = ZoneInfo("Asia/Manila")
@@ -11,19 +18,10 @@ def ph_today():
     return ph_now().date()
 
 def ph_datetime_string():
-    # Keep the existing SQLite-compatible timestamp format
     return ph_now().replace(tzinfo=None).isoformat(timespec="seconds")
-from pathlib import Path
-import logging
-import sqlite3
-import streamlit as st
-import pandas as pd
-from data_structures import LinkedListCart, AVLTree, MinHeap, HeapEntry
-import database as db
 
-
-APP_DIR=Path(__file__).resolve().parent
-LOG_PATH=APP_DIR/'pos.log'
+APP_DIR = Path(__file__).resolve().parent
+LOG_PATH = APP_DIR / 'pos.log'
 logging.basicConfig(filename=LOG_PATH, level=logging.ERROR, format='%(asctime)s %(levelname)s %(message)s')
 
 st.set_page_config(page_title='Gulps & Grubs | POS', page_icon='🥤', layout='wide', initial_sidebar_state='collapsed')
@@ -31,14 +29,13 @@ st.set_page_config(page_title='Gulps & Grubs | POS', page_icon='🥤', layout='w
 def money(cents): return f"₱{int(cents)/100:,.2f}"
 def safe_error(exc):
     logging.exception('Application operation failed')
-    if isinstance(exc,(ValueError,sqlite3.IntegrityError)): st.error(str(exc))
+    if isinstance(exc, (ValueError, sqlite3.IntegrityError)): st.error(str(exc))
     else: st.error('Something went wrong while saving your changes. No incomplete transaction was committed. Check pos.log for technical details.')
 def cents_from_peso(value): return int(round(float(value)*100))
 
 def load_html_template(_filename, **values):
     """Load a small HTML fragment from templates/ and safely fill placeholders."""
     from html import escape
-    # Fixed typo: uses _filename which will never collide with product properties
     template_path = APP_DIR / 'templates' / _filename
     content = template_path.read_text(encoding='utf-8')
     for key, value in values.items():
@@ -46,15 +43,15 @@ def load_html_template(_filename, **values):
     return content
 
 def rebuild_tree():
-    tree=AVLTree()
-    for p in db.list_products(active_only=True): tree.insert(p['code'],p)
+    tree = AVLTree()
+    for p in db.list_products(active_only=True): tree.insert(p['code'], p)
     tree.validate()
     return tree
 
 def rebuild_heap():
-    heap=MinHeap()
+    heap = MinHeap()
     for o in db.list_orders(pending_only=True):
-        heap.push(HeapEntry(int(o['priority']),int(o['sequence_no']),int(o['id']),o))
+        heap.push(HeapEntry(int(o['priority']), int(o['sequence_no']), int(o['id']), o))
     return heap
 
 st.markdown(f'<style>{(APP_DIR / "style.css").read_text(encoding="utf-8")}</style>', unsafe_allow_html=True)
@@ -66,14 +63,12 @@ except Exception as e:
     logging.exception('Database initialization failed')
     st.stop()
 
-if 'cart' not in st.session_state: st.session_state.cart=LinkedListCart()
-if 'last_sale' not in st.session_state: st.session_state.last_sale=None
-if 'mode' not in st.session_state: st.session_state.mode='Admin'
+if 'cart' not in st.session_state: st.session_state.cart = LinkedListCart()
+if 'last_sale' not in st.session_state: st.session_state.last_sale = None
+if 'mode' not in st.session_state: st.session_state.mode = 'Admin'
 
 st.markdown(load_html_template('brand_banner.html'), unsafe_allow_html=True)
 
-# Branded horizontal header inspired by the supplied storefront navigation reference.
-# The logo, workspace switcher, and page links share one orange header bar.
 with st.container(key='site_header'):
     logo_col, brand_col, mode_col, page_col = st.columns([1.05, 1.8, 1.55, 5.2], vertical_alignment='center', gap='small')
     with logo_col:
@@ -82,113 +77,97 @@ with st.container(key='site_header'):
         st.markdown(load_html_template('site_brand.html'), unsafe_allow_html=True)
     with mode_col:
         st.markdown(load_html_template('nav_label.html', label='WORKSPACE'), unsafe_allow_html=True)
-        mode=st.radio('Workspace',['Admin','Cashier','Inventory Manager'],index=['Admin','Cashier','Inventory Manager'].index(st.session_state.get('mode_choice','Admin')) if st.session_state.get('mode_choice','Admin') in ['Admin','Cashier','Inventory Manager'] else 0,
-                      horizontal=True,key='mode_choice',label_visibility='collapsed')
-    st.session_state.mode=mode
+        mode = st.radio('Workspace', ['Admin', 'Cashier', 'Inventory Manager'], index=['Admin', 'Cashier', 'Inventory Manager'].index(st.session_state.get('mode_choice', 'Admin')) if st.session_state.get('mode_choice', 'Admin') in ['Admin', 'Cashier', 'Inventory Manager'] else 0, horizontal=True, key='mode_choice', label_visibility='collapsed')
+    st.session_state.mode = mode
     with page_col:
         st.markdown(load_html_template('nav_label.html', label='NAVIGATION'), unsafe_allow_html=True)
-        if mode=='Admin':
-            page=st.radio('Admin navigation',['Dashboard','Product Management','Sales History','Activity History'],
-                          horizontal=True,key='admin_page',label_visibility='collapsed')
-        elif mode=='Cashier':
+        if mode == 'Admin':
+            page = st.radio('Admin navigation', ['Dashboard', 'Product Management', 'Sales History', 'Activity History'], horizontal=True, key='admin_page', label_visibility='collapsed')
+        elif mode == 'Cashier':
             cashier_options = ['Dashboard', 'New Sale', 'Pickup Queue Priority', 'Last Transaction', 'Sales History']
             current_selection = st.session_state.get('cashier_page', 'Dashboard')
             if current_selection not in cashier_options:
                 current_selection = 'Dashboard'
-                
-            page = st.radio(
-                'Cashier navigation', 
-                cashier_options,
-                index=cashier_options.index(current_selection),
-                horizontal=True, 
-                key='cashier_page', 
-                label_visibility='collapsed'
-            )
+            page = st.radio('Cashier navigation', cashier_options, index=cashier_options.index(current_selection), horizontal=True, key='cashier_page', label_visibility='collapsed')
         else:
-            page=st.radio('Inventory navigation',['Dashboard','Stock Overview','Restock Products'],
-                          horizontal=True,key='inventory_page',label_visibility='collapsed')
+            page = st.radio('Inventory navigation', ['Dashboard', 'Stock Overview', 'Restock Products'], horizontal=True, key='inventory_page', label_visibility='collapsed')
 st.caption('Demo mode selector only — it is not secure authentication.')
 
-# Rebuild the AVL tree from SQLite at each run, keeping the database as source of truth.
-try: product_tree=rebuild_tree()
+try: product_tree = rebuild_tree()
 except Exception as e:
     safe_error(e); st.stop()
-#==================
-### ADMIN MODE 
-#==================
-if mode=='Admin' and page=='Dashboard':
+
+# =========================================================================
+# 👑 ADMIN WORKSPACE MODULES
+# =========================================================================
+if mode == 'Admin' and page == 'Dashboard':
     from datetime import datetime, time, timedelta
     today = ph_today()
-    start = datetime.combine(today, time.min).isoformat()
-    end = datetime.combine(
-        today + timedelta(days=1),
-        time.min
-    ).isoformat()
+    start_time = datetime.combine(today, time.min).isoformat()
+    end_time = datetime.combine(today + timedelta(days=1), time.min).isoformat()
     
     st.subheader('Business overview')
-    today=date.today(); start=datetime.combine(today,time.min).isoformat(); end=datetime.combine(today+timedelta(days=1),time.min).isoformat()
-    summary=db.sales_summary(start,end)
-    all_products=db.list_products(active_only=True)
-    low=[p for p in all_products if p['stock']<=p['low_stock_threshold']]
+    # FIXED: Cleared out the duplicate lines that overrode local timeline parameters back to UTC
+    summary = db.sales_summary(start_time, end_time)
+    all_products = db.list_products(active_only=True)
+    low = [p for p in all_products if p['stock'] <= p['low_stock_threshold']]
     high = [p for p in all_products if p['stock'] >= p['high_stock_threshold']]
-    a,b,c,d,e=st.columns(5)
-    a.metric('Today’s revenue',money(summary['revenue_cents']))
-    b.metric('Completed sales',summary['transactions'])
-    c.metric('Active products',len(all_products))
-    d.metric('Low-stock alerts',len(low),delta='Needs attention' if low else 'Stock looks good',delta_color='inverse' if low else 'normal')
-    e.metric('High-stock alerts',len(high),delta='Overstocked' if high else 'Stock looks good', delta_color='off' if high else 'normal',help='Products at or above their Admin-defined high-stock threshold.'
-)
+    
+    a, b, c, d, e = st.columns(5)
+    a.metric('Today’s revenue', money(summary['revenue_cents']))
+    b.metric('Completed sales', summary['transactions'])
+    c.metric('Active products', len(all_products))
+    d.metric('Low-stock alerts', len(low), delta='Needs attention' if low else 'Stock looks good', delta_color='inverse' if low else 'normal')
+    e.metric('High-stock alerts', len(high), delta='Overstocked' if high else 'Stock looks good', delta_color='off' if high else 'normal', help='Products at or above their Admin-defined high-stock threshold.')
 
     st.caption('Revenue is the total value of recorded sales, not profit. Product costs and operating expenses are not tracked.')
     
-    left,right=st.columns([1.15,1])
+    left, right = st.columns([1.15, 1])
     with left:
         st.markdown('#### Low-stock watch')
         if low:
-            st.dataframe(pd.DataFrame([{'Code':p['code'],'Product':p['name'],'Stock':p['stock'],'Alert at':p['low_stock_threshold']} for p in low]),use_container_width=True,hide_index=True)
+            st.dataframe(pd.DataFrame([{'Code': p['code'], 'Product': p['name'], 'Stock': p['stock'], 'Alert at': p['low_stock_threshold']} for p in low]), use_container_width=True, hide_index=True)
         else: st.success('No active products are at or below their low-stock threshold.')
 
         st.markdown('#### High-stock watch')
         if high:
-            st.dataframe(pd.DataFrame([{'Code':p['code'],'Product':p['name'],'Stock':p['stock'],'Limit':p.get('high_stock_threshold', 0)} for p in high]),use_container_width=True,hide_index=True)
+            st.dataframe(pd.DataFrame([{'Code': p['code'], 'Product': p['name'], 'Stock': p['stock'], 'Limit': p.get('high_stock_threshold', 0)} for p in high]), use_container_width=True, hide_index=True)
         else: st.success('No active products are at or above their high-stock threshold.')
     
     with right:
         st.markdown('#### Recent transactions')
-        recent=db.transaction_history()[:6]
-        if recent: st.dataframe(pd.DataFrame([{'Sale #':r['id'],'Date':r['created_at'].replace('T',' '),'Total':money(r['total_cents'])} for r in recent]),use_container_width=True,hide_index=True)
+        recent = db.transaction_history()[:6]
+        if recent: st.dataframe(pd.DataFrame([{'Sale #': r['id'], 'Date': r['created_at'].replace('T', ' ')[:16], 'Total': money(r['total_cents'])} for r in recent]), use_container_width=True, hide_index=True)
         else: st.info('Completed sales will appear here.')
+        
     st.markdown('#### Sales over the last 7 days')
-    daily=[]
-    for i in range(6,-1,-1):
-        day=today-timedelta(days=i); s=datetime.combine(day,time.min).isoformat(); e=datetime.combine(day+timedelta(days=1),time.min).isoformat(); sm=db.sales_summary(s,e)
-        daily.append({'Date':day.strftime('%b %d'),'Revenue (₱)':sm['revenue_cents']/100})
+    daily = []
+    for i in range(6, -1, -1):
+        day = today - timedelta(days=i)
+        s = datetime.combine(day, time.min).isoformat()
+        e = datetime.combine(day + timedelta(days=1), time.min).isoformat()
+        sm = db.sales_summary(s, e)
+        daily.append({'Date': day.strftime('%b %d'), 'Revenue (₱)': sm['revenue_cents'] / 100})
     st.bar_chart(pd.DataFrame(daily).set_index('Date'))
 
-elif mode=='Admin' and page=='Product Management':
+elif mode == 'Admin' and page == 'Product Management':
     st.subheader('Product Catalog Management')
     tab1, tab2, tab3 = st.tabs(['Add product', 'Edit / Delete', 'View Catalog'])
     
     with tab1:
-        classification = st.radio('Product Classification *', 
-            ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], 
-            horizontal=True
-        )
+        classification = st.radio('Product Classification *', ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], horizontal=True)
         st.markdown("---")
         name = st.text_input('Product name *', placeholder='Enter product name', key='prod_name_input').strip()
         category = ""
         size_prices = {}
         price = 0.0
         
-         # --- PATH 1: FOODS ---
         if classification == 'Foods (Grubs)':
             category = st.text_input('Category *', placeholder='e.g. Streetfood, Donut and Waffles').strip()
-            price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
+            price = st.number_input('Price (₱)', min_value=1.0, step=5.0, format='%.2f')
             
-        # --- PATH 2: DRINKS ---
         elif classification == 'Drinks (Gulps)':
             base_category = st.text_input('Category Name *', placeholder='e.g. Milkshake, Float, Milktea').strip()
-            
             st.caption('Configure your cup sizes and pricing:')
             s8, s12, s16 = st.columns(3)
             
@@ -206,6 +185,7 @@ elif mode=='Admin' and page=='Product Management':
             st.markdown("##### 🥤 Other / Custom Size Profile")
             use_custom = st.checkbox('Offer a different custom size', value=False, key=f'{classification}_use_custom')
             
+
             c_size_col, c_price_col = st.columns(2)
             with c_size_col:
                 custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', disabled=not use_custom, key=f'{classification}_lbl_custom').strip()
