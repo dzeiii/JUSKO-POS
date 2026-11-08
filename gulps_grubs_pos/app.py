@@ -295,17 +295,17 @@ elif mode == 'Admin' and page == 'Product Management':
             except Exception: 
                 existing_product_names = []
 
-            # --- 🚨 STEP 1: EMPTY FIELD VALIDATION CHECKS RUN FIRST ---
-            if not clean_name: 
+            # --- 🚨 STEP 1: DUPLICATE CHECK EVALUATES FIRST AT THE VERY TOP OF THE TREE 🚨 ---
+            if clean_name and name_audit in existing_product_names: 
+                st.error(f"🔴 Catalog Conflict: A product named '{clean_name}' already exists in your store inventory! Please go to the 'Edit / Delete' tab to modify its details instead of creating a duplicate row.")
+
+            # --- STEP 2: Empty field validation checks evaluate next downstream ---
+            elif not clean_name: 
                 st.error("Product name is required.")
             elif not clean_category: 
                 st.error("Category structure specification is required.")
 
-            # --- 🚨 STEP 2: DUPLICATE CHECK EVALUATES IMMEDIATELY AFTER FILL CHECKS ---
-            elif name_audit in existing_product_names: 
-                st.error(f"🔴 Catalog Conflict: A product named '{clean_name}' already exists in your store inventory! Please go to the 'Edit / Delete' tab to modify its details instead of creating a duplicate row.")
-
-            # --- STEP 3: Remaining contextual filters run downstream normally ---
+            # --- STEP 3: Remaining contextual and price filters run safely downstream ---
             elif has_consecutive_repetitions(combined_audit, max_allowed=3) or looks_like_gibberish(combined_audit): 
                 st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish text patterns.")
             elif any(junk in combined_audit for junk in prohibited_keywords): 
@@ -334,7 +334,6 @@ elif mode == 'Admin' and page == 'Product Management':
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     st.rerun()
                 except Exception as e: safe_error(e)
-
                     
     # EDIT / DELETE TAB
     with tab2:
