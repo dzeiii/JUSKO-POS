@@ -872,28 +872,36 @@ elif mode == 'Cashier' and page == 'New Sale':
                     # PROCESS ADD TO CART
                     if add:
                         try:
-                            if qty > p['stock']:
+                            if qty > p['stock']: 
                                 raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
-                            if size_oz and int(size_oz) == 99 and custom_size_text:
+                            
+                            # 1. Check size variables on-the-fly
+                            if size_oz and int(size_oz) == 99 and custom_size_text: 
                                 size_display_name = custom_size_text
-                            elif size_oz:
+                            elif size_oz: 
                                 size_display_name = f"{size_oz} oz"
-                            else:
+                            else: 
                                 size_display_name = ''
+                            checkout_product_payload = p.copy()
+                           
+                            if size_oz and int(size_oz) == 99 and custom_size_text:
+                                checkout_product_payload['name'] = f"{p['name']} ({custom_size_text})"
+                                
                             final_notes_list = chosen_customizations.copy()
-                            if custom_note:
+                            if custom_note: 
                                 final_notes_list.append(custom_note)
                             combined_customizations = '; '.join(final_notes_list)
+                                
                             st.session_state.cart.add(
-                                p,
-                                int(qty),
-                                size_oz=size_oz,
-                                unit_price_cents=unit_price,
+                                checkout_product_payload, 
+                                int(qty), 
+                                size_oz=size_oz, 
+                                unit_price_cents=unit_price, 
                                 customizations=combined_customizations
                             )
                             st.rerun()
-                        except Exception as e:
-                            safe_error(e)
+                        except Exception as e: safe_error(e)
+
     # SHOPPING CART
     with right:
         st.markdown('#### Shopping cart')
