@@ -204,13 +204,11 @@ elif mode == 'Admin' and page == 'Product Management':
             category = ""
             size_prices = {}
             price = 0.0
-
-            # Single Unified Auto-Suggest Combo Box
-            category_selection = st.selectbox('Category *',options=options_pool,index=None,placeholder="Type a new category OR select a saved one...",key=f'f_cat_select_{classification}')
-            if category_selection is not None:
-                category = str(category_selection).strip()
-            else:
-                category = str(user_typing).strip()
+            
+            category = st.text_input(
+                'Category *', 
+                placeholder="Type your category name here (e.g., Waffle, Streetfood)...", 
+                key=f'f_cat_text_input_lane_{classification}').strip()
                 
             def parse_and_format_price(raw_text):
                 if not raw_text:
