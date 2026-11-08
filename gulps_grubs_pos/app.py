@@ -1017,6 +1017,9 @@ elif mode == 'Cashier' and page == 'New Sale':
                     st.success(success_msg)
                     st.rerun()
                 except Exception as e:
+                    st.error(f"🔍 INTERNAL SYSTEM ERROR DETECTED: {str(e)}")
+                    st.warning("Something went wrong while saving your changes. No incomplete transaction was committed.")
+
                     logging.exception("Cashier checkout failed.")
                     safe_error(e)
 
