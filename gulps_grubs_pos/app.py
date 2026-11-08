@@ -176,22 +176,21 @@ elif mode == 'Admin' and page == 'Product Management':
         category = ""
         size_prices = {}
         price = 0.0
-
-        # --- 3. DYNAMIC TYPE-OR-SELECT SELECTION FIELD (NO EXTRA BUTTONS) ---
-        # Provides an editable dropdown that automatically remembers your inputs
-        category = st.selectbox(
+        
+        category_selection = st.selectbox(
             'Category *',
             options=existing_saved_cats,
-            index=None, # Starts completely blank so it doesn't force a choice
+            index=None, 
             placeholder="Type a new category OR select a saved one...",
             key='active_dropdown_cat_selector'
         )
-        
-        # Fallback to catch the value from memory if the user is typing
-        if category is None:
-            category = st.session_state.get('active_dropdown_cat_selector', '').strip()
+    
+        if category_selection is None:
+            # Look directly inside the text input buffer search keys safely
+            category = str(st.session_state.get('active_dropdown_cat_selector', '') or '').strip()
         else:
-            category = category.strip()
+            category = str(category_selection).strip()
+
 
         # --- PATH 1: FOODS ---
         if classification == 'Foods (Grubs)':
