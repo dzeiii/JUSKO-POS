@@ -802,121 +802,75 @@ elif mode == 'Cashier' and page == 'New Sale':
                     with st.form(f"add_cart_{p['id']}"):
                         size_oz = None
                         unit_price = p['price_cents']
-                        # DRINK SIZE SELECTION
-                        if is_drink:
-                            available_sizes = list(sizes.keys())
-                            def size_label_formatter(z):
-                                if int(z) == 99 and custom_size_text:
-                                    return custom_size_text
-                                elif int(z) == 99:
-                                    return "Custom Size"
-                                return f"{z} oz"
-                            size_oz = st.radio('Choose cup size', available_sizes,
-                                format_func=size_label_formatter, horizontal=True,key=f"size_{p['id']}")
-                            unit_price = sizes[size_oz]
-                            st.caption(f"Selected size price: {money(unit_price)}")
-                        
-                        # PRODUCT CUSTOMIZATIONS
                         chosen_customizations = []
                         addon_premium = 0
-
-                        prod_name_lower = str(p['name']).lower()
-                        cat_lower = display_cat_clean.lower()
                         
-                        is_milktea = ('milktea' in cat_lower or 'milktea' in prod_name_lower)
-                        is_milkshake = ('milkshake' in cat_lower or 'milkshake' in prod_name_lower)
-                        is_lemonade_slushie = ('slushie' in cat_lower or 'slushie' in prod_name_lower)
-                        is_lemonade = ('lemonade' in cat_lower or 'lemonade' in prod_name_lower ) and not is_lemonade_slushie
-                        is_coffee = ('coffee' in cat_lower or 'coffee' in prod_name_lower)
-                        is_float_or_juice = ('float' in cat_lower or 'float' in prod_name_lower or 'juice' in cat_lower or 'juice' in prod_name_lower)
-                          
-                        # SINKER SELECTION
-                        if is_drink:
-                            if not is_float_or_juice:
-                                st.markdown("### Sinker Selection")
-                                if is_milktea:
-                                    mt_sinker = st.radio("Included Sinker Options",
-                                        ["Include Pearls (Default)","No Sinkers (None)"],horizontal=True,key=f"radio_sink_{p['id']}")
-                                    if mt_sinker == "No Sinkers (None)":
-                                        chosen_customizations.append("❌ NO PEARLS")
-                                elif is_milkshake:
-                                    ms_sinker = st.radio("Included Sinker Options",
-                                        ["Include Pearls", "Include Nata", "No Sinkers (None)"],
-                                        horizontal=True,key=f"radio_sink_{p['id']}")
-                                    if ms_sinker == "No Sinkers (None)":
-                                        chosen_customizations.append("❌ NO SINKERS")
-                                elif is_lemonade:
-                                    lem_sinker = st.radio("Included Sinker Options",
-                                        ["Include Rainbow Jelly (Default)","No Sinkers (None)"],
-                                        horizontal=True,key=f"radio_sink_{p['id']}")
-                                    if lem_sinker == "No Sinkers (None)":
-                                        chosen_customizations.append("❌ NO RAINBOW JELLY")
-                                elif is_lemonade_slushie:
-                                    sl_sinker = st.radio("Included Sinker Options",
-                                        ["Include Nata (Default)","No Sinkers (None)"],
-                                        horizontal=True,key=f"radio_sink_{p['id']}")
-                                    if sl_sinker == "No Sinkers (None)":
-                                        chosen_customizations.append("❌ NO NATA")
-                                elif is_coffee:
-                                    cf_sinker = st.radio("Included Sinker Options",
-                                        ["Include Coffee Jelly (Default)","No Sinkers (None)"],
-                                        horizontal=True,key=f"radio_sink_{p['id']}")
-                                    if cf_sinker == "No Sinkers (None)":
-                                        chosen_customizations.append("❌ NO COFFEE JELLY")
-                            
-                            # ADD-ONS
-                            st.markdown("### Add-ons")
-                            sk1, sk2, sk3, sk4 = st.columns(4)
-                            with sk1:
-                                add_extra_pearl = st.checkbox("Extra Pearls (+₱5)",key=f"add_p_{p['id']}")
-                            with sk2:
-                                add_extra_nata = st.checkbox("Extra Nata (+₱5)",key=f"add_n_{p['id']}")
-                            with sk3:
-                                add_extra_jelly = st.checkbox("Extra Jelly (+₱5)",key=f"add_j_{p['id']}")
-                            with sk4:
-                                add_extra_coffee_jelly = st.checkbox("Extra Coffee Jelly (+₱5)",key=f"add_c_{p['id']}")
-                            
-                            if add_extra_pearl:
-                                chosen_customizations.append("➕ Extra Pearls")
-                                addon_premium += 500
-                            if add_extra_nata:
-                                chosen_customizations.append("➕ Extra Nata")
-                                addon_premium += 500
-                            if add_extra_jelly:
-                                chosen_customizations.append("➕ Extra Jelly")
-                                addon_premium += 500
-                            if add_extra_coffee_jelly:
-                                chosen_customizations.append("➕ Extra Coffee Jelly")
-                                addon_premium += 500
+                        # Set up the text variables safely
+                        prod_name_lower = p['name'].lower()
+                        cat_lower = display_cat_clean.lower()
+                        is_milktea = 'milktea' in cat_lower or 'milktea' in prod_name_lower
+                        is_milkshake = 'milkshake' in cat_lower or 'milkshake' in prod_name_lower
+                        is_lemonade_slushie = 'slushie' in cat_lower or 'slushie' in prod_name_lower
+                        is_lemonade = ('lemonade' in cat_lower or 'lemonade' in prod_name_lower) and not is_lemonade_slushie
+                        is_coffee = 'coffee' in cat_lower or 'coffee' in prod_name_lower
+                        is_float_or_juice = 'float' in cat_lower or 'float' in prod_name_lower or 'juice' in cat_lower or 'juice' in prod_name_lower
 
-                            unit_price += addon_premium
-                            
-                        # SPECIAL NOTES
-                        if is_drink:
-                            note_hint = "e.g., 50% Sugar, Less Ice, Allergy Alerts"
-                        elif ("fries" in display_cat_clean.lower()or "snack" in display_cat_clean.lower()):
-                            note_hint = "e.g., Barbecue, Cheese, Sour Cream, No Salt"
-                        elif ("donut" in display_cat_clean.lower()or "waffle" in display_cat_clean.lower()or "dessert" in display_cat_clean.lower()):
-                            note_hint = "e.g., Chocolate Syrup, Maple, Whipped Cream"
-                        else:
-                            note_hint = "e.g., Add notes, flavors, combos, or allergy alerts here..."
-                        custom_note = st.text_input('Special Notes / Customization',placeholder=note_hint,key=f"note_input_{p['id']}").strip()
+                        # FIXED: This popover creates a clean window that opens ONLY when clicked!
+                        with st.popover("⚙️ Customize Options", use_container_width=True, disabled=p['stock'] < 1):
+                            if is_drink:
+                                st.markdown("##### 🥤 Sizing Configuration")
+                                available_sizes = list(sizes.keys())
+                                def size_label_formatter(z):
+                                    if int(z) == 99 and custom_size_text: return custom_size_text
+                                    return f"{z} oz"
+                                size_oz = st.radio('Choose Size:', available_sizes, format_func=size_label_formatter, horizontal=True, key=f"size_{p['id']}")
+                                unit_price = sizes[size_oz]
+                                st.caption(f"Base Size Price: {money(unit_price)}")
+                                
+                                # Sinker logic inside popover window
+                                if not is_float_or_juice:
+                                    st.markdown("##### 🧊 Sinker Options")
+                                    if is_milktea:
+                                        mt_sinker = st.radio("Sinkers:", ["Pearls (Default)", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                        if mt_sinker == "None": chosen_customizations.append("❌ NO PEARLS")
+                                    elif is_milkshake:
+                                        ms_sinker = st.radio("Sinkers:", ["Pearls & Nata", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                        if ms_sinker == "None": chosen_customizations.append("❌ NO SINKERS")
+                                    elif is_lemonade:
+                                        lem_sinker = st.radio("Sinkers:", ["Rainbow Jelly", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                        if lem_sinker == "None": chosen_customizations.append("❌ NO RAINBOW JELLY")
+                                    elif is_lemonade_slushie:
+                                        sl_sinker = st.radio("Sinkers:", ["Nata", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                        if sl_sinker == "None": chosen_customizations.append("❌ NO NATA")
+                                    elif is_coffee:
+                                        cf_sinker = st.radio("Sinkers:", ["Coffee Jelly", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                        if cf_sinker == "None": chosen_customizations.append("❌ NO COFFEE JELLY")
 
-                        # QUANTITY
-                        qty = st.number_input(
-                            'Qty',
-                            min_value=1,
-                            max_value=max(1, int(p['stock'])),
-                            value=1,
-                            step=1,
-                            key=f"qty_{p['id']}",
-                            disabled=p['stock'] < 1
-                        )
-                        add = st.form_submit_button(
-                            'Add to cart',
-                            use_container_width=True,
-                            disabled=p['stock'] < 1
-                        )
+                                # Add-ons options inside popover window
+                                st.markdown("##### ➕ Topping Add-ons (+₱5)")
+                                sk_c1, sk_c2 = st.columns(2)
+                                with sk_c1: add_extra_pearl = st.checkbox("Extra Pearls", key=f"add_p_{p['id']}")
+                                with sk_c2: add_extra_nata = st.checkbox("Extra Nata", key=f"add_n_{p['id']}")
+                                with sk_c1: add_extra_jelly = st.checkbox("Extra Jelly", key=f"add_j_{p['id']}")
+                                with sk_c2: add_extra_coffee_jelly = st.checkbox("Extra C.Jelly", key=f"add_c_{p['id']}")
+                                
+                                if add_extra_pearl: chosen_customizations.append("➕ Extra Pearls"); addon_premium += 500
+                                if add_extra_nata: chosen_customizations.append("➕ Extra Nata"); addon_premium += 500
+                                if add_extra_jelly: chosen_customizations.append("➕ Extra Jelly"); addon_premium += 500
+                                if add_extra_coffee_jelly: chosen_customizations.append("➕ Extra Coffee Jelly"); addon_premium += 500
+                                unit_price += addon_premium
+
+                            st.markdown("##### 📝 Order Specifications")
+                            if is_drink: note_hint = "e.g., 50% Sugar, Less Ice"
+                            elif "fries" in display_cat_clean.lower() or "snack" in display_cat_clean.lower(): note_hint = "e.g., BBQ, Cheese, Sour Cream"
+                            else: note_hint = "e.g., Syrup, Whipped Cream, Allergy notes..."
+
+                            custom_note = st.text_input('Special Notes', placeholder=note_hint, key=f"note_input_{p['id']}").strip()
+                            qty = st.number_input('Quantity to Order', min_value=1, max_value=max(1, int(p['stock'])), value=1, step=1, key=f"qty_{p['id']}", disabled=p['stock'] < 1)
+
+                        # This remains the single baseline submit button visible outside the popover window
+                        add = st.form_submit_button('🛒 Add to cart', use_container_width=True, disabled=p['stock'] < 1)
+
                     # PROCESS ADD TO CART
                     if add:
                         try:
