@@ -204,18 +204,11 @@ elif mode == 'Admin' and page == 'Product Management':
             category = ""
             size_prices = {}
             price = 0.0
-
-                        # 2. FIXED: A single required text field that gives you 100% manual typing freedom
             category = st.text_input(
                 'Category *', 
                 placeholder="Type any category name here (e.g., Waffle, Streetfood)...", 
                 key=f'f_cat_text_input_lane_{classification}'
             ).strip()
-
-            # Smart Memory Reminder: Lists previously saved categories for this specific classification tab right below the field
-            if existing_saved_cats:
-                st.caption(f"💡 Previously saved categories in this workspace: {', '.join(existing_saved_cats)}")
-
                 
             def parse_and_format_price(raw_text):
                 if not raw_text:
@@ -231,25 +224,33 @@ elif mode == 'Admin' and page == 'Product Management':
                 price = parse_and_format_price(price_input)
 
             # PATH 2: DRINKS
-                        # --- PATH 2: DRINKS (STABLE VISIBILITY CONTROLS LOGIC) ---
             elif classification == 'Drinks (Gulps)':
+                # 1. FIXED: Clean manual category text entry lane inside the drinks path
+                category = st.text_input(
+                    'Category Name *', 
+                    placeholder="Type your drink category name here (e.g., Milktea, Shake, Coffee)...", 
+                    key=f'f_cat_text_input_lane_{classification}'
+                ).strip()
+
+                # Smart Memory Reminder: Displays your beverage history list directly under the field
+                if existing_saved_cats:
+                    st.caption(f"💡 Previously saved beverage categories: {', '.join(existing_saved_cats)}")
+
+                st.divider()
                 st.caption('Configure your cup sizes and pricing details:')
                 
-                # Render Size 8 oz Lane
+                # Render Size 8 oz Lane - Instantly unlocks text box when checked
                 use8 = st.checkbox('Offer 8 oz Size Options', value=False, key=f'{classification}_use_8')
-                # FIXED: The input lane stays visible but unlocks dynamically right when checked!
                 price8_input = st.text_input('8 oz Size Pricing (₱) *', placeholder='0.00', disabled=not use8, key=f'{classification}_val_8_text').strip()
                 price8 = parse_and_format_price(price8_input) if use8 else 0.0
                     
-                # Render Size 12 oz Lane
+                # Render Size 12 oz Lane - Instantly unlocks text box when checked
                 use12 = st.checkbox('Offer 12 oz Size Options', value=True, key=f'{classification}_use_12')
-                # FIXED: The input lane stays visible but unlocks dynamically right when checked!
                 price12_input = st.text_input('12 oz Size Pricing (₱) *', placeholder='0.00', disabled=not use12, key=f'{classification}_val_12_text').strip()
                 price12 = parse_and_format_price(price12_input) if use12 else 0.0
                     
-                # Render Size 16 oz Lane
+                # Render Size 16 oz Lane - Instantly unlocks text box when checked
                 use16 = st.checkbox('Offer 16 oz Size Options', value=True, key=f'{classification}_use_16')
-                # FIXED: The input lane stays visible but unlocks dynamically right when checked!
                 price16_input = st.text_input('16 oz Size Pricing (₱) *', placeholder='0.00', disabled=not use16, key=f'{classification}_val_16_text').strip()
                 price16 = parse_and_format_price(price16_input) if use16 else 0.0
                 
@@ -274,7 +275,6 @@ elif mode == 'Admin' and page == 'Product Management':
                 if use_custom and custom_label and custom_price > 0:
                     size_prices[99] = cents_from_peso(custom_price)
                     category = f"{category} | Custom:{custom_label}"
-
 
             # PATH 3: OTHERS
             elif classification == 'Others (Combo/Meal Plan)':
