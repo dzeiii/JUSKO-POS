@@ -977,13 +977,10 @@ elif mode == 'Cashier' and page == 'New Sale':
 
             cashier_label = st.text_input('Cashier name (optional)',value='Cashier')
             confirm = st.form_submit_button('Confirm sale',type='primary',use_container_width=True)
-                        if confirm:
+            if confirm:
                 try:
                     if not customer_name.strip(): 
                         raise ValueError("Please enter the customer name.")
-                    
-                    # --- ✨ FIXED: INITIALIZE RAW_CART_VALUES AT THE VERY START ✨ ---
-                    # This completely clears the NameError crash once and for all!
                     if hasattr(st.session_state.cart, '_items'):
                         raw_cart_values = list(st.session_state.cart._items.values())
                     else:
@@ -991,19 +988,17 @@ elif mode == 'Cashier' and page == 'New Sale':
                     
                     if not raw_cart_values:
                         raise ValueError("Your checkout shopping basket is completely empty.")
-
-                    # Determine active cashier labels safely
+                    
                     determined_cashier = "Cashier"
                     if 'cashier_name' in locals() and cashier_name:
                         determined_cashier = cashier_name.strip()
                     elif 'cashier_label' in locals() and cashier_label:
                         determined_cashier = cashier_label.strip()
 
-                    # 1. Process the financial transaction ledger entry
+                 
                     sale = db.checkout(raw_cart_values, cashier_label=determined_cashier)
                     st.session_state.last_sale = sale
 
-                    # 2. Rebuild the order details string
                     order_details_list = []
                     for item in raw_cart_values:
                         size_suffix = f" ({item['custom_size_lbl']})" if item.get('custom_size_lbl') else ""
