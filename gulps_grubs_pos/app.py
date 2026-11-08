@@ -904,16 +904,16 @@ elif mode == 'Cashier' and page == 'New Sale':
         else:
             for item in items:
                 with st.container(border=True):
-                    # 1. Fetch data keys natively from this specific item dictionary instance
                     size_val = item.get('size_oz')
-                    item_category = item.get('category', '')
+                    # Safely capture the category layout data fields
+                    item_category = str(item.get('category', ''))
                     
                     size_lbl = ""
                     if size_val is not None:
-                        # FIXED: Extract the custom text name on-the-fly from the item's saved category string!
+                        # FIXED: Extract index [1] from the split operation array safely
                         if int(size_val) == 99 and " | Custom:" in item_category:
                             cart_cat_parts = item_category.split(" | Custom:", 1)
-                            size_lbl = str(cart_cat_parts[1]).strip()
+                            size_lbl = str(cart_cat_parts[1]).strip() # 💡 FIXED: Explicit index target pointer
                         else:
                             size_lbl = f"{size_val} oz"
                         
@@ -923,6 +923,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                     c1, c2 = st.columns(2)
                     c1.markdown(f"{display_title}{options_label}\n\n{money(item['unit_price_cents'])} each", unsafe_allow_html=True)
                     c2.markdown(f"**{money(item['subtotal_cents'])}**")
+
 
                     qcol, rmcol = st.columns([2, 1])
                     new_q = qcol.number_input('Quantity',min_value=1,max_value=1000000,value=int(item['quantity']),step=1,
