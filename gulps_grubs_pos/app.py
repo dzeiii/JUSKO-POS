@@ -265,15 +265,14 @@ elif mode=='Admin' and page=='Product Management':
                 return False
 
             # --- 3. BROAD FOOD-INDUSTRY DICTIONARY ---
-           culinary_dictionary = [
+            culinary_dictionary = [
                 'tea', 'milk', 'coffee', 'juice', 'shake', 'smoothie', 'soda', 'cola', 'drink', 'beverage', 'gulp',
                 'water', 'brew', 'ice', 'syrup', 'slush', 'frappe', 'float', 'latte', 'grub', 'food', 'snack',
                 'fry', 'fries', 'potato', 'burger', 'sandwich', 'bun', 'bread', 'waffle', 'donut', 'doughnut',
                 'cake', 'pastry', 'cookie', 'pie', 'sweet', 'dessert', 'crepe', 'rice', 'meal', 'combo', 'box',
                 'platter', 'bucket', 'chicken', 'wings', 'pork', 'beef', 'meat', 'fish', 'seafood', 'sauce',
                 'dip', 'bbq', 'cheese', 'street', 'grill', 'bacon', 'egg', 'noodles', 'soup', 'pasta', 'salad',
-                'grub', 'gulp'
-            ]
+                'grub', 'gulp']
 
             # --- 4. EXPLICIT NON-FOOD BLACKLIST ---
             prohibited_keywords = ['person', 'human', 'people', 'teacher', 'student', 'animal', 'object', 'thing']
