@@ -986,28 +986,28 @@ elif mode == 'Cashier' and page == 'New Sale':
                         if hasattr(st.session_state.cart, '_items')
                         else list(st.session_state.cart.items())
                     )
-            
+                    sale = db.checkout(raw_cart_values, cashier_label=determined_cashier)
+                    st.session_state.last_sale = sale
                     if not raw_cart_values:
                         raise ValueError("Your shopping cart is empty.")
-            
+                     determined_cashier = "Cashier"
+                    if 'cashier_name' in locals() and cashier_name:
+                        determined_cashier = cashier_name.strip()
+                    elif 'cashier_label' in locals() and cashier_label:
+                        determined_cashier = cashier_label.strip()
+                        
                     order_details_list = []
                     for item in raw_cart_values:
-                        size_suffix = (
-                            f" ({item['custom_size_lbl']})"
-                            if item.get('custom_size_lbl')
-                            else ""
-                        )            
+                        size_suffix = f" ({item['custom_size_lbl']})" if item.get('custom_size_lbl') else ""
                         order_details_list.append(f"{item['quantity']}x {item['name']}{size_suffix}")
                     order_details_str = ", ".join(order_details_list)
-                    sale = db.checkout(
-                        raw_cart_values,
-                        cashier_label=cashier_label.strip() or 'Cashier',
-                        customer_name=customer_name.strip(),
-                        order_details=order_details_str,
+                    db.add_order(
+                        customer_name=customer_name.strip(), 
+                        details=order_details_str, 
                         priority=int(priority_level)
-                    )
-            
-                    st.session_state.last_sale = sale
+                   
+                   
+                    
                     st.session_state.cart.clear()
                     success_msg = (f"TRANSACTION SUCCESS [CASHIER]: Receipt #{sale['transaction_id']} processed successfully! Customer: {customer_name.strip()} | Total: {money(sale['total_cents'])}")
                     db.log_activity('Cashier','Sale Completed',"Receipt #{sale['transaction_id']}", "Total: {money(sale['total_cents'])}")
