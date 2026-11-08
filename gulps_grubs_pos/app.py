@@ -160,12 +160,14 @@ elif mode == 'Admin' and page == 'Product Management':
         name = st.text_input('Product name *', placeholder='Enter product name', key='prod_name_input').strip()
         category = ""
         size_prices = {}
-        price = 0.0
-        
+        price = 0.00
+        # --- PATH 1: FOODS ---
         if classification == 'Foods (Grubs)':
             category = st.text_input('Category *', placeholder='e.g. Streetfood, Donut and Waffles').strip()
-            price = st.number_input('Price (₱)', min_value=1.0, step=5.0, format='%.2f')
-            
+            # FIXED: Changed from number_input to an empty text_input that demands a user input value
+            price_input = st.text_input('Price (₱) *', placeholder='0.00', key='food_price_text_input').strip()
+            # Convert to float securely if data exists, otherwise keep at 0.0 to trigger gatekeeper checks cleanly
+            price = float(price_input) if (price_input and price_input.replace('.', '', 1).isdigit()) else 0.0
         elif classification == 'Drinks (Gulps)':
             base_category = st.text_input('Category Name *', placeholder='e.g. Milkshake, Float, Milktea').strip()
             
@@ -175,13 +177,13 @@ elif mode == 'Admin' and page == 'Product Management':
             # FIXED: Pricing number inputs are now completely hidden unless their checkbox is active
             with s8:
                 use8 = st.checkbox('Offer 8 oz', value=False, key=f'{classification}_use_8')
-                price8 = st.number_input('8 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_8') if use8 else 0.0
+                price8 = st.number_input('8 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_8') if use8 else 0.00
             with s12:
                 use12 = st.checkbox('Offer 12 oz', value=True, key=f'{classification}_use_12')
-                price12 = st.number_input('12 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_12') if use12 else 0.0
+                price12 = st.number_input('12 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_12') if use12 else 0.00
             with s16:
                 use16 = st.checkbox('Offer 16 oz', value=True, key=f'{classification}_use_16')
-                price16 = st.number_input('16 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_16') if use16 else 0.0
+                price16 = st.number_input('16 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_16') if use16 else 0.00
             
             st.divider()
             st.markdown("##### 🥤 Other / Custom Size Profile")
@@ -196,7 +198,7 @@ elif mode == 'Admin' and page == 'Product Management':
                     custom_price = st.number_input('Custom Size Price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_custom')
             else:
                 custom_label = ""
-                custom_price = 0.0
+                custom_price = 0.00
 
             if use8: size_prices[8] = cents_from_peso(price8)
             if use12: size_prices[12] = cents_from_peso(price12)
@@ -215,8 +217,9 @@ elif mode == 'Admin' and page == 'Product Management':
         # --- PATH 3: OTHERS ---
         elif classification == 'Others (Combo/Meal Plan)':
             category = st.text_input('Category *', placeholder='e.g. Combo Meal, Promo Bundle').strip()
-            price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
-
+            # FIXED: Changed from number_input to an empty text_input that demands a user input value
+            price_input = st.text_input('Price (₱) *', placeholder='0.00', key='combo_price_text_input').strip()
+            price = float(price_input) if (price_input and price_input.replace('.', '', 1).isdigit()) else 0.0
         # System Administration Settings & Threshold Counts
         st.divider()
         low_stock_threshold = st.number_input('Low-stock alert boundary count', min_value=0, value=5, step=1)
@@ -266,9 +269,8 @@ elif mode == 'Admin' and page == 'Product Management':
             elif not clean_category:
                 st.error("Category structure specification is required.")
                 
-            # --- 🚨 RIGID PRICING GUARD: This completely halts zero-value submissions 🚨 ---
-            elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0:
-                st.error("🔴 Validation Error: Price field is required. Product price must be greater than ₱0.00.")
+            elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and (not price_input or price <= 0.0):
+                st.error("🔴 Validation Error: Price field is required. Please type a valid numeric amount greater than ₱0.00.")
             elif classification == 'Drinks (Gulps)' and not size_prices:
                 st.error("🔴 Validation Error: Sizing prices are required. Please enable and price at least one cup size option.")
                 
