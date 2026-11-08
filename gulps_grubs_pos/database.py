@@ -295,80 +295,72 @@ def restock_product(product_id, quantity, db_path=DB_PATH):
         if cur.rowcount != 1: raise ValueError('Product not found or inactive.')
         c.execute('INSERT INTO inventory_movements(product_id,quantity_change,reason,created_at) VALUES(?,?,?,?)', (product_id,quantity,'Restock',now))
 
-def checkout(cart_items, cashier_label='Cashier', db_path=DB_PATH):
-    """Commits an active cashier sale list down to persistent database tables."""
-    import sqlite3
-    from datetime import datetime, timedelta # Ensure timedelta is imported here
+def checkout(items, cashier_label='Cashier', db_path=DB_PATH):
+    """Safely processes and persists sales transactions into table records."""
+    if not items:
+        raise ValueError("Cannot checkout an empty shopping cart configuration.")
+        
+    current_time = get_ph_iso_timestamp()
     
-    if not cart_items:
-        raise ValueError("Cannot checkout an empty shopping cart.")
-    now = (datetime.utcnow() + timedelta(hours=8)).isoformat()
-    total_cents = 0
-
-    # Calculate order total value to satisfy transactional logs
-    for item in cart_items:
-        total_cents += int(item['subtotal_cents'])
-
     with connection(db_path) as c:
-        # 1. FIXED: Store execution in a result variable 'res' to read its row ID safely
-        res = c.execute('''
-            INSERT INTO transactions (total_cents, created_at, cashier_label)
-            VALUES (?, ?, ?)
-        ''', (total_cents, now, cashier_label))
-        transaction_id = res.lastrowid
-
-        # 2. Iterate individual items to update stock levels and log item receipts
-        for item in cart_items:
-            p_id = int(item['product_id'])
-            qty = int(item['quantity'])
+        # 1. Compute total cents values securely
+        total_cents = sum(item['subtotal_cents'] for item in items)
+        
+        # 2. Insert new transaction entry row
+        c.execute(
+            'INSERT INTO transactions (total_cents, created_at, cashier_label) VALUES (?, ?, ?)',
+            (total_cents, current_time, cashier_label.strip() or 'Cashier')
+        )
+        transaction_id = c.lastrowid
+        
+        # 3. Process individual transaction items row records
+        for item in items:
+            p_id = item['id']
+            qty = item['quantity']
             
-            # Extract and safe-check size parameter values
-            raw_size = item.get('size_oz')
-            if raw_size is not None:
-                size_oz_val = int(raw_size)
-                # Validation check updated to permanently recognize your open custom 99 flag
-                if size_oz_val not in (8, 12, 16, 99):
-                    raise ValueError("Drink size must be 8 oz, 12 oz, 16 oz, or a valid custom profile.")
-            else:
-                size_oz_val = None
-
-            # Deduct physical item balances out of master inventory tables
+            # Fetch the baseline product data row to verify stock balances safely
+            prod = c.execute('SELECT * FROM products WHERE id=?', (p_id,)).fetchone()
+            if not prod:
+                raise ValueError(f"Product reference ID {p_id} could not be found.")
+                
+            if prod['stock'] < qty:
+                raise ValueError(f"Insufficient stock for '{prod['name']}'. Only {prod['stock']} units remain.")
+                
+            # Deduct inventory count balances securely 
+            new_stock = prod['stock'] - qty
+            c.execute('UPDATE products SET stock=?, updated_at=? WHERE id=?', (new_stock, current_time, p_id))
+            
+            # Log active database movement records downstream
+            c.execute(
+                'INSERT INTO inventory_movements (product_id, quantity_change, reason, created_at) VALUES (?, ?, ?, ?)',
+                (p_id, -qty, f"Sale Checkout #{transaction_id}", current_time)
+            )
+            
+            # Extract configuration options safely 
+            size_oz = item.get('size_oz')
+            customizations = item.get('customizations', '')
+            
+            # Use item name since it already carries custom sizes cleanly (e.g. "Iced Coffee (22oz)")
+            item_name = item.get('name', prod['name'])
+            
+            # 4. Insert transaction ledger details
             c.execute('''
-                UPDATE products 
-                SET stock = max(0, stock - ?), updated_at = ? 
-                WHERE id = ?
-            ''', (qty, now, p_id))
-
-            # Push line record down into receipts log archive table cleanly
-            c.execute('''
-                INSERT INTO transaction_items (transaction_id, product_id, product_code, product_name, unit_price_cents, quantity, subtotal_cents, size_oz, customizations)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO transaction_items (
+                    transaction_id, product_id, product_code, product_name, 
+                    unit_price_cents, quantity, subtotal_cents, size_oz, customizations
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
-                transaction_id, 
-                p_id, 
-                str(item['code']), 
-                str(item['name']), 
-                int(item['unit_price_cents']), 
-                qty, 
-                int(item['subtotal_cents']), 
-                size_oz_val, 
-                str(item.get('customizations', ''))
+                transaction_id, p_id, prod['code'], item_name,
+                item['unit_price_cents'], qty, item['subtotal_cents'],
+                size_oz if size_oz is not None else None, customizations
             ))
-
-        # Re-fetch structural payload dictionaries to feed receipt printer components smoothly
-        db_items = c.execute('''
-            SELECT product_code AS code, product_name AS name, unit_price_cents, quantity, subtotal_cents, size_oz, customizations 
-            FROM transaction_items 
-            WHERE transaction_id = ?
-        ''', (transaction_id,)).fetchall()
-
-    return {
-        'transaction_id': transaction_id,
-        'total_cents': total_cents,
-        'created_at': now,
-        'cashier_label': cashier_label,
-        'items': [dict(row) for row in db_items]
-    }
+            
+        return {
+            'transaction_id': transaction_id,
+            'total_cents': total_cents,
+            'created_at': current_time,
+            'cashier_label': cashier_label
+        }
 
 def sales_summary(start_iso, end_iso, db_path=DB_PATH):
     with connection(db_path) as c:
