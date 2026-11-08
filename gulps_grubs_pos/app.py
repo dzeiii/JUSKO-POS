@@ -990,7 +990,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                     st.session_state.last_sale = sale
                     if not raw_cart_values:
                         raise ValueError("Your shopping cart is empty.")
-                     determined_cashier = "Cashier"
+                    determined_cashier = "Cashier"
                     if 'cashier_name' in locals() and cashier_name:
                         determined_cashier = cashier_name.strip()
                     elif 'cashier_label' in locals() and cashier_label:
