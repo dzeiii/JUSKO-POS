@@ -481,7 +481,7 @@ elif mode == 'Admin' and page == 'Product Management':
                             if success:
                                 success_msg = (f"🗑️ SUCCESS: Product'{p['code']} — {p['name']}'was permanently deleted from the database catalog.")
                                 st.success(success_msg)
-                                db.log_activity('Admin','Product Deleted',{p['code']} · {p['name']})
+                                db.log_activity('Admin','Product Deleted',{p['code']},{p['name']})
                                 logging.info(success_msg)
                                 st.rerun()
                             else:
