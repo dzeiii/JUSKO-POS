@@ -230,31 +230,44 @@ elif mode == 'Admin' and page == 'Product Management':
             elif classification == 'Drinks (Gulps)':
                 st.caption('Configure your cup sizes and pricing:')
                 s8, s12, s16 = st.columns(3)
+                
                 with s8:
                     use8 = st.checkbox('Offer 8 oz', value=False, key=f'{classification}_use_8')
+                    # Conditional rendering: appears only if use8 is True
                     price8 = st.number_input('8 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_8') if use8 else 0.0
+                    
                 with s12:
                     use12 = st.checkbox('Offer 12 oz', value=True, key=f'{classification}_use_12')
+                    # Conditional rendering: appears only if use12 is True
                     price12 = st.number_input('12 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_12') if use12 else 0.0
+                    
                 with s16:
                     use16 = st.checkbox('Offer 16 oz', value=True, key=f'{classification}_use_16')
+                    # Conditional rendering: appears only if use16 is True
                     price16 = st.number_input('16 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_16') if use16 else 0.0
                 
                 st.divider()
                 st.markdown("##### 🥤 Other / Custom Size Profile")
                 use_custom = st.checkbox('Offer a different custom size', value=False, key=f'{classification}_use_custom')
+                
+                # Conditional rendering: appears only if use_custom is True
                 if use_custom:
                     c_size_col, c_price_col = st.columns(2)
-                    with c_size_col: custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key=f'{classification}_lbl_custom').strip()
-                    with c_price_col: custom_price = st.number_input('Custom Size Price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_custom')
+                    with c_size_col: 
+                        custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key=f'{classification}_lbl_custom').strip()
+                    with c_price_col: 
+                        custom_price = st.number_input('Custom Size Price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_custom')
                 else:
-                    custom_label = ""; custom_price = 0.0
+                    custom_label = ""
+                    custom_price = 0.0
 
-                if use8: size_prices = cents_from_peso(price8)
-                if use12: size_prices = cents_from_peso(price12)
-                if use16: size_prices = cents_from_peso(price16)
+                # Initialize an empty dictionary or container structure to match your sizing architecture
+                size_prices = {}
+                if use8: size_prices[8] = cents_from_peso(price8)
+                if use12: size_prices[12] = cents_from_peso(price12)
+                if use16: size_prices[16] = cents_from_peso(price16)
                 if use_custom and custom_label:
-                    size_prices = cents_from_peso(custom_price)
+                    size_prices[99] = cents_from_peso(custom_price)
                     category = f"{category} | Custom:{custom_label}"
                     
             # --- PATH 3: OTHERS ---
