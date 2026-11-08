@@ -905,15 +905,19 @@ elif mode == 'Cashier' and page == 'New Sale':
             for item in items:
                 with st.container(border=True):
                     size_val = item.get('size_oz')
-                    # Safely capture the category layout data fields
-                    item_category = str(item.get('category', ''))
-                    
                     size_lbl = ""
+                    
                     if size_val is not None:
-                        # FIXED: Extract index [1] from the split operation array safely
-                        if int(size_val) == 99 and " | Custom:" in item_category:
-                            cart_cat_parts = item_category.split(" | Custom:", 1)
-                            size_lbl = str(cart_cat_parts[1]).strip() # 💡 FIXED: Explicit index target pointer
+                        if int(size_val) == 99:
+                            try:
+                                master_product_row = db.get_product_by_id(item['id']) if hasattr(db, 'get_product_by_id') else item
+                                master_category_str = str(master_product_row.get('category', item.get('category', '')))
+                                if " | Custom:" in master_category_str:
+                                    size_lbl = master_category_str.split(" | Custom:", 1)[1].strip()
+                                else:
+                                    size_lbl = "Custom"
+                            except Exception:
+                                size_lbl = "Custom"
                         else:
                             size_lbl = f"{size_val} oz"
                         
@@ -923,7 +927,6 @@ elif mode == 'Cashier' and page == 'New Sale':
                     c1, c2 = st.columns(2)
                     c1.markdown(f"{display_title}{options_label}\n\n{money(item['unit_price_cents'])} each", unsafe_allow_html=True)
                     c2.markdown(f"**{money(item['subtotal_cents'])}**")
-
 
                     qcol, rmcol = st.columns([2, 1])
                     new_q = qcol.number_input('Quantity',min_value=1,max_value=1000000,value=int(item['quantity']),step=1,
