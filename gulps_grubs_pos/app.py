@@ -196,9 +196,9 @@ elif mode == 'Admin' and page == 'Product Management':
         drink_category_suffix = ""
         drink_config_error = None
         st.markdown("#### 📝 Product Information")
-        name = st.text_input('Product name *',placeholder='Enter product name',key=f'f_name_{classification}').strip()
+        name = st.text_input('Product name *',placeholder='Enter product name',key=f'f_name_{classification}', clear_on_submit = True).strip()
     
-        category = st.text_input('Category *',placeholder="Type your category name here (e.g., Waffle, Streetfood)...",key=f'f_cat_text_input_lane_{classification}').strip()
+        category = st.text_input('Category *',placeholder="Type your category name here (e.g., Waffle, Streetfood)...",key=f'f_cat_text_input_lane_{classification}'clear_on_submit = True).strip()
         
         st.divider()
         
@@ -227,21 +227,21 @@ elif mode == 'Admin' and page == 'Product Management':
                 use8 = st.checkbox('Offer 8 oz', value=False, key='drink_use_8_final')
                 price8_input = ""
                 if use8:
-                    price8_input = st.text_input('8 oz Price (₱) *', placeholder='0.00', key='drink_val_8_text_final').strip()
+                    price8_input = st.text_input('8 oz Price (₱) *', placeholder='0.00', key='drink_val_8_text_final', clear_on_submit = True).strip()
                     price8 = parse_and_format_price(price8_input) if use8 else 0.00
                         
             with col12:
                 use12 = st.checkbox('Offer 12 oz', value=True, key='drink_use_12_final')
                 price12_input = ""
                 if use12:
-                    price12_input = st.text_input('12 oz Price (₱) *', placeholder='0.00', key='drink_val_12_text_final').strip()
+                    price12_input = st.text_input('12 oz Price (₱) *', placeholder='0.00', key='drink_val_12_text_final', clear_on_submit = True).strip()
                     price12 = parse_and_format_price(price12_input) if use12 else 0.00
                         
             with col16:
                 use16 = st.checkbox('Offer 16 oz', value=True, key='drink_use_16_final')
                 price16_input = ""
                 if use16:
-                    price16_input = st.text_input('16 oz Price (₱) *', placeholder='0.00', key='drink_val_16_text_final').strip()
+                    price16_input = st.text_input('16 oz Price (₱) *', placeholder='0.00', key='drink_val_16_text_final', clear_on_submit = True).strip()
                     price16 = parse_and_format_price(price16_input) if use16 else 0.00
 
             st.divider()
@@ -254,9 +254,9 @@ elif mode == 'Admin' and page == 'Product Management':
                 c_size_col, c_price_col = st.columns(2)
         
                 with c_size_col:
-                    custom_label = st.text_input('Custom Size Description Label',placeholder='e.g., 22oz, 1-Liter',key='drink_lbl_custom_reactive_field').strip()
+                    custom_label = st.text_input('Custom Size Description Label',placeholder='e.g., 22oz, 1-Liter',key='drink_lbl_custom_reactive_field',clear_on_submit = True).strip()
                 with c_price_col:
-                    custom_price_input = st.text_input('Custom Size Price (₱) *',placeholder='0.00',key='drink_val_custom_text_reactive').strip()
+                    custom_price_input = st.text_input('Custom Size Price (₱) *',placeholder='0.00',key='drink_val_custom_text_reactive', clear_on_submit = True).strip()
     
             # Register enabled sizes and validate their prices.
             try:    
@@ -288,7 +288,7 @@ elif mode == 'Admin' and page == 'Product Management':
         # STEP 3: FOOD AND COMBO PRICING
         if classification in ['Foods (Grubs)','Others (Combo/Meal Plan)']:
             st.markdown("#### 💰 Product Pricing")
-            price_input = st.text_input('Product Price (₱) *',placeholder='0.00',key=f'f_price_{classification}').strip()
+            price_input = st.text_input('Product Price (₱) *',placeholder='0.00',key=f'f_price_{classification}',clear_on_submit = True).strip()
             price = parse_and_format_price(price_input)
         
         # STEP 4: INVENTORY ALERT SETTINGS
