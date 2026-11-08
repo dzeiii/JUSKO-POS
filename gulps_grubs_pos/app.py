@@ -153,10 +153,21 @@ elif mode == 'Admin' and page == 'Product Management':
 
     st.subheader('Product Catalog Management')
     tab1, tab2, tab3 = st.tabs(['Add product','Edit / Delete','View Catalog'])
-
+    @st.fragment
+    def render_reactive_drink_sizes(classification):
+        use8 = st.checkbox('Offer 8 oz', value=False, key=f'{classification}_use_8')
+        if use8:
+            st.number_input('8 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_8')    
+        use12 = st.checkbox('Offer 12 oz', value=True, key=f'{classification}_use_12')
+        if use12:
+            st.number_input('12 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_12')         
+        use16 = st.checkbox('Offer 16 oz', value=True, key=f'{classification}_use_16')
+        if use16:
+            st.number_input('16 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_16')
     with tab1:
         classification = st.radio('Product Classification *',['Foods (Grubs)','Drinks (Gulps)','Others (Combo/Meal Plan)'],horizontal=True)
         st.markdown("---")
+        
         try:
             db_products = db.list_products(active_only=False)
             drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade','slushie', 'slush', 'coffee', 'float', 'frappe','drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
@@ -225,26 +236,12 @@ elif mode == 'Admin' and page == 'Product Management':
 
             # PATH 2: DRINKS
                         # --- PATH 2: DRINKS (FIXED SIZE-CONDITIONAL SHOW/HIDE LAYOUT) ---
+                        # --- PATH 2: DRINKS (FIXED SIZE-CONDITIONAL SHOW/HIDE LAYOUT) ---
             elif classification == 'Drinks (Gulps)':
                 st.caption('Configure your cup sizes and pricing:')
                 
-                # Size 8 oz Configuration Row
-                use8 = st.checkbox('Offer 8 oz', value=False, key=f'{classification}_use_8')
-                price8 = 0.0
-                if use8:
-                    price8 = st.number_input('8 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_8')
-                    
-                # Size 12 oz Configuration Row
-                use12 = st.checkbox('Offer 12 oz', value=True, key=f'{classification}_use_12')
-                price12 = 0.0
-                if use12:
-                    price12 = st.number_input('12 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_12')
-                    
-                # Size 16 oz Configuration Row
-                use16 = st.checkbox('Offer 16 oz', value=True, key=f'{classification}_use_16')
-                price16 = 0.0
-                if use16:
-                    price16 = st.number_input('16 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_16')
+                # Call the fragment function for instant layout processing
+                render_reactive_drink_sizes(classification)
                 
                 st.divider()
                 st.markdown("##### 🥤 Other / Custom Size Profile")
@@ -259,10 +256,10 @@ elif mode == 'Admin' and page == 'Product Management':
                     with c_price_col: 
                         custom_price = st.number_input('Custom Size Price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_custom')
 
-                # Pack size records securely into your current variables
-                if use8 and price8 > 0: size_prices[8] = cents_from_peso(price8)
-                if use12 and price12 > 0: size_prices[12] = cents_from_peso(price12)
-                if use16 and price16 > 0: size_prices[16] = cents_from_peso(price16)
+                # Maintain your existing backend variable mapping assignments
+                if st.session_state.get(f'{classification}_use_8'): size_prices[8] = cents_from_peso(st.session_state.get(f'{classification}_val_8', 0.0))
+                if st.session_state.get(f'{classification}_use_12'): size_prices[12] = cents_from_peso(st.session_state.get(f'{classification}_val_12', 0.0))
+                if st.session_state.get(f'{classification}_use_16'): size_prices[16] = cents_from_peso(st.session_state.get(f'{classification}_val_16', 0.0))
                 if use_custom and custom_label and custom_price > 0:
                     size_prices[99] = cents_from_peso(custom_price)
                     category = f"{category} | Custom:{custom_label}"
