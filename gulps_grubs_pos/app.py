@@ -1251,19 +1251,33 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
                     hide_index=True
                 )
         with right_dash:
+            st.markdown("#### 📦 Excess Inventory Trackers")
+            if not overstocked:
+                st.success("🎉 Healthy! No catalog rows exceed maximum high-stock parameters.")
+            else:
+                # Creates a clean dropdown drawer inside the right column summary tree
+                with st.expander("🔍 View Overstocked Product Details", expanded=True):
+                    st.markdown("<b style='color:#b05000; font-size:13px;'>The following menu products exceed high-stock limits:</b>", unsafe_allow_html=True)
+                    st.write("")
+                    for item in overstocked:
+                        st.error(
+                            f"📦 **{item['code']}** · {item['name']}  \n"
+                            f"↳ *Current Stock:* `{item['stock']} units` (High threshold limit: `{item.get('high_stock_threshold', 50)}`)"
+                        )
+            st.divider()
             st.markdown("#### 📉 Recent Stock Movements & Audits")
             try:
                 with db.connection() as conn:
-                    recent_movements = conn.execute('''SELECT m.quantity_change,m.reason, p.name FROM inventory_movements m JOIN products p ON m.product_id = p.id ORDER BY m.created_at DESC LIMIT 6 ''').fetchall()
+                    recent_movements = conn.execute('''SELECT m.quantity_change, m.reason, p.name FROM inventory_movements m JOIN products p ON m.product_id = p.id ORDER BY m.created_at DESC LIMIT 6 ''').fetchall()
                 if recent_movements:
                     for move in recent_movements:
                         qty = move['quantity_change']
                         st.markdown(f"{'🟢' if qty > 0 else '🔴'} {'+' if qty > 0 else ''}{qty} units — {move['name']} \n"
-                            f"Reason: {move['reason']}",unsafe_allow_html=True)
+                            f"Reason: {move['reason']}", unsafe_allow_html=True)
                 else:
                     st.info("No database movements logged yet.")
             except Exception:
-                st.caption("Unable to stream live adjustment logs."
-                )
-    st.divider()
-    st.caption('Gulps & Grubs POS · SQLite is the persistent source of truth. Prices stored as integer centavos')
+                st.caption("Unable to stream live adjustment logs.")
+
+st.divider()
+st.caption('Gulps & Grubs POS · SQLite is the persistent source of truth. Prices stored as integer centavos')
