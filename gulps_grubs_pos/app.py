@@ -392,26 +392,31 @@ elif mode == 'Admin' and page == 'Product Management':
                         stock=starting_stock, threshold=low_stock_threshold,
                         size_prices=size_prices if classification == 'Drinks (Gulps)' else None
                     )    
+                    # --- ADD THESE LINES TO CLEAR FIELDS ON SUCCESSFUL SUBMISSION ---
+                    name_field_key = f'f_name_{classification}'
+                    cat_field_key = f'f_cat_text_input_lane_{classification}'
+                        
+                    if name_field_key in st.session_state:
+                        st.session_state[name_field_key] = ""
+                    if cat_field_key in st.session_state:
+                        st.session_state[cat_field_key] = ""
+                            
+                    if f'f_price_{classification}' in st.session_state:
+                        st.session_state[f'f_price_{classification}'] = ""
+                    if 'drink_val_8_text_final' in st.session_state: st.session_state['drink_val_8_text_final'] = ""
+                    if 'drink_val_12_text_final' in st.session_state: st.session_state['drink_val_12_text_final'] = ""
+                    if 'drink_val_16_text_final' in st.session_state: st.session_state['drink_val_16_text_final'] = ""
+                    if 'drink_val_custom_text_final' in st.session_state: st.session_state['drink_val_custom_text_final'] = ""
+                    # -----------------------------------------------------------------
+
                     #SUCCESS TRANSACTION PRINT RECEIPT FOR CATALOG CREATION
                     formatted_display_price = f"₱{price:,.2f}" if classification != 'Drinks (Gulps)' else "Configured Sizes Array"
-                    success_msg = f"🟢 TRANSACTION SUCCESS [ADMIN]: Menu product item '{clean_name}' successfully added to store catalog database! assigned code: '{generated_code}' under active category grouping: '{clean_category}' ({formatted_display_price})."
+                    success_msg = f"🟢 TRANSACTION SUCCESS [ADMIN]: Menu product item '{clean_name}' successfully added to store catalog database! Assigned code: '{generated_code}' under active category grouping: '{clean_category}' at '{formatted_display_price}')."
                     st.success(success_msg)
                     
                     # Log audit values securely to history trails
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     logging.info(success_msg)
-                    # --- 💡 CLEAR TEXT FIELDS UPON SUCCESSFUL SUBMISSION ---
-                    # Forcefully erase the string buffer values tied to your text inputs
-                    st.session_state[f'f_name_{classification}'] = "" # 💡 ADD THIS LINE
-                    st.session_state[f'f_cat_text_input_lane_{classification}'] = "" # 💡 ADD THIS LINE
-                        
-                    # Wipe sub-price text fields clean if they are allocated in state
-                    if f'f_price_{classification}' in st.session_state:
-                        st.session_state[f'f_price_{classification}'] = "" # 💡 ADD THIS LINE
-                    if 'drink_val_8_text_final' in st.session_state: st.session_state['drink_val_8_text_final'] = "" # 💡 ADD THIS LINE
-                    if 'drink_val_12_text_final' in st.session_state: st.session_state['drink_val_12_text_final'] = "" # 💡 ADD THIS LINE
-                    if 'drink_val_16_text_final' in st.session_state: st.session_state['drink_val_16_text_final'] = "" # 💡 ADD THIS LINE
-                    if 'drink_val_custom_text_final' in st.session_state: st.session_state['drink_val_custom_text_final'] = "" # 💡 ADD THIS LINE
                     st.rerun()
                 except Exception as e: safe_error(e)
 
