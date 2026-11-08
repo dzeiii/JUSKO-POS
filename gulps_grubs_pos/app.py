@@ -185,66 +185,65 @@ elif mode == 'Admin' and page == 'Product Management':
         def parse_and_format_price(raw_text):
             if not raw_text: return 0.0
             clean_digits = raw_text.replace('₱', '').strip()
-            try: return float(clean_digits)
-            except ValueError: return 0.0
-
+            try: 
+                return float(clean_digits)
+            except ValueError: 
+                return 0.0
+                
+        # STEP 1: PRODUCT INFORMATION
         size_prices = {}
         price = 0.0
         drink_category_suffix = ""
         drink_config_error = None
+        st.markdown("#### 📝 Product Information")
+        name = st.text_input('Product name *',placeholder='Enter product name',key=f'f_name_{classification}').strip()
+    
+        category = st.text_input('Category *',placeholder="Type your category name here (e.g., Waffle, Streetfood)...",key=f'f_cat_text_input_lane_{classification}').strip()
         
-        if classification == 'Drinks (Gulps)':
+        st.divider()
+        
+        # STEP 2: DRINK SIZE AND PRICING CONFIGURATION
+        def read_drink_price(raw_value, size_label):
+            if not raw_value:
+                raise ValueError(f"Please enter the price for {size_label}.")
+            try:
+                parsed_value = float(raw_value.replace('₱', '').replace(',', '').strip())
+            except ValueError:
+                raise ValueError(f"Invalid price for {size_label}. Enter a valid numerical amount.")
+            if parsed_value <= 0:
+                raise ValueError(f"The price for {size_label} must be greater than ₱0.00.")
+        
+            return parsed_value
+        
+        if classification == 'Drinks (Gulps)':        
             st.markdown("#### 🥤 Drink Size & Pricing Configuration")
-        
             st.caption("Enable the sizes you want to offer. Enter a price for every enabled size.")
-            
+
             use8 = st.checkbox('Offer 8 oz Size Options',value=False,key='drink_use_8_reactive_layer')
             price8_input = st.text_input('8 oz Size Pricing (₱) *',placeholder='0.00',disabled=not use8,key='drink_val_8_text_reactive').strip()
-        
+    
             use12 = st.checkbox('Offer 12 oz Size Options',value=True,key='drink_use_12_reactive_layer')
             price12_input = st.text_input('12 oz Size Pricing (₱) *',placeholder='0.00',disabled=not use12,key='drink_val_12_text_reactive').strip()
-            
+        
             use16 = st.checkbox('Offer 16 oz Size Options',value=True,key='drink_use_16_reactive_layer')
             price16_input = st.text_input('16 oz Size Pricing (₱) *',placeholder='0.00',disabled=not use16,key='drink_val_16_text_reactive').strip()
-            
-            # CUSTOM SIZE CONFIGURATION
+        
             st.divider()
             st.markdown("##### 🥤 Other / Custom Sizing Configuration")
             use_custom = st.checkbox('Enable a different custom size profile',value=False,key='drink_use_custom_reactive_layer')
+        
             custom_label = ""
             custom_price_input = ""
             if use_custom:
                 c_size_col, c_price_col = st.columns(2)
+        
                 with c_size_col:
-                    custom_label = st.text_input(
-                        'Custom Size Description Label',
-                        placeholder='e.g., 22oz, 1-Liter',
-                        key='drink_lbl_custom_reactive_field'
-                    ).strip()
-        
+                    custom_label = st.text_input('Custom Size Description Label',placeholder='e.g., 22oz, 1-Liter',key='drink_lbl_custom_reactive_field').strip()
                 with c_price_col:
-                    custom_price_input = st.text_input(
-                        'Custom Size Price (₱) *',
-                        placeholder='0.00',
-                        key='drink_val_custom_text_reactive'
-                    ).strip()
-        
-            # PRICE VALIDATION HELPER
-            def read_drink_price(raw_value, size_label):
-                if not raw_value:
-                    raise ValueError(
-                        f"Please enter the price for {size_label}.")
-                try:
-                    parsed_value = float(
-                        raw_value.replace('₱', '').replace(',', '').strip())
-                except ValueError:
-                    raise ValueError(f"Invalid price for {size_label}.Enter a valid numerical amount.")
-                if parsed_value <= 0:
-                    raise ValueError(f"The price for {size_label} must be greater than ₱0.00.")
-                return parsed_value
-                
-            # REGISTER ENABLED SIZES
-            try:
+                    custom_price_input = st.text_input('Custom Size Price (₱) *',placeholder='0.00',key='drink_val_custom_text_reactive').strip()
+    
+            # Register enabled sizes and validate their prices.
+            try:    
                 if use8:
                     price8 = read_drink_price(price8_input, "8 oz")
                     size_prices[8] = cents_from_peso(price8)
@@ -260,42 +259,30 @@ elif mode == 'Admin' and page == 'Product Management':
                 if use_custom:
                     if not custom_label:
                         raise ValueError("Please enter a description for your custom drink size.")
-                        
+        
                     custom_price = read_drink_price(custom_price_input,"custom size")
+    
                     size_prices[99] = cents_from_peso(custom_price)
                     drink_category_suffix = f" | Custom:{custom_label}"
-        
             except ValueError as exc:
                 drink_config_error = str(exc)
-            st.markdown("---")
-
-        # --- STEP 2: MAIN FORM BLOCK CONTAINER (Now purely handles textual metadata descriptions) ---
-        with st.form(key=f'add_product_master_form_{classification}', clear_on_submit=True):
-            name = st.text_input('Product name *', placeholder='Enter product name', key=f'f_name_{classification}').strip()
-            
-            category = st.text_input(
-                'Category *', 
-                placeholder="Type your category name here (e.g., Waffle, Streetfood)...", 
-                key=f'f_cat_text_input_lane_{classification}'
-            ).strip()
-
-            if existing_saved_cats:
-                st.caption(f"💡 Previously saved categories in this workspace: {', '.join(existing_saved_cats)}")
-
-            # Render single-price fields inside the form container for non-drink items only
-            if classification == 'Foods (Grubs)':
-                price_input = st.text_input('Price (₱) *', placeholder='0.00', key=f'f_price_{classification}').strip()
-                price = parse_and_format_price(price_input)
-                
-            elif classification == 'Others (Combo/Meal Plan)':
-                price_input = st.text_input('Price (₱) *', placeholder='0.00', key=f'f_price_{classification}').strip()
-                price = parse_and_format_price(price_input)
 
             st.divider()
-            low_stock_threshold = st.number_input('Low-stock alert boundary count', min_value=0, value=5, step=1)
-            high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
-            
-            submit_form_btn = st.form_submit_button('Add product to Catalog', type='primary', use_container_width=True)
+        
+        # STEP 3: FOOD AND COMBO PRICING
+        if classification in ['Foods (Grubs)','Others (Combo/Meal Plan)']:
+            st.markdown("#### 💰 Product Pricing")
+            price_input = st.text_input('Product Price (₱) *',placeholder='0.00',key=f'f_price_{classification}').strip()
+            price = parse_and_format_price(price_input)
+        
+        # STEP 4: INVENTORY ALERT SETTINGS
+        st.markdown("#### 📦 Inventory Settings")
+        low_stock_threshold = st.number_input('Low-stock alert boundary count',min_value=0,value=5,step=1)
+        high_stock_threshold = st.number_input('High-stock alert boundary count',min_value=0,value=50,step=1)
+        st.divider()
+        
+        # STEP 5: SUBMIT PRODUCT
+        submit_form_btn = st.button('Add product to Catalog',type='primary',use_container_width=True,key=f'add_product_button_{classification}')
 
         # --- OUTSIDE FORM CONTAINER: Form data routing checks execute safely downstream ---
         if submit_form_btn:
