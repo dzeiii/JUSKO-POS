@@ -196,26 +196,9 @@ elif mode == 'Admin' and page == 'Product Management':
         drink_category_suffix = ""
         drink_config_error = None
         st.markdown("#### 📝 Product Information")
-        if f'f_name_{classification}' not in st.session_state:
-            st.session_state[f'f_name_{classification}'] = ""
-        if f'f_cat_text_input_lane_{classification}' not in st.session_state:
-            st.session_state[f'f_cat_text_input_lane_{classification}'] = ""
-        
-        # --- STEP 2: LINK VALUE BINDINGS (NO MORE TYPEERRORS) ---
-        name = st.text_input(
-            'Product name *', 
-            value=st.session_state[f'f_name_{classification}'],
-            placeholder='Enter product name',
-            key=f'f_name_widget_key_{classification}'
-        ).strip()
-        
-        category = st.text_input(
-            'Category *', 
-            value=st.session_state[f'f_cat_text_input_lane_{classification}'],
-            placeholder="Type your category name here (e.g., Waffle, Streetfood)...", 
-            key=f'f_cat_widget_key_{classification}'
-        ).strip()
-                
+        name = st.text_input('Product name *',placeholder='Enter product name',key=f'f_name_{classification}').strip()
+        category = st.text_input('Category *',placeholder="Type your category name here (e.g., Waffle, Streetfood)...",key=f'f_cat_text_input_lane_{classification}').strip()
+
         st.divider()
         
         # STEP 2: DRINK SIZE AND PRICING CONFIGURATION
@@ -416,9 +399,6 @@ elif mode == 'Admin' and page == 'Product Management':
                     # Log audit values securely to history trails
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     logging.info(success_msg)
-                    st.session_state[f'f_name_{classification}'] = ""
-                    st.session_state[f'f_cat_text_input_lane_{classification}'] = ""
-
                     st.rerun()
                 except Exception as e: safe_error(e)
 
