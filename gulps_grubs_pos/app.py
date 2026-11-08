@@ -168,29 +168,35 @@ elif mode == 'Admin' and page == 'Product Management':
             
         elif classification == 'Drinks (Gulps)':
             base_category = st.text_input('Category Name *', placeholder='e.g. Milkshake, Float, Milktea').strip()
+            
             st.caption('Configure your cup sizes and pricing:')
             s8, s12, s16 = st.columns(3)
             
+            # FIXED: Pricing number inputs are now completely hidden unless their checkbox is active
             with s8:
                 use8 = st.checkbox('Offer 8 oz', value=False, key=f'{classification}_use_8')
-                price8 = st.number_input('8 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use8, key=f'{classification}_val_8')
+                price8 = st.number_input('8 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_8') if use8 else 0.0
             with s12:
                 use12 = st.checkbox('Offer 12 oz', value=True, key=f'{classification}_use_12')
-                price12 = st.number_input('12 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use12, key=f'{classification}_val_12')
+                price12 = st.number_input('12 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_12') if use12 else 0.0
             with s16:
                 use16 = st.checkbox('Offer 16 oz', value=True, key=f'{classification}_use_16')
-                price16 = st.number_input('16 oz price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use16, key=f'{classification}_val_16')
+                price16 = st.number_input('16 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_16') if use16 else 0.0
             
             st.divider()
             st.markdown("##### 🥤 Other / Custom Size Profile")
             use_custom = st.checkbox('Offer a different custom size', value=False, key=f'{classification}_use_custom')
             
-
-            c_size_col, c_price_col = st.columns(2)
-            with c_size_col:
-                custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', disabled=not use_custom, key=f'{classification}_lbl_custom').strip()
-            with c_price_col:
-                custom_price = st.number_input('Custom Size Price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use_custom, key=f'{classification}_val_custom')
+            # FIXED: Hides custom input boxes completely to ensure no ghost cursors appear
+            if use_custom:
+                c_size_col, c_price_col = st.columns(2)
+                with c_size_col:
+                    custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key=f'{classification}_lbl_custom').strip()
+                with c_price_col:
+                    custom_price = st.number_input('Custom Size Price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_custom')
+            else:
+                custom_label = ""
+                custom_price = 0.0
 
             if use8: size_prices[8] = cents_from_peso(price8)
             if use12: size_prices[12] = cents_from_peso(price12)
@@ -201,6 +207,7 @@ elif mode == 'Admin' and page == 'Product Management':
                 category = f"{base_category} | Custom:{custom_label}"
             else:
                 category = base_category
+
     
             if size_prices:
                 price = next(iter(size_prices.values())) / 100
