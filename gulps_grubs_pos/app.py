@@ -158,7 +158,6 @@ elif mode == 'Admin' and page == 'Product Management':
         classification = st.radio('Product Classification *', ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], horizontal=True)
         st.markdown("---")
         
-        # --- FIXED: Added clear_on_submit=True to natively handle form wiping safely ---
         with st.form(key=f'add_product_master_form_{classification}', clear_on_submit=True):
             try:
                 db_products = db.list_products(active_only=False)
@@ -185,18 +184,24 @@ elif mode == 'Admin' and page == 'Product Management':
             price = 0.0
 
             # 2. Category Dropdown Search Selection
-            category_selection = st.selectbox(
-                'Category *',
-                options=existing_saved_cats,
-                index=None, 
-                placeholder="Type a new category OR select a saved one...",
-                key=f'f_cat_{classification}'
-            )
-            
-            if category_selection is None:
-                category = str(st.session_state.get(f'f_cat_{classification}', '') or '').strip()
+            if existing_saved_cats:
+                options_list = ["-- Type a new custom category instead --"] + existing_saved_cats
+                suggested_pick = st.selectbox(
+                    '📋 Quick Select: Reuse an existing saved category (Optional)',
+                    options=options_list,
+                    index=0,
+                    key=f'f_suggest_drop_{classification}'
+                )
+                
+                price_placeholder_text = "Enter category name..." if suggested_pick == "-- Type a new custom category instead --" else f"Selected: {suggested_pick}"
+                typed_cat = st.text_input('Category Name *', placeholder=price_placeholder_text, key=f'f_cat_text_{classification}').strip()
+                
+                if suggested_pick != "-- Type a new custom category instead --" and not typed_cat:
+                    category = str(suggested_pick).strip()
+                else:
+                    category = str(typed_cat).strip()
             else:
-                category = str(category_selection).strip()
+                category = st.text_input('Category Name *', placeholder='e.g., Streetfood, Snacks, Frappe', key=f'f_cat_text_direct_{classification}').strip()
 
             def parse_and_format_price(raw_text):
                 if not raw_text: return 0.0
