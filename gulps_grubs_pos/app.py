@@ -214,12 +214,14 @@ elif mode == 'Admin' and page == 'Product Management':
                 raise ValueError(f"The price for {size_label} must be greater than ₱0.00.")
         
             return parsed_value
-        
         if classification == 'Drinks (Gulps)':
             st.markdown("---")
             st.markdown("##### 🥤 Cup Size & Base Pricing Options")
             st.caption('Ticking checkboxes will automatically expose size pricing input fields below:')
-         
+
+            price8 = 0.00
+            price12 = 0.00
+            price16 = 0.00
             # Render options inside a clean horizontal 3-column sub-grid matrix
             col8, col12, col16 = st.columns(3)    
             with col8:
