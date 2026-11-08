@@ -155,41 +155,48 @@ elif mode == 'Admin' and page == 'Product Management':
     tab1, tab2, tab3 = st.tabs(['Add product', 'Edit / Delete', 'View Catalog'])
     
     with tab1:
+           with tab1:
         classification = st.radio('Product Classification *', ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], horizontal=True)
         st.markdown("---")
-        name = st.text_input('Product name *', placeholder='Enter product name', key='prod_name_input').strip()
+        
+        # --- FIXED: Bind input fields directly to st.session_state keys to enable manual clearing ---
+        if 'add_name' not in st.session_state: st.session_state.add_name = ""
+        if 'add_category' not in st.session_state: st.session_state.add_category = ""
+        if 'add_price_text' not in st.session_state: st.session_state.add_price_text = ""
+
+        name = st.text_input('Product name *', value=st.session_state.add_name, placeholder='Enter product name', key='prod_name_input_field').strip()
         category = ""
         size_prices = {}
-        price = 0.00
+        price = 0.0
+        
         # --- PATH 1: FOODS ---
         if classification == 'Foods (Grubs)':
-            category = st.text_input('Category *', placeholder='e.g. Streetfood, Donut and Waffles').strip()
-            # FIXED: Changed from number_input to an empty text_input that demands a user input value
-            price_input = st.text_input('Price (₱) *', placeholder='0.00', key='food_price_text_input').strip()
-            # Convert to float securely if data exists, otherwise keep at 0.0 to trigger gatekeeper checks cleanly
+            category = st.text_input('Category *', value=st.session_state.add_category, placeholder='e.g. Streetfood, Donut and Waffles', key='food_cat_input_field').strip()
+            price_input = st.text_input('Price (₱) *', value=st.session_state.add_price_text, placeholder='0.00', key='food_price_text_input_field').strip()
             price = float(price_input) if (price_input and price_input.replace('.', '', 1).isdigit()) else 0.0
+            
+        # --- PATH 2: DRINKS ---
         elif classification == 'Drinks (Gulps)':
-            base_category = st.text_input('Category Name *', placeholder='e.g. Milkshake, Float, Milktea').strip()
+            base_category = st.text_input('Category Name *', value=st.session_state.add_category, placeholder='e.g. Milkshake, Float, Milktea', key='drink_cat_input_field').strip()
+            category = base_category
             
             st.caption('Configure your cup sizes and pricing:')
             s8, s12, s16 = st.columns(3)
             
-            # FIXED: Pricing number inputs are now completely hidden unless their checkbox is active
             with s8:
                 use8 = st.checkbox('Offer 8 oz', value=False, key=f'{classification}_use_8')
-                price8 = st.number_input('8 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_8') if use8 else 0.00
+                price8 = st.number_input('8 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_8') if use8 else 0.0
             with s12:
                 use12 = st.checkbox('Offer 12 oz', value=True, key=f'{classification}_use_12')
-                price12 = st.number_input('12 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_12') if use12 else 0.00
+                price12 = st.number_input('12 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_12') if use12 else 0.0
             with s16:
                 use16 = st.checkbox('Offer 16 oz', value=True, key=f'{classification}_use_16')
-                price16 = st.number_input('16 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_16') if use16 else 0.00
+                price16 = st.number_input('16 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_16') if use16 else 0.0
             
             st.divider()
             st.markdown("##### 🥤 Other / Custom Size Profile")
             use_custom = st.checkbox('Offer a different custom size', value=False, key=f'{classification}_use_custom')
             
-            # FIXED: Hides custom input boxes completely to ensure no ghost cursors appear
             if use_custom:
                 c_size_col, c_price_col = st.columns(2)
                 with c_size_col:
@@ -198,7 +205,7 @@ elif mode == 'Admin' and page == 'Product Management':
                     custom_price = st.number_input('Custom Size Price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_custom')
             else:
                 custom_label = ""
-                custom_price = 0.00
+                custom_price = 0.0
 
             if use8: size_prices[8] = cents_from_peso(price8)
             if use12: size_prices[12] = cents_from_peso(price12)
@@ -207,32 +214,22 @@ elif mode == 'Admin' and page == 'Product Management':
             if use_custom and custom_label:
                 size_prices[99] = cents_from_peso(custom_price)
                 category = f"{base_category} | Custom:{custom_label}"
-            else:
-                category = base_category
-
-    
-            if size_prices:
-                price = next(iter(size_prices.values())) / 100
                 
         # --- PATH 3: OTHERS ---
         elif classification == 'Others (Combo/Meal Plan)':
-            category = st.text_input('Category *', placeholder='e.g. Combo Meal, Promo Bundle').strip()
-            # FIXED: Changed from number_input to an empty text_input that demands a user input value
-            price_input = st.text_input('Price (₱) *', placeholder='0.00', key='combo_price_text_input').strip()
+            category = st.text_input('Category *', value=st.session_state.add_category, placeholder='e.g. Combo Meal, Promo Bundle', key='combo_cat_input_field').strip()
+            price_input = st.text_input('Price (₱) *', value=st.session_state.add_price_text, placeholder='0.00', key='combo_price_text_input_field').strip()
             price = float(price_input) if (price_input and price_input.replace('.', '', 1).isdigit()) else 0.0
-        # System Administration Settings & Threshold Counts
+
         st.divider()
         low_stock_threshold = st.number_input('Low-stock alert boundary count', min_value=0, value=5, step=1)
         high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
         
-        # Submit Button Action Block
         if st.button('Add product to Catalog', type='primary'):
-            # Clean and isolate inputs for formatting analysis
             clean_name = name.strip()
             clean_category = category.strip()
             test_string = f"{clean_name} {clean_category}".lower()
 
-            # --- 1. REPEATING KEYBOARD SPAM CHECKER ---
             def has_consecutive_repetitions(text, max_allowed=3):
                 if not text: return False
                 count = 1
@@ -243,7 +240,6 @@ elif mode == 'Admin' and page == 'Product Management':
                     else: count = 1
                 return False
 
-            # --- 2. GIBBERISH DETECTOR ---
             def looks_like_gibberish(text):
                 words = [w for w in text.split() if w.isalpha()]
                 if not words: return False
@@ -253,8 +249,6 @@ elif mode == 'Admin' and page == 'Product Management':
                         return True
                 return False
 
-            # --- 3. BROAD FOOD-INDUSTRY DICTIONARY ---
-                        # --- 3. BROAD FOOD-INDUSTRY DICTIONARY (CLEANED) ---
             culinary_dictionary = [
                 'tea', 'milk', 'coffee', 'juice', 'shake', 'smoothie', 'soda', 'cola', 'drink', 'beverage',
                 'water', 'brew', 'ice', 'syrup', 'slush', 'frappe', 'float', 'latte', 'food', 'snack',
@@ -264,20 +258,15 @@ elif mode == 'Admin' and page == 'Product Management':
                 'dip', 'bbq', 'cheese', 'street', 'grill', 'bacon', 'egg', 'noodles', 'soup', 'pasta', 'salad'
             ]
 
-            # --- 4. EXPLICIT NON-FOOD BLACKLIST ---
             prohibited_keywords = ['person', 'human', 'people', 'teacher', 'student', 'animal', 'object', 'thing']
             drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe', 'drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
-            
-            # --- 📊 RUN CALCULATIONS (FIXED ALL VARIABLE ASSIGNMENTS) ---
+
             is_spam_text = has_consecutive_repetitions(test_string, max_allowed=3) or has_consecutive_repetitions(clean_category, max_allowed=3)
             is_nonsense_word = looks_like_gibberish(test_string) or looks_like_gibberish(clean_category)
             contains_junk = any(junk in test_string for junk in prohibited_keywords)
             category_has_drink_terms = any(dk in clean_category.lower() for dk in drink_keywords)
-            
-            # FIXED: Re-added the missing semantic assignment flag here!
             is_valid_culinary = any(word in test_string for word in culinary_dictionary)
 
-            # --- 🚨 MASTER EXECUTION TREE IN RE-ORDERED FLOW 🚨 ---
             if not clean_name:
                 st.error("Product name is required.")
             elif not clean_category:
@@ -286,23 +275,16 @@ elif mode == 'Admin' and page == 'Product Management':
                 st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish patterns. Please use genuine descriptions.")
             elif contains_junk:
                 st.error("🔴 Context Validation Alert: Junk classifications (person, human, object) are strictly blocked.")
-            
-            # Enforce cross-classification constraints
             elif classification == 'Drinks (Gulps)' and not category_has_drink_terms:
                 st.error(f"🔴 Classification Mismatch: You selected 'Drinks (Gulps)' but entered a non-beverage category '{category}'.")
             elif classification == 'Foods (Grubs)' and category_has_drink_terms:
                 st.error(f"🔴 Classification Mismatch: You selected 'Foods (Grubs)' but entered a drink-related category '{category}'.")
-            
-            # Enforce semantic relevance
             elif not is_valid_culinary:
                 st.error("🔴 Context Validation Alert: Category must be related to food or beverages.")
-                
-            # Enforce prices
-            elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0:
-                st.error("🔴 Validation Error: Price field is required. Product price must be greater than ₱0.00.")
+            elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and (not price_input or price <= 0.0):
+                st.error("🔴 Validation Error: Price field is required. Please type a valid numeric amount greater than ₱0.00.")
             elif classification == 'Drinks (Gulps)' and not size_prices:
                 st.error("🔴 Validation Error: Sizing prices are required. Please enable and price at least one cup size option.")
-                
             else:
                 try:
                     price_cents = cents_from_peso(price)
@@ -315,14 +297,17 @@ elif mode == 'Admin' and page == 'Product Management':
                         size_prices=size_prices if classification == 'Drinks (Gulps)' else None
                     )
                     
+                    # --- FIXED: Force session state inputs to clear completely upon a successful transaction ---
+                    st.session_state.add_name = ""
+                    st.session_state.add_category = ""
+                    st.session_state.add_price_text = ""
+                    
                     success_msg = f"✨ SUCCESS: Product '{clean_name}' successfully added to catalog under category '{clean_category}' (Code: {generated_code})."
                     st.success(success_msg)
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     logging.info(success_msg)
                     st.rerun()
                 except Exception as e: safe_error(e)
-
-
 
         with tab2:
             st.subheader("Edit or Delete Product")
