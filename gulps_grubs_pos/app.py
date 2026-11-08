@@ -253,36 +253,56 @@ elif mode == 'Admin' and page == 'Product Management':
                         return True
                 return False
 
-            # --- 3. CORE VALIDATION LISTS ---
+            # --- 3. BROAD FOOD-INDUSTRY DICTIONARY ---
+                        # --- 3. BROAD FOOD-INDUSTRY DICTIONARY (CLEANED) ---
+            culinary_dictionary = [
+                'tea', 'milk', 'coffee', 'juice', 'shake', 'smoothie', 'soda', 'cola', 'drink', 'beverage',
+                'water', 'brew', 'ice', 'syrup', 'slush', 'frappe', 'float', 'latte', 'food', 'snack',
+                'fry', 'fries', 'potato', 'burger', 'sandwich', 'bun', 'bread', 'waffle', 'donut', 'doughnut',
+                'cake', 'pastry', 'cookie', 'pie', 'sweet', 'dessert', 'crepe', 'rice', 'meal', 'combo', 'box',
+                'platter', 'bucket', 'chicken', 'wings', 'pork', 'beef', 'meat', 'fish', 'seafood', 'sauce',
+                'dip', 'bbq', 'cheese', 'street', 'grill', 'bacon', 'egg', 'noodles', 'soup', 'pasta', 'salad'
+            ]
+
+            # --- 4. EXPLICIT NON-FOOD BLACKLIST ---
             prohibited_keywords = ['person', 'human', 'people', 'teacher', 'student', 'animal', 'object', 'thing']
             drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe', 'drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
-
-            # Run basic indicators
+            
+            # --- 📊 RUN CALCULATIONS (FIXED ALL VARIABLE ASSIGNMENTS) ---
             is_spam_text = has_consecutive_repetitions(test_string, max_allowed=3) or has_consecutive_repetitions(clean_category, max_allowed=3)
             is_nonsense_word = looks_like_gibberish(test_string) or looks_like_gibberish(clean_category)
             contains_junk = any(junk in test_string for junk in prohibited_keywords)
             category_has_drink_terms = any(dk in clean_category.lower() for dk in drink_keywords)
+            
+            # FIXED: Re-added the missing semantic assignment flag here!
+            is_valid_culinary = any(word in test_string for word in culinary_dictionary)
 
-            # --- ✨ FIXED EXECUTION ORDER: Check for empty strings and price blocks first ---
+            # --- 🚨 MASTER EXECUTION TREE IN RE-ORDERED FLOW 🚨 ---
             if not clean_name:
                 st.error("Product name is required.")
             elif not clean_category:
                 st.error("Category structure specification is required.")
-                
-            elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and (not price_input or price <= 0.0):
-                st.error("🔴 Validation Error: Price field is required. Please type a valid numeric amount greater than ₱0.00.")
-            elif classification == 'Drinks (Gulps)' and not size_prices:
-                st.error("🔴 Validation Error: Sizing prices are required. Please enable and price at least one cup size option.")
-                
-            # --- Continue onto other contextual integrity guards ---
-            elif clean_category and (is_spam_text or is_nonsense_word):
+            elif is_spam_text or is_nonsense_word:
                 st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish patterns. Please use genuine descriptions.")
-            elif clean_category and (contains_junk or not is_valid_culinary):
-                st.error("🔴 Context Validation Alert: Category must be related to food or beverages.")
+            elif contains_junk:
+                st.error("🔴 Context Validation Alert: Junk classifications (person, human, object) are strictly blocked.")
+            
+            # Enforce cross-classification constraints
             elif classification == 'Drinks (Gulps)' and not category_has_drink_terms:
                 st.error(f"🔴 Classification Mismatch: You selected 'Drinks (Gulps)' but entered a non-beverage category '{category}'.")
             elif classification == 'Foods (Grubs)' and category_has_drink_terms:
                 st.error(f"🔴 Classification Mismatch: You selected 'Foods (Grubs)' but entered a drink-related category '{category}'.")
+            
+            # Enforce semantic relevance
+            elif not is_valid_culinary:
+                st.error("🔴 Context Validation Alert: Category must be related to food or beverages.")
+                
+            # Enforce prices
+            elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0:
+                st.error("🔴 Validation Error: Price field is required. Product price must be greater than ₱0.00.")
+            elif classification == 'Drinks (Gulps)' and not size_prices:
+                st.error("🔴 Validation Error: Sizing prices are required. Please enable and price at least one cup size option.")
+                
             else:
                 try:
                     price_cents = cents_from_peso(price)
@@ -301,6 +321,7 @@ elif mode == 'Admin' and page == 'Product Management':
                     logging.info(success_msg)
                     st.rerun()
                 except Exception as e: safe_error(e)
+
 
 
         with tab2:
