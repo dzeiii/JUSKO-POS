@@ -761,120 +761,104 @@ elif mode == 'Cashier' and page == 'New Sale':
                         price_line = ' · '.join(price_parts)
                     else:
                         price_line = money(p['price_cents'])
-                    card_html = load_html_template('product_card.html',name=str(p['name']),product_name=str(p['name']),code=str(p['code']),
                         category=str(display_cat_clean),price=str(price_line),price_line=str(price_line),stock=str(int(p['stock'])))
-                    st.markdown(card_html,unsafe_allow_html=True)
+                    
+                                        # --- CASHIER PRODUCT CARD INTERFACE ---
+                    card_html = load_html_template('product_card.html', name=str(p['name']), product_name=str(p['name']), code=str(p['code']), category=str(display_cat_clean), price=str(price_line), price_line=str(price_line), stock=str(int(p['stock'])))
+                    st.markdown(card_html, unsafe_allow_html=True)
+
+                    # 1. Open the form container context first
                     with st.form(f"add_cart_{p['id']}"):
-                        size_oz = None, 
+                        size_oz = None
                         unit_price = p['price_cents']
-                    if is_drink:
-                        available_sizes = list(sizes.keys())
-                        def size_label_formatter(z):
-                            if int(z) == 99 and custom_size_text:
-                                return custom_size_text
-                            return f"{z} oz"
-                        size_oz = st.radio(
-                            'Choose cup size',available_sizes,format_func=size_label_formatter,horizontal=True,key=f"size_{p['id']}")
-                        unit_price = sizes[size_oz]
-                        st.caption(f"Selected size price: {money(unit_price)}")
                         
+                        if is_drink:
+                            available_sizes = list(sizes.keys())
+                            def size_label_formatter(z):
+                                if int(z) == 99 and custom_size_text: return custom_size_text
+                                return f"{z} oz"
+                            size_oz = st.radio('Choose cup size', available_sizes, format_func=size_label_formatter, horizontal=True, key=f"size_{p['id']}")
+                            unit_price = sizes[size_oz]
+                            st.caption(f"Selected size price: {money(unit_price)}")
+                            
                         chosen_customizations = []
                         addon_premium = 0
+                        
                         prod_name_lower = p['name'].lower()
                         cat_lower = display_cat_clean.lower()
-                        is_milktea = ('milktea' in cat_lower or 'milktea' in prod_name_lower)
-                        is_milkshake = ('milkshake' in cat_lower or 'milkshake' in prod_name_lower)
-                        is_lemonade_slushie = ('slushie' in cat_lower or 'slushie' in prod_name_lower)
-                        is_lemonade = (
-                            ('lemonade' in cat_lower or 'lemonade' in prod_name_lower)
-                            and not is_lemonade_slushie
-                        )
-                        is_coffee = ('coffee' in cat_lower or 'coffee' in prod_name_lower)
+                        is_milktea = 'milktea' in cat_lower or 'milktea' in prod_name_lower
+                        is_milkshake = 'milkshake' in cat_lower or 'milkshake' in prod_name_lower
+                        is_lemonade_slushie = 'slushie' in cat_lower or 'slushie' in prod_name_lower
+                        is_lemonade = ('lemonade' in cat_lower or 'lemonade' in prod_name_lower) and not is_lemonade_slushie
+                        is_coffee = 'coffee' in cat_lower or 'coffee' in prod_name_lower
+
                         if is_drink:
                             st.markdown("### Sinker Selection")
                             if is_milktea:
-                                mt_sinker = st.radio("Included Sinker Options",
-                                    ["Include Pearls (Default)","No Sinkers (None)"],horizontal=True,key=f"radio_sink_{p['id']}")
-                                if mt_sinker == "No Sinkers (None)":
-                                    chosen_customizations.append("❌ NO PEARLS")
+                                mt_sinker = st.radio("Included Sinker Options", ["Include Pearls (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                if mt_sinker == "No Sinkers (None)": chosen_customizations.append("❌ NO PEARLS")
                             elif is_milkshake:
-                                ms_sinker = st.radio("Included Sinker Options",
-                                    ["Include Pearls & Nata (Default)","No Sinkers (None)"],horizontal=True,key=f"radio_sink_{p['id']}")
-                                if ms_sinker == "No Sinkers (None)":
-                                    chosen_customizations.append("❌ NO SINKERS")
+                                ms_sinker = st.radio("Included Sinker Options", ["Include Pearls & Nata (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                if ms_sinker == "No Sinkers (None)": chosen_customizations.append("❌ NO SINKERS")
                             elif is_lemonade:
-                                lem_sinker = st.radio("Included Sinker Options",
-                                    ["Include Rainbow Jelly (Default)","No Sinkers (None)"],horizontal=True,key=f"radio_sink_{p['id']}")
-                                if lem_sinker == "No Sinkers (None)":
-                                    chosen_customizations.append("❌ NO RAINBOW JELLY")
+                                lem_sinker = st.radio("Included Sinker Options", ["Include Rainbow Jelly (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                if lem_sinker == "No Sinkers (None)": chosen_customizations.append("❌ NO RAINBOW JELLY")
                             elif is_lemonade_slushie:
-                                sl_sinker = st.radio("Included Sinker Options",
-                                    ["Include Nata (Default)","No Sinkers (None)"],horizontal=True,key=f"radio_sink_{p['id']}")
-                                if sl_sinker == "No Sinkers (None)":
-                                    chosen_customizations.append("❌ NO NATA")                                
+                                sl_sinker = st.radio("Included Sinker Options", ["Include Nata (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                if sl_sinker == "No Sinkers (None)": chosen_customizations.append("❌ NO NATA")
                             elif is_coffee:
-                                cf_sinker = st.radio("Included Sinker Options",
-                                    ["Include Coffee Jelly (Default)","No Sinkers (None)"],horizontal=True,key=f"radio_sink_{p['id']}")
-                                if cf_sinker == "No Sinkers (None)":
-                                    chosen_customizations.append("❌ NO COFFEE JELLY")
+                                cf_sinker = st.radio("Included Sinker Options", ["Include Coffee Jelly (Default)", "No Sinkers (None)"], horizontal=True, key=f"radio_sink_{p['id']}")
+                                if cf_sinker == "No Sinkers (None)": chosen_customizations.append("❌ NO COFFEE JELLY")
+
                             st.markdown("### Add-ons")
                             sk1, sk2, sk3, sk4 = st.columns(4)
-                            add_extra_pearl = sk1.checkbox("Extra Pearls (+₱5)",key=f"add_p_{p['id']}")
-                            add_extra_nata = sk2.checkbox("Extra Nata (+₱5)",key=f"add_n_{p['id']}")
-                            add_extra_jelly = sk3.checkbox("Extra Jelly (+₱5)",key=f"add_j_{p['id']}")
-                            add_extra_coffee_jelly = sk4.checkbox("Extra Coffee Jelly (+₱5)",key=f"add_c_{p['id']}")
-
+                            # All columns must render strictly inside the master form block indentation!
+                            with sk1: add_extra_pearl = st.checkbox("Extra Pearls (+₱5)", key=f"add_p_{p['id']}")
+                            with sk2: add_extra_nata = st.checkbox("Extra Nata (+₱5)", key=f"add_n_{p['id']}")
+                            with sk3: add_extra_jelly = st.checkbox("Extra Jelly (+₱5)", key=f"add_j_{p['id']}")
+                            with sk4: add_extra_coffee_jelly = st.checkbox("Extra Coffee Jelly (+₱5)", key=f"add_c_{p['id']}")
+                            
                             if add_extra_pearl:
                                 chosen_customizations.append("➕ Extra Pearls")
                                 addon_premium += 500
-
                             if add_extra_nata:
                                 chosen_customizations.append("➕ Extra Nata")
                                 addon_premium += 500
-
                             if add_extra_jelly:
                                 chosen_customizations.append("➕ Extra Jelly")
                                 addon_premium += 500
-
                             if add_extra_coffee_jelly:
                                 chosen_customizations.append("➕ Extra Coffee Jelly")
                                 addon_premium += 500
                             unit_price += addon_premium
-                        if is_drink:
-                            note_hint = ("e.g., 50% Sugar, Less Ice, Severe Lactose Allergy")
-                        elif ("fries" in display_cat_clean.lower() or "snack" in display_cat_clean.lower()):
-                            note_hint = ("e.g., Barbecue, Cheese, Sour Cream, No Salt")
-                        elif ("donut" in display_cat_clean.lower()or "waffle" in display_cat_clean.lower() or "dessert" in display_cat_clean.lower()):
-                            note_hint = ("e.g., Chocolate Syrup, Maple,Whipped Cream")
-                        else:
-                            note_hint = ("e.g., Add notes, flavors, combos, or allergy alerts here...")
 
-                        custom_note = st.text_input('Special Notes / Customization',placeholder=note_hint,key=f"note_input_{p['id']}").strip()
-                        qty = st.number_input('Qty',min_value=1,max_value=max(1, int(p['stock'])),value=1,step=1,key=f"qty_{p['id']}",disabled=p['stock'] < 1)
-                        add = st.form_submit_button('Add to cart',use_container_width=True,disabled=p['stock'] < 1)
-                        if add:
-                            try:
-                                if qty > p['stock']:
-                                    raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
-                                if size_oz and int(size_oz) == 99 and custom_size_text:
-                                    size_display_name = custom_size_text
-                                elif size_oz:
-                                    size_display_name = f"{size_oz} oz"
-                                else:
-                                    size_display_name = ''
-                                final_notes_list = chosen_customizations.copy()
-                                if custom_note:
-                                    final_notes_list.append(custom_note)
-                                combined_customizations = '; '.join(
-                                    final_notes_list
-                                )
-                                st.session_state.cart.add(p,int(qty),size_oz=size_oz,unit_price_cents=unit_price,customizations=combined_customizations)
-                                size_label = (f" ({size_display_name})" if size_oz else '')
-                                option_label = (f" · Options: '{combined_customizations}'" if combined_customizations else '')
-                                st.success(f"Added {qty} × {p['name']} {size_label}{option_label}.")
-                                st.rerun()
-                            except Exception as e:
-                                safe_error(e)
+                        if is_drink: note_hint = "e.g., 50% Sugar, Less Ice, Severe Lactose Allergy"
+                        elif "fries" in display_cat_clean.lower() or "snack" in display_cat_clean.lower(): note_hint = "e.g., Barbecue, Cheese, Sour Cream, No Salt"
+                        elif "donut" in display_cat_clean.lower() or "waffle" in display_cat_clean.lower() or "dessert" in display_cat_clean.lower(): note_hint = "e.g., Chocolate Syrup, Maple, Whipped Cream"
+                        else: note_hint = "e.g., Add notes, flavors, combos, or allergy alerts here..."
+
+                        custom_note = st.text_input('Special Notes / Customization', placeholder=note_hint, key=f"note_input_{p['id']}").strip()
+                        qty = st.number_input('Qty', min_value=1, max_value=max(1, int(p['stock'])), value=1, step=1, key=f"qty_{p['id']}", disabled=p['stock'] < 1)
+                        
+                        # FIXED: This submit button is now cleanly nested before the form container closes!
+                        add = st.form_submit_button('Add to cart', use_container_width=True, disabled=p['stock'] < 1)
+                        
+                    # 2. Form block safely finishes here, allowing actions downstream
+                    if add:
+                        try:
+                            if qty > p['stock']: raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
+                            if size_oz and int(size_oz) == 99 and custom_size_text: size_display_name = custom_size_text
+                            elif size_oz: size_display_name = f"{size_oz} oz"
+                            else: size_display_name = ''
+                                
+                            final_notes_list = chosen_customizations.copy()
+                            if custom_note: final_notes_list.append(custom_note)
+                            combined_customizations = '; '.join(final_notes_list)
+                                
+                            st.session_state.cart.add(p, int(qty), size_oz=size_oz, unit_price_cents=unit_price, customizations=combined_customizations)
+                            st.rerun()
+                        except Exception as e: safe_error(e)
+
     # SHOPPING CART
     with right:
         st.markdown('#### Shopping cart')
