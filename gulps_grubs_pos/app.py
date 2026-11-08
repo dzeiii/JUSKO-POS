@@ -228,21 +228,21 @@ elif mode == 'Admin' and page == 'Product Management':
                 price8_input = ""
                 if use8:
                     price8_input = st.text_input('8 oz Price (₱) *', placeholder='0.00', key='drink_val_8_text_final').strip()
-                    price8 = parse_and_format_price(price8_input) if use8 else 0.0
+                    price8 = parse_and_format_price(price8_input) if use8 else 0.00
                         
             with col12:
                 use12 = st.checkbox('Offer 12 oz', value=True, key='drink_use_12_final')
                 price12_input = ""
                 if use12:
                     price12_input = st.text_input('12 oz Price (₱) *', placeholder='0.00', key='drink_val_12_text_final').strip()
-                    price12 = parse_and_format_price(price12_input) if use12 else 0.0
+                    price12 = parse_and_format_price(price12_input) if use12 else 0.00
                         
             with col16:
                 use16 = st.checkbox('Offer 16 oz', value=True, key='drink_use_16_final')
                 price16_input = ""
                 if use16:
                     price16_input = st.text_input('16 oz Price (₱) *', placeholder='0.00', key='drink_val_16_text_final').strip()
-                    price16 = parse_and_format_price(price16_input) if use16 else 0.0
+                    price16 = parse_and_format_price(price16_input) if use16 else 0.00
 
             st.divider()
             st.markdown("##### 🥤 Other / Custom Sizing Configuration")
@@ -400,6 +400,18 @@ elif mode == 'Admin' and page == 'Product Management':
                     # Log audit values securely to history trails
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     logging.info(success_msg)
+                    # --- 💡 CLEAR TEXT FIELDS UPON SUCCESSFUL SUBMISSION ---
+                    # Forcefully erase the string buffer values tied to your text inputs
+                    st.session_state[f'f_name_{classification}'] = "" # 💡 ADD THIS LINE
+                    st.session_state[f'f_cat_text_input_lane_{classification}'] = "" # 💡 ADD THIS LINE
+                        
+                    # Wipe sub-price text fields clean if they are allocated in state
+                    if f'f_price_{classification}' in st.session_state:
+                        st.session_state[f'f_price_{classification}'] = "" # 💡 ADD THIS LINE
+                    if 'drink_val_8_text_final' in st.session_state: st.session_state['drink_val_8_text_final'] = "" # 💡 ADD THIS LINE
+                    if 'drink_val_12_text_final' in st.session_state: st.session_state['drink_val_12_text_final'] = "" # 💡 ADD THIS LINE
+                    if 'drink_val_16_text_final' in st.session_state: st.session_state['drink_val_16_text_final'] = "" # 💡 ADD THIS LINE
+                    if 'drink_val_custom_text_final' in st.session_state: st.session_state['drink_val_custom_text_final'] = "" # 💡 ADD THIS LINE
                     st.rerun()
                 except Exception as e: safe_error(e)
 
