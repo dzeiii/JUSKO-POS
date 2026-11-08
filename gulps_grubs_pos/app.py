@@ -224,32 +224,27 @@ elif mode == 'Admin' and page == 'Product Management':
                 price = parse_and_format_price(price_input)
 
             # PATH 2: DRINKS
+                        # --- PATH 2: DRINKS (FIXED SIZE-CONDITIONAL SHOW/HIDE LAYOUT) ---
             elif classification == 'Drinks (Gulps)':
                 st.caption('Configure your cup sizes and pricing:')
                 
-                # Use clean columns to separate and completely isolate the visibility states
-                d8_col, d12_col, d16_col = st.columns(3)
-                
-                with d8_col:
-                    use8 = st.checkbox('Offer 8 oz', value=False, key=f'{classification}_use_8')
-                    price8 = 0.0
-                    # FIXED: Only creates the element in HTML when the checkbox state evaluates to True
-                    if use8:
-                        price8 = st.number_input('8 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_8')
-                        
-                with d12_col:
-                    use12 = st.checkbox('Offer 12 oz', value=True, key=f'{classification}_use_12')
-                    price12 = 0.0
-                    # FIXED: Only creates the element in HTML when the checkbox state evaluates to True
-                    if use12:
-                        price12 = st.number_input('12 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_12')
-                        
-                with d16_col:
-                    use16 = st.checkbox('Offer 16 oz', value=True, key=f'{classification}_use_16')
-                    price16 = 0.0
-                    # FIXED: Only creates the element in HTML when the checkbox state evaluates to True
-                    if use16:
-                        price16 = st.number_input('16 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_16')
+                # Size 8 oz Configuration Row
+                use8 = st.checkbox('Offer 8 oz', value=False, key=f'{classification}_use_8')
+                price8 = 0.0
+                if use8:
+                    price8 = st.number_input('8 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_8')
+                    
+                # Size 12 oz Configuration Row
+                use12 = st.checkbox('Offer 12 oz', value=True, key=f'{classification}_use_12')
+                price12 = 0.0
+                if use12:
+                    price12 = st.number_input('12 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_12')
+                    
+                # Size 16 oz Configuration Row
+                use16 = st.checkbox('Offer 16 oz', value=True, key=f'{classification}_use_16')
+                price16 = 0.0
+                if use16:
+                    price16 = st.number_input('16 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_16')
                 
                 st.divider()
                 st.markdown("##### 🥤 Other / Custom Size Profile")
@@ -264,14 +259,13 @@ elif mode == 'Admin' and page == 'Product Management':
                     with c_price_col: 
                         custom_price = st.number_input('Custom Size Price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_custom')
 
-                # Pack size records securely
+                # Pack size records securely into your current variables
                 if use8 and price8 > 0: size_prices[8] = cents_from_peso(price8)
                 if use12 and price12 > 0: size_prices[12] = cents_from_peso(price12)
                 if use16 and price16 > 0: size_prices[16] = cents_from_peso(price16)
                 if use_custom and custom_label and custom_price > 0:
                     size_prices[99] = cents_from_peso(custom_price)
                     category = f"{category} | Custom:{custom_label}"
-
 
             # PATH 3: OTHERS
             elif classification == 'Others (Combo/Meal Plan)':
