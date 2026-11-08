@@ -107,7 +107,6 @@ if mode == 'Admin' and page == 'Dashboard':
     end_time = datetime.combine(today + timedelta(days=1), time.min).isoformat()
     
     st.subheader('Business overview')
-    # FIXED: Cleared out the duplicate lines that overrode local timeline parameters back to UTC
     summary = db.sales_summary(start_time, end_time)
     all_products = db.list_products(active_only=True)
     low = [p for p in all_products if p['stock'] <= p['low_stock_threshold']]
@@ -157,42 +156,44 @@ elif mode == 'Admin' and page == 'Product Management':
     with tab1:
         classification = st.radio('Product Classification *', ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], horizontal=True)
         st.markdown("---")
-        
-        # 1. Initialize master session state variables for input fields
-        if 'add_name' not in st.session_state: st.session_state.add_name = ""
-        if 'add_category' not in st.session_state: st.session_state.add_category = ""
-        if 'add_price_text' not in st.session_state: st.session_state.add_price_text = ""
 
-        # 2. FIXED: Dynamically filter categories based on the active Product Classification state
         try:
             db_products = db.list_products(active_only=False)
-            
-            # Group keywords together to accurately identify existing drink mappings
             drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe', 'drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
             
-            filtered_saved_cats = set()
+            food_cats = set()
+            drink_cats = set()
+            combo_cats = set()
+            
             for p in db_products:
-                if not p['category']:
-                    continue
-                # Extract the clean category name before any custom sizing split text
+                if not p['category']: continue
                 clean_cat = p['category'].split(" | Custom:", 1)[0].strip()
                 clean_cat_lower = clean_cat.lower()
                 
-                # Check if the item's category name fits a drink profile
                 is_drink_cat = any(dk in clean_cat_lower for dk in drink_keywords)
+                is_combo_cat = 'combo' in clean_cat_lower or 'promo' in clean_cat_lower or 'bundle' in clean_cat_lower
                 
-                # Route categories into lists that match the selected layout view
-                if classification == 'Drinks (Gulps)' and is_drink_cat:
-                    filtered_saved_cats.add(clean_cat)
-                elif classification == 'Foods (Grubs)' and not is_drink_cat and 'combo' not in clean_cat_lower:
-                    filtered_saved_cats.add(clean_cat)
-                elif classification == 'Others (Combo/Meal Plan)' and 'combo' in clean_cat_lower:
-                    filtered_saved_cats.add(clean_cat)
-                    
-            existing_saved_cats = sorted(list(filtered_saved_cats))
+                if is_drink_cat: drink_cats.add(clean_cat)
+                elif is_combo_cat: combo_cats.add(clean_cat)
+                else: food_cats.add(clean_cat)
+            
+            if classification == 'Drinks (Gulps)': existing_saved_cats = sorted(list(drink_cats))
+            elif classification == 'Others (Combo/Meal Plan)': existing_saved_cats = sorted(list(combo_cats))
+            else: existing_saved_cats = sorted(list(food_cats))
         except Exception:
             existing_saved_cats = []
 
+        # Setup real-time string pool memory mapping
+        text_state_key = f"raw_typing_buffer_{classification}"
+        if text_state_key not in st.session_state:
+            st.session_state[text_state_key] = ""
+
+        options_pool = existing_saved_cats.copy()
+        user_typing = st.session_state[text_state_key].strip()
+        if user_typing and user_typing not in options_pool:
+            options_pool.insert(0, user_typing)
+
+        # --- MAIN FORM BLOCK CONTAINER ---
         # Product Name Input
         name = st.text_input('Product name *', value=st.session_state.add_name, placeholder='Enter product name', key='prod_name_input_field').strip()
         category = ""
@@ -254,37 +255,44 @@ elif mode == 'Admin' and page == 'Product Management':
                 custom_label = ""
                 custom_price = 0.0
                 if use_custom:
-                    c_size_col, c_price_col = st.columns(2)
-                    with c_size_col: 
-                        custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key=f'{classification}_lbl_custom').strip()
-                    with c_price_col: 
-                        custom_price = st.number_input('Custom Size Price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_custom')
-
-                # Pack size records securely
-                if use8 and price8 > 0: size_prices[8] = cents_from_peso(price8)
-                if use12 and price12 > 0: size_prices[12] = cents_from_peso(price12)
-                if use16 and price16 > 0: size_prices[16] = cents_from_peso(price16)
-                if use_custom and custom_label and custom_price > 0:
-                    size_prices[99] = cents_from_peso(custom_price)
-                    category = f"{category} | Custom:{custom_label}"
                     
-            # --- PATH 3: OTHERS ---
-            elif classification == 'Others (Combo/Meal Plan)':
-                price_input = st.text_input('Price (₱) *', placeholder='0.00', key=f'f_price_{classification}').strip()
-                price = parse_and_format_price(price_input)
+            c_size_col, c_price_col = st.columns(2)
+            with c_size_col:
+                custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', disabled=not use_custom, key=f'{classification}_lbl_custom').strip()
+            with c_price_col:
+                custom_price = st.number_input('Custom Size Price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use_custom, key=f'{classification}_val_custom')
 
-            st.divider()
-            low_stock_threshold = st.number_input('Low-stock alert boundary count', min_value=0, value=5, step=1)
-            high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
-            
-            submit_form_btn = st.form_submit_button('Add product to Catalog', type='primary', use_container_width=True)
+            if use8: size_prices[8] = cents_from_peso(price8)
+            if use12: size_prices[12] = cents_from_peso(price12)
+            if use16: size_prices[16] = cents_from_peso(price16)
 
-        # --- OUTSIDE FORM CONTAINER: Audits alert layers safely ---
-        if submit_form_btn:
+            if use_custom and custom_label:
+                size_prices[99] = cents_from_peso(custom_price)
+                category = f"{base_category} | Custom:{custom_label}"
+            else:
+                category = base_category
+    
+            if size_prices:
+                price = next(iter(size_prices.values())) / 100
+                
+        # --- PATH 3: OTHERS ---
+        elif classification == 'Others (Combo/Meal Plan)':
+            category = st.text_input('Category *', placeholder='e.g. Combo Meal, Promo Bundle').strip()
+            price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
+
+        # System Administration Settings & Threshold Counts
+        st.divider()
+        low_stock_threshold = st.number_input('Low-stock alert boundary count', min_value=0, value=5, step=1)
+        high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
+        
+        # Submit Button Action Block
+        if st.button('Add product to Catalog', type='primary'):
+            # Clean and isolate inputs for analysis
             clean_name = name.strip()
             clean_category = category.strip()
             test_string = f"{clean_name} {clean_category}".lower()
 
+            # --- 1. REPEATING KEYBOARD SPAM CHECKER ---
             def has_consecutive_repetitions(text, max_allowed=3):
                 if not text: return False
                 count = 1
@@ -295,58 +303,58 @@ elif mode == 'Admin' and page == 'Product Management':
                     else: count = 1
                 return False
 
+            # --- 2. GIBBERISH DETECTOR ---
             def looks_like_gibberish(text):
                 words = [w for w in text.split() if w.isalpha()]
                 if not words: return False
                 vowels = set("aeiou")
                 for word in words:
-                    if len(word) >= 4 and not any(char in vowels for char in word): return True
+                    if len(word) >= 4 and not any(char in vowels for char in word):
+                        return True
                 return False
 
-            culinary_dictionary = [
-                'tea', 'milk', 'coffee', 'juice', 'shake', 'smoothie', 'soda', 'cola', 'drink', 'beverage',
-                'water', 'brew', 'ice', 'syrup', 'slush', 'frappe', 'float', 'latte', 'food', 'snack',
-                'fry', 'fries', 'potato', 'burger', 'sandwich', 'bun', 'bread', 'waffle', 'donut', 'doughnut',
-                'cake', 'pastry', 'cookie', 'pie', 'sweet', 'dessert', 'crepe', 'rice', 'meal', 'combo', 'box',
-                'platter', 'bucket', 'chicken', 'wings', 'pork', 'beef', 'meat', 'fish', 'seafood', 'sauce',
-                'dip', 'bbq', 'cheese', 'street', 'grill', 'bacon', 'egg', 'noodles', 'soup', 'pasta', 'salad', 'kikiam', 'lumpia'
-            ]
-
+            # --- 3. CORE VALIDATION PARAMETERS ---
             prohibited_keywords = ['person', 'human', 'people', 'teacher', 'student', 'animal', 'object', 'thing']
             drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe', 'drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
-
-            try:
-                existing_product_names = [str(item['name']).lower().strip() for item in db.list_products(active_only=True)]
-            except Exception: existing_product_names = []
 
             is_spam_text = has_consecutive_repetitions(test_string, max_allowed=3) or has_consecutive_repetitions(clean_category, max_allowed=3)
             is_nonsense_word = looks_like_gibberish(test_string) or looks_like_gibberish(clean_category)
             contains_junk = any(junk in test_string for junk in prohibited_keywords)
             category_has_drink_terms = any(dk in clean_category.lower() for dk in drink_keywords)
-            is_valid_culinary = any(word in test_string for word in culinary_dictionary)
 
-            if not clean_name: st.error("Product name is required.")
-            elif not clean_category: st.error("Category structure specification is required.")
-            elif clean_name.lower() in existing_product_names: st.error(f"🔴 Catalog Conflict: A product named '{clean_name}' already exists!")
-            elif is_spam_text or is_nonsense_word: st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish.")
-            elif contains_junk: st.error("🔴 Context Validation Alert: Junk classifications are blocked.")
-            elif classification == 'Drinks (Gulps)' and not category_has_drink_terms: st.error(f"🔴 Classification Mismatch: Selected 'Drinks (Gulps)' but entered a non-beverage category.")
-            elif classification == 'Foods (Grubs)' and category_has_drink_terms: st.error(f"🔴 Classification Mismatch: Selected 'Foods (Grubs)' but entered a drink category.")
-            elif not is_valid_culinary: st.error("🔴 Context Validation Alert: Category must be related to food or beverages.")
-            elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0: st.error("🔴 Validation Error: Price field is required and must be greater than ₱0.00.")
-            elif classification == 'Drinks (Gulps)' and not size_prices: st.error("🔴 Validation Error: Sizing prices are required.")
+            # --- ✨ MASTER EXECUTION GATEKEEPER TREE WITH PRICE ENFORCEMENT ---
+            if not clean_name:
+                st.error("Product name is required.")
+            elif not clean_category:
+                st.error("Category structure specification is required.")
+            elif is_spam_text or is_nonsense_word:
+                st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish patterns. Please use genuine descriptions.")
+            elif contains_junk:
+                st.error("🔴 Context Validation Alert: Junk classifications (person, human, object) are strictly blocked.")
+            elif classification == 'Drinks (Gulps)' and not category_has_drink_terms:
+                st.error(f"🔴 Classification Mismatch: You selected 'Drinks (Gulps)' but entered a non-beverage category '{category}'.")
+            elif classification == 'Foods (Grubs)' and category_has_drink_terms:
+                st.error(f"🔴 Classification Mismatch: You selected 'Foods (Grubs)' but entered a drink-related category '{category}'.")
+            
+            # --- 🚨 THE PRICING GATEKEEPER RULE: BLOCKS ZERO OR MISSING VALUES COMPLETELY ---
+            elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0:
+                st.error("🔴 Validation Error: Price field is required. Product price must be greater than ₱0.00.")
+            elif classification == 'Drinks (Gulps)' and not size_prices:
+                st.error("🔴 Validation Error: Sizing prices are required. Please enable and price at least one cup size option.")
+                
             else:
                 try:
                     price_cents = cents_from_peso(price)
                     generated_code = db.generate_product_code(classification)
                     starting_stock = 0
+                    
                     db.add_product(
                         code=generated_code, name=clean_name, category=clean_category, price_cents=price_cents, 
                         stock=starting_stock, threshold=low_stock_threshold,
                         size_prices=size_prices if classification == 'Drinks (Gulps)' else None
-                    )    
-                    formatted_display_price = f"₱{price:,.2f}"
-                    success_msg = f"✨ SUCCESS: Product '{clean_name}' successfully added to catalog under category '{clean_category}' at {formatted_display_price}(Code: {generated_code})."
+                    )
+                    
+                    success_msg = f"✨ SUCCESS: Product '{clean_name}' successfully added to catalog under category '{clean_category}' (Code: {generated_code})."
                     st.success(success_msg)
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     logging.info(success_msg)
