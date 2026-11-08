@@ -1195,7 +1195,7 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
             selected = st.selectbox('Select Product to Audit',list(choices.keys()), index=None,placeholder="Select product...",key='restock_audit_select')
             if selected:
                 item = choices[selected]
-                st.info(f"Current recorded database level for{item['name']} is {item['stock']} units.")
+                st.info(f"Current recorded database level for {item['name']} is {item['stock']} units.")
                 with st.form('inventory_manager_audit'):
                     exact_stock = st.number_input('Actual physical count on shelf',min_value=0,value=int(item['stock']),step=1)
                     submit = st.form_submit_button('Overwrite Stock Balance Value',type='primary')
@@ -1254,7 +1254,7 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
             st.markdown("#### 📉 Recent Stock Movements & Audits")
             try:
                 with db.connection() as conn:
-                    recent_movements = conn.execute('''SELECT m.quantity_change,m.reason, p.nameFROM inventory_movements m JOIN products p ON m.product_id = p.id ORDER BY m.created_at DESC LIMIT 6 ''').fetchall()
+                    recent_movements = conn.execute('''SELECT m.quantity_change,m.reason, p.name FROM inventory_movements m JOIN products p ON m.product_id = p.id ORDER BY m.created_at DESC LIMIT 6 ''').fetchall()
                 if recent_movements:
                     for move in recent_movements:
                         qty = move['quantity_change']
