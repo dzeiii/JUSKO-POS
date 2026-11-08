@@ -750,17 +750,17 @@ elif mode == 'Cashier' and page == 'New Sale':
                 base_shown = [p for p in products if query.casefold() in (p['name'] + ' ' + p['code']).casefold()]
         else:
             base_shown = products
-
-        # 2. ADDED: Route matching products based on active department context grids
+            
+        # Added 'int(p['stock']) > 0' to hide any items with 0 stock automatically
         if selected_catalog_tab == "🍔 Foods (Grubs)":
-            shown = [p for p in base_shown if not db.get_product_sizes(p['id'])]
+            shown = [p for p in base_shown if not db.get_product_sizes(p['id']) and int(p['stock']) > 0]
         elif selected_catalog_tab == "🥤 Drinks (Gulps)":
-            shown = [p for p in base_shown if bool(db.get_product_sizes(p['id']))]
+            shown = [p for p in base_shown if bool(db.get_product_sizes(p['id'])) and int(p['stock']) > 0]
         else:
-            shown = base_shown
+            shown = [p for p in base_shown if int(p['stock']) > 0]
 
         if not shown:
-            st.info('No matching active products found inside this department menu lane.')
+            st.info('No matching active products with available stock found.')
             
         # PRODUCT DISPLAY
         for start_idx in range(0, len(shown), 2):
