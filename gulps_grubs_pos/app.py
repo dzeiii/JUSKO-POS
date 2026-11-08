@@ -994,23 +994,22 @@ elif mode == 'Cashier' and page == 'New Sale':
                         determined_cashier = cashier_name.strip()
                     elif 'cashier_label' in locals() and cashier_label:
                         determined_cashier = cashier_label.strip()
-
-                 
+                        
                     sale = db.checkout(raw_cart_values, cashier_label=determined_cashier)
                     st.session_state.last_sale = sale
 
                     order_details_list = []
                     for item in raw_cart_values:
                         size_suffix = f" ({item['custom_size_lbl']})" if item.get('custom_size_lbl') else ""
-                        order_details_list.append(f"{item['quantity']}x {item['name']}{size_suffix}")
+                        order_details_list.append(f"{item['quantity']}x {item.get('name', 'Product')}{size_suffix}")
                     order_details_str = ", ".join(order_details_list)
                     
-                    # 3. Add the ticket directly to your kitchen priority database queue
                     db.add_order(
                         customer_name=customer_name.strip(), 
                         details=order_details_str, 
                         priority=int(priority_level)
                     )
+
 
                     # 4. Clear shopping cart basket and execute rerun refresh
                     st.session_state.cart.clear()
