@@ -196,10 +196,26 @@ elif mode == 'Admin' and page == 'Product Management':
         drink_category_suffix = ""
         drink_config_error = None
         st.markdown("#### 📝 Product Information")
-        name = st.text_input('Product name *',placeholder='Enter product name',key=f'f_name_{classification}', clear_on_submit = True).strip()
-    
-        category = st.text_input('Category *',placeholder="Type your category name here (e.g., Waffle, Streetfood)...",key=f'f_cat_text_input_lane_{classification}',clear_on_submit = True).strip()
+        if f'f_name_{classification}' not in st.session_state:
+            st.session_state[f'f_name_{classification}'] = ""
+        if f'f_cat_text_input_lane_{classification}' not in st.session_state:
+            st.session_state[f'f_cat_text_input_lane_{classification}'] = ""
         
+        # --- STEP 2: LINK VALUE BINDINGS (NO MORE TYPEERRORS) ---
+        name = st.text_input(
+            'Product name *', 
+            value=st.session_state[f'f_name_{classification}'],
+            placeholder='Enter product name',
+            key=f'f_name_widget_key_{classification}'
+        ).strip()
+        
+        category = st.text_input(
+            'Category *', 
+            value=st.session_state[f'f_cat_text_input_lane_{classification}'],
+            placeholder="Type your category name here (e.g., Waffle, Streetfood)...", 
+            key=f'f_cat_widget_key_{classification}'
+        ).strip()
+                
         st.divider()
         
         # STEP 2: DRINK SIZE AND PRICING CONFIGURATION
@@ -227,21 +243,21 @@ elif mode == 'Admin' and page == 'Product Management':
                 use8 = st.checkbox('Offer 8 oz', value=False, key='drink_use_8_final')
                 price8_input = ""
                 if use8:
-                    price8_input = st.text_input('8 oz Price (₱) *', placeholder='0.00', key='drink_val_8_text_final', clear_on_submit = True).strip()
+                    price8_input = st.text_input('8 oz Price (₱) *', placeholder='0.00', key='drink_val_8_text_final', ).strip()
                     price8 = parse_and_format_price(price8_input) if use8 else 0.00
                         
             with col12:
                 use12 = st.checkbox('Offer 12 oz', value=True, key='drink_use_12_final')
                 price12_input = ""
                 if use12:
-                    price12_input = st.text_input('12 oz Price (₱) *', placeholder='0.00', key='drink_val_12_text_final', clear_on_submit = True).strip()
+                    price12_input = st.text_input('12 oz Price (₱) *', placeholder='0.00', key='drink_val_12_text_final' ).strip()
                     price12 = parse_and_format_price(price12_input) if use12 else 0.00
                         
             with col16:
                 use16 = st.checkbox('Offer 16 oz', value=True, key='drink_use_16_final')
                 price16_input = ""
                 if use16:
-                    price16_input = st.text_input('16 oz Price (₱) *', placeholder='0.00', key='drink_val_16_text_final', clear_on_submit = True).strip()
+                    price16_input = st.text_input('16 oz Price (₱) *', placeholder='0.00', key='drink_val_16_text_final').strip()
                     price16 = parse_and_format_price(price16_input) if use16 else 0.00
 
             st.divider()
@@ -254,9 +270,9 @@ elif mode == 'Admin' and page == 'Product Management':
                 c_size_col, c_price_col = st.columns(2)
         
                 with c_size_col:
-                    custom_label = st.text_input('Custom Size Description Label',placeholder='e.g., 22oz, 1-Liter',key='drink_lbl_custom_reactive_field',clear_on_submit = True).strip()
+                    custom_label = st.text_input('Custom Size Description Label',placeholder='e.g., 22oz, 1-Liter',key='drink_lbl_custom_reactive_field').strip()
                 with c_price_col:
-                    custom_price_input = st.text_input('Custom Size Price (₱) *',placeholder='0.00',key='drink_val_custom_text_reactive', clear_on_submit = True).strip()
+                    custom_price_input = st.text_input('Custom Size Price (₱) *',placeholder='0.00',key='drink_val_custom_text_reactive').strip()
     
             # Register enabled sizes and validate their prices.
             try:    
@@ -288,7 +304,7 @@ elif mode == 'Admin' and page == 'Product Management':
         # STEP 3: FOOD AND COMBO PRICING
         if classification in ['Foods (Grubs)','Others (Combo/Meal Plan)']:
             st.markdown("#### 💰 Product Pricing")
-            price_input = st.text_input('Product Price (₱) *',placeholder='0.00',key=f'f_price_{classification}',clear_on_submit = True).strip()
+            price_input = st.text_input('Product Price (₱) *',placeholder='0.00',key=f'f_price_{classification}').strip()
             price = parse_and_format_price(price_input)
         
         # STEP 4: INVENTORY ALERT SETTINGS
@@ -391,26 +407,7 @@ elif mode == 'Admin' and page == 'Product Management':
                         code=generated_code, name=clean_name, category=clean_category, price_cents=price_cents, 
                         stock=starting_stock, threshold=low_stock_threshold,
                         size_prices=size_prices if classification == 'Drinks (Gulps)' else None
-                    )    
-                    # --- FIXED: DEFENSIVE STATE CLEARING SEGMENT ---
-                    # This reads keys safely, preventing the pink error banner from crashing the interface
-                    name_key = f'f_name_{classification}'
-                    cat_key = f'f_cat_text_input_lane_{classification}'
-                    price_key = f'f_price_{classification}'
-
-                    if name_key in st.session_state:
-                        st.session_state[name_key] = ""
-                    if cat_key in st.session_state:
-                        st.session_state[cat_key] = ""
-                    if price_key in st.session_state:
-                        st.session_state[price_key] = ""
-                        
-                    # Safely wipe drink price cache keys if they are active
-                    for size_key in ['drink_val_8_text_final', 'drink_val_12_text_final', 'drink_val_16_text_final', 'drink_val_custom_text_final']:
-                        if size_key in st.session_state:
-                            st.session_state[size_key] = ""
-                    # ---------------------------------------------
-
+                    )   
                     #SUCCESS TRANSACTION PRINT RECEIPT FOR CATALOG CREATION
                     formatted_display_price = f"₱{price:,.2f}" if classification != 'Drinks (Gulps)' else "Configured Sizes Array"
                     success_msg = f"🟢 TRANSACTION SUCCESS [ADMIN]: Menu product item '{clean_name}' successfully added to store catalog database! Assigned code: '{generated_code}' under active category grouping: '{clean_category}' at '{formatted_display_price}')."
@@ -419,6 +416,9 @@ elif mode == 'Admin' and page == 'Product Management':
                     # Log audit values securely to history trails
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     logging.info(success_msg)
+                    st.session_state[f'f_name_{classification}'] = ""
+                    st.session_state[f'f_cat_text_input_lane_{classification}'] = ""
+
                     st.rerun()
                 except Exception as e: safe_error(e)
 
