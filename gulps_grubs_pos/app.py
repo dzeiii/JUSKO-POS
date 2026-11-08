@@ -163,27 +163,43 @@ elif mode == 'Admin' and page == 'Product Management':
                 db_products = db.list_products(active_only=False)
                 drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe', 'drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
                 
-                filtered_saved_cats = set()
+                food_cats = set()
+                drink_cats = set()
+                combo_cats = set()
+                
                 for p in db_products:
-                    if not p['category']: continue
-                    clean_cat = p['category'].split(" | Custom:", 1).strip()
+                    if not p['category']: 
+                        continue
+                    clean_cat = p['category'].split(" | Custom:", 1)[0].strip()
                     clean_cat_lower = clean_cat.lower()
-                    is_drink_cat = any(dk in clean_cat_lower for dk in drink_keywords)
                     
-                    if classification == 'Drinks (Gulps)' and is_drink_cat: filtered_saved_cats.add(clean_cat)
-                    elif classification == 'Foods (Grubs)' and not is_drink_cat and 'combo' not in clean_cat_lower: filtered_saved_cats.add(clean_cat)
-                    elif classification == 'Others (Combo/Meal Plan)' and 'combo' in clean_cat_lower: filtered_saved_cats.add(clean_cat)
-                existing_saved_cats = sorted(list(filtered_saved_cats))
+                    is_drink_cat = any(dk in clean_cat_lower for dk in drink_keywords)
+                    is_combo_cat = 'combo' in clean_cat_lower or 'promo' in clean_cat_lower or 'bundle' in clean_cat_lower
+                    
+                    if is_drink_cat:
+                        drink_cats.add(clean_cat)
+                    elif is_combo_cat:
+                        combo_cats.add(clean_cat)
+                    else:
+                        food_cats.add(clean_cat)
+                
+                if classification == 'Drinks (Gulps)':
+                    existing_saved_cats = sorted(list(drink_cats))
+                elif classification == 'Others (Combo/Meal Plan)':
+                    existing_saved_cats = sorted(list(combo_cats))
+                else:
+                    existing_saved_cats = sorted(list(food_cats))
             except Exception:
                 existing_saved_cats = []
 
             # 1. Product Name Input
             name = st.text_input('Product name *', placeholder='Enter product name', key=f'f_name_{classification}').strip()
+            
             category = ""
             size_prices = {}
             price = 0.0
 
-            # 2. Category Dropdown Search Selection
+            # --- 2. FIXED: Renders the selectbox dropdown context row properly whenever entries match your selected mode ---
             if existing_saved_cats:
                 options_list = ["-- Type a new custom category instead --"] + existing_saved_cats
                 suggested_pick = st.selectbox(
@@ -201,7 +217,8 @@ elif mode == 'Admin' and page == 'Product Management':
                 else:
                     category = str(typed_cat).strip()
             else:
-                category = st.text_input('Category Name *', placeholder='e.g., Streetfood, Snacks, Frappe', key=f'f_cat_text_direct_{classification}').strip()
+                # Fallback text box shows up immediately if no historical categories match the active workspace mode
+                category = st.text_input('Category Name *', placeholder='e.g., Streetfood, Snacks, Main Dishes', key=f'f_cat_text_direct_{classification}').strip()
 
             def parse_and_format_price(raw_text):
                 if not raw_text: return 0.0
@@ -255,7 +272,7 @@ elif mode == 'Admin' and page == 'Product Management':
             high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
             
             submit_form_btn = st.form_submit_button('Add product to Catalog', type='primary', use_container_width=True)
-        
+
         if submit_form_btn:
             clean_name = name.strip()
             clean_category = category.strip()
