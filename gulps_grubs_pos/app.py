@@ -155,59 +155,53 @@ elif mode == 'Admin' and page == 'Product Management':
     tab1, tab2, tab3 = st.tabs(['Add product', 'Edit / Delete', 'View Catalog'])
     
     with tab1:
+            with tab1:
         classification = st.radio('Product Classification *', ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], horizontal=True)
         st.markdown("---")
         
-        # Initialize master session state variables cleanly
+        # 1. Initialize master session state variables for input fields
         if 'add_name' not in st.session_state: st.session_state.add_name = ""
         if 'add_category' not in st.session_state: st.session_state.add_category = ""
         if 'add_price_text' not in st.session_state: st.session_state.add_price_text = ""
-        if 'show_new_cat_input' not in st.session_state: st.session_state.show_new_cat_input = False
 
-        # Isolate all distinct pre-saved category values inside your live database to build your memory dropdown
+        # 2. Automatically pull all distinct categories from your live database
         try:
             db_products = db.list_products(active_only=False)
-            # Extract clean base names before the custom sizing tag split markers
+            # Gather unique categories and remove custom sizing text tags
             existing_saved_cats = sorted(list({p['category'].split(" | Custom:", 1)[0].strip() for p in db_products if p['category']}))
         except Exception:
             existing_saved_cats = []
 
-        # 1. Product Name Input - Tied directly to its state key to allow automatic clearing
-        name = st.text_input('Product name *', value=st.session_state.add_name, placeholder='Enter product name', key='add_name').strip()
+        # Product Name Input - Tied directly to state to clear on submit
+        name = st.text_input('Product name *', value=st.session_state.add_name, placeholder='Enter product name', key='prod_name_input_field').strip()
         category = ""
         size_prices = {}
         price = 0.0
+
+        # --- 3. DYNAMIC TYPE-OR-SELECT SELECTION FIELD (NO EXTRA BUTTONS) ---
+        # Provides an editable dropdown that automatically remembers your inputs
+        category = st.selectbox(
+            'Category *',
+            options=existing_saved_cats,
+            index=None, # Starts completely blank so it doesn't force a choice
+            placeholder="Type a new category OR select a saved one...",
+            key='active_dropdown_cat_selector'
+        )
         
-        # Helper function to render a smart category memory selector layout
-        def render_adaptive_category_selector(classification_prefix, saved_list):
-            st.markdown("**Category Allocation ***")
-            
-            # Offer an open text box if the database list is empty or the user toggles the creation flag
-            if not saved_list or st.session_state.show_new_cat_input:
-                chosen_cat = st.text_input('Type New Category *', value=st.session_state.add_category, placeholder='e.g. Streetfood, Donut and Waffles', key='add_category').strip()
-                if saved_list:
-                    if st.button("⬅️ Choose from existing saved categories", key=f"toggle_old_list_{classification_prefix}"):
-                        st.session_state.show_new_cat_input = False
-                        st.rerun()
-            else:
-                # Provide an interactive lookup dropdown of every historical category saved in your POS system
-                chosen_cat = st.selectbox('Select from existing saved categories', saved_list, key='active_dropdown_cat_selector')
-                if st.button("➕ Type a brand-new custom category", key=f"toggle_new_input_{classification_prefix}"):
-                    st.session_state.show_new_cat_input = True
-                    st.session_state.add_category = ""
-                    st.rerun()
-            return chosen_cat
+        # Fallback to catch the value from memory if the user is typing
+        if category is None:
+            category = st.session_state.get('active_dropdown_cat_selector', '').strip()
+        else:
+            category = category.strip()
 
         # --- PATH 1: FOODS ---
         if classification == 'Foods (Grubs)':
-            category = render_adaptive_category_selector('foods', existing_saved_cats)
-            price_input = st.text_input('Price (₱) *', value=st.session_state.add_price_text, placeholder='0.00', key='add_price_text').strip()
+            price_input = st.text_input('Price (₱) *', value=st.session_state.add_price_text, placeholder='0.00', key='food_price_text_input_field').strip()
             price = float(price_input) if (price_input and price_input.replace('.', '', 1).isdigit()) else 0.0
             
         # --- PATH 2: DRINKS ---
         elif classification == 'Drinks (Gulps)':
-            base_category = render_adaptive_category_selector('drinks', existing_saved_cats)
-            category = base_category
+            base_category = category
             
             st.caption('Configure your cup sizes and pricing:')
             s8, s12, s16 = st.columns(3)
@@ -236,18 +230,19 @@ elif mode == 'Admin' and page == 'Product Management':
                 custom_label = ""
                 custom_price = 0.0
 
-            if use8: size_prices[8] = cents_from_peso(price8)
-            if use12: size_prices[12] = cents_from_peso(price12)
-            if use16: size_prices[16] = cents_from_peso(price16)
+            if use8: size_prices = cents_from_peso(price8)
+            if use12: size_prices = cents_from_peso(price12)
+            if use16: size_prices = cents_from_peso(price16)
 
             if use_custom and custom_label:
-                size_prices[99] = cents_from_peso(custom_price)
+                size_prices = cents_from_peso(custom_price)
                 category = f"{base_category} | Custom:{custom_label}"
+            else:
+                category = base_category
                 
         # --- PATH 3: OTHERS ---
         elif classification == 'Others (Combo/Meal Plan)':
-            category = render_adaptive_category_selector('combos', existing_saved_cats)
-            price_input = st.text_input('Price (₱) *', value=st.session_state.add_price_text, placeholder='0.00', key='add_price_text').strip()
+            price_input = st.text_input('Price (₱) *', value=st.session_state.add_price_text, placeholder='0.00', key='combo_price_text_input_field').strip()
             price = float(price_input) if (price_input and price_input.replace('.', '', 1).isdigit()) else 0.0
 
         st.divider()
@@ -325,8 +320,6 @@ elif mode == 'Admin' and page == 'Product Management':
                         stock=starting_stock, threshold=low_stock_threshold,
                         size_prices=size_prices if classification == 'Drinks (Gulps)' else None
                     )
-                    
-                    # --- FIXED: Force session state inputs to clear completely upon a successful transaction ---
                     st.session_state.add_name = ""
                     st.session_state.add_category = ""
                     st.session_state.add_price_text = ""
