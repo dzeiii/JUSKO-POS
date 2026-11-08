@@ -155,34 +155,34 @@ def list_products(db_path=DB_PATH, active_only=False):
 def get_product(product_id, db_path=DB_PATH):
     with connection(db_path) as c: return rowdict(c.execute('SELECT * FROM products WHERE id=?', (product_id,)).fetchone())
 
-def generate_product_code(db_path=DB_PATH):
-    """Generate the next unused GG-#### code, ensuring absolute freedom from database row collisions."""
-    pattern = re.compile(r"^GG-(\d+)$", re.IGNORECASE)
+def generate_product_code(classification, db_path=DB_PATH):
+    """Generates an automated, prefix-differentiated sequential product code."""
+    # 1. Map classification tags directly to distinct structural prefixes
+    prefix_map = {
+        'Foods (Grubs)': 'GRB',
+        'Drinks (Gulps)': 'GLP',
+        'Others (Combo/Meal Plan)': 'CMB'
+    }
+    prefix = prefix_map.get(classification, 'PRD')
     
     with connection(db_path) as c:
-        # Retrieve ALL codes (both active and inactive) from the SQLite source table
-        existing_codes = [r['code'] for r in c.execute('SELECT code FROM products').fetchall()]
-    
-    used_numbers = []
-    for existing_code in existing_codes:
-        match = pattern.fullmatch(existing_code.strip())
-        if match:
-            used_numbers.append(int(match.group(1)))
-            
-    # Start sequence calculation from the highest recorded sequential value
-    next_number = max(used_numbers, default=0) + 1
-    candidate = f"GG-{next_number:04d}"
-    
-    # CASE SENSITIVITY LOCK: Force an uppercase comparison dictionary layout
-    existing_upper = {code.upper() for code in existing_codes}
-    
-    # DOUBLE VERIFICATION LOOP: If the candidate code sequence exists anywhere in the database layout, 
-    # keep incrementing it upward until it finds a completely unassigned, open index.
-    while candidate.upper() in existing_upper:
-        next_number += 1
-        candidate = f"GG-{next_number:04d}"
+        # Scan for the highest numeric index suffix carrying that specific category prefix
+        row = c.execute(
+            "SELECT code FROM products WHERE code LIKE ? ORDER BY id DESC LIMIT 1", 
+            (f"{prefix}-%",)
+        ).fetchone()
         
-    return candidate
+        if row:
+            try:
+                # Extract digits after the hyphen and increment by 1
+                last_num = int(row['code'].split('-')[1])
+                new_num = last_num + 1
+            except (ValueError, IndexError):
+                new_num = 1001
+        else:
+            new_num = 1001  # Starting base suffix index digit sequence
+            
+        return f"{prefix}-{new_num:04d}"
 
 def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_PATH, size_prices=None):
     code, name, category = code.strip().upper(), name.strip(), category.strip()
