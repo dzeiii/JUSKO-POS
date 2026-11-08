@@ -226,7 +226,6 @@ elif mode == 'Admin' and page == 'Product Management':
             with col8:
                 use8 = st.checkbox('Offer 8 oz', value=False, key='drink_use_8_final')
                 price8_input = ""
-                # ✨ MATCHING FIXED: Input only renders when the checkbox is active
                 if use8:
                     price8_input = st.text_input('8 oz Price (₱) *', placeholder='0.00', key='drink_val_8_text_final').strip()
                     price8 = parse_and_format_price(price8_input) if use8 else 0.0
@@ -234,7 +233,6 @@ elif mode == 'Admin' and page == 'Product Management':
             with col12:
                 use12 = st.checkbox('Offer 12 oz', value=True, key='drink_use_12_final')
                 price12_input = ""
-                # ✨ MATCHING FIXED: Input only renders when the checkbox is active
                 if use12:
                     price12_input = st.text_input('12 oz Price (₱) *', placeholder='0.00', key='drink_val_12_text_final').strip()
                     price12 = parse_and_format_price(price12_input) if use12 else 0.0
@@ -242,7 +240,6 @@ elif mode == 'Admin' and page == 'Product Management':
             with col16:
                 use16 = st.checkbox('Offer 16 oz', value=True, key='drink_use_16_final')
                 price16_input = ""
-                # ✨ MATCHING FIXED: Input only renders when the checkbox is active
                 if use16:
                     price16_input = st.text_input('16 oz Price (₱) *', placeholder='0.00', key='drink_val_16_text_final').strip()
                     price16 = parse_and_format_price(price16_input) if use16 else 0.0
@@ -386,21 +383,26 @@ elif mode == 'Admin' and page == 'Product Management':
                 st.error("🔴 Validation Error: Enable and configure at least one drink size.")
             else:
                 try:
-                    price_cents = cents_from_peso(price)
+                    price_cents = cents_from_peso(price) if classification != 'Drinks (Gulps)' else 0
                     generated_code = db.generate_product_code(classification)
                     starting_stock = 0
+                
                     db.add_product(
                         code=generated_code, name=clean_name, category=clean_category, price_cents=price_cents, 
                         stock=starting_stock, threshold=low_stock_threshold,
                         size_prices=size_prices if classification == 'Drinks (Gulps)' else None
                     )    
-                    formatted_display_price = f"₱{price:,.2f}" if classification != 'Drinks (Gulps)' else "Configured Sizes"
-                    success_msg = f"✨ SUCCESS: Product '{clean_name}' successfully added to catalog under category '{clean_category}' ({formatted_display_price}) (Code: {generated_code})."
+                    #SUCCESS TRANSACTION PRINT RECEIPT FOR CATALOG CREATION
+                    formatted_display_price = f"₱{price:,.2f}" if classification != 'Drinks (Gulps)' else "Configured Sizes Array"
+                    success_msg = f"🟢 TRANSACTION SUCCESS [ADMIN]: Menu product item '{clean_name}' successfully added to store catalog database! assigned code: '{generated_code}' under active category grouping: '{clean_category}' ({formatted_display_price})."
                     st.success(success_msg)
+                    
+                    # Log audit values securely to history trails
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
+                    logging.info(success_msg)
                     st.rerun()
                 except Exception as e: safe_error(e)
-                    
+
     # EDIT / DELETE TAB
     with tab2:
         st.subheader("Edit or Delete Product")
@@ -893,20 +895,23 @@ elif mode == 'Cashier' and page == 'New Sale':
             if confirm:
                 try:
                     if not customer_name.strip(): raise ValueError("Please enter the customer name.")
+                    
                     sale = db.checkout(cart.items(), cashier_label.strip() or 'Cashier')
                     st.session_state.last_sale = sale
-            
+
                     order_details_str = ", ".join([f"{item['quantity']}x {item['name']}" for item in cart.items()])
                     db.add_order(customer_name.strip(), order_details_str, int(priority_level))
                     cart.clear()
                     
-                    # ✨ SUCCESS TRANSACTION PRINT RECORD
-                    success_msg = f"💰 SUCCESS [CASHIER]: Sale Checkout #{sale['transaction_id']} processed successfully! Bill Total: {money(sale['total_cents'])} received. Ticket dispatched to kitchen pickup queue."
+                    # SUCCESS TRANSACTION PRINT RECEIPT FOR CUSTOMER BILLING
+                    success_msg = f"🟢 TRANSACTION SUCCESS [CASHIER]: Sale receipt checkout #{sale['transaction_id']} processed successfully! customer invoice balance: {money(sale['total_cents'])} received in cash registry ledger. ticket dispatched to kitchen pickup priority queue."
                     st.success(success_msg)
+                    
                     db.log_activity('Cashier', 'Sale Completed', f"Receipt #{sale['transaction_id']} · Total: {money(sale['total_cents'])}")
                     logging.info(success_msg)
                     st.rerun()
                 except Exception as e: safe_error(e)
+
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     st.subheader('Cashier - Order Priority & Pickup Queue')
@@ -1072,14 +1077,14 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
                             new_total = item['stock'] + int(quantity)
                             db.update_product_stock_direct(item['id'], new_total, actor="Inventory Manager")
                             
-                            # ✨ SUCCESS TRANSACTION PRINT RECORD
-                            success_msg = f"📦 SUCCESS [INVENTORY]: Incoming delivery logged for product '{item['name']}' ({item['code']}). Added +{int(quantity)} units. New shelf balance value: {new_total}."
+                            # ✨ SUCCESS TRANSACTION PRINT RECEIPT FOR SHIPMENT DELIVERY
+                            success_msg = f"🟢 TRANSACTION SUCCESS [INVENTORY]: Incoming item shipment delivery entry logged for product '{item['name']}' ({item['code']}). Added +{int(quantity)} shelf units. New verified database balance value: {new_total} stock units."
                             st.success(success_msg)
+                            
                             db.log_activity('Inventory Manager', 'Stock Added', f"{item['code']} · +{int(quantity)} units")
-                            logging.info(success_msg)
                             st.rerun()
                         except Exception as exc: safe_error(exc)
-        # DEDUCT STOCK
+      # DEDUCT STOCK
         with itab2:
             st.markdown("#### Record Spoilage, Damage, or Waste")
             with st.form('inventory_manager_deduct',clear_on_submit=True):
@@ -1098,11 +1103,11 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
                                 new_total = item['stock'] - int(quantity)
                                 db.update_product_stock_direct(item['id'], new_total, actor=f"Inventory Manager ({reason})")
                                 
-                                # ✨ SUCCESS TRANSACTION PRINT RECORD
-                                success_msg = f"📉 SUCCESS [INVENTORY]: Stock deduction processed for product '{item['name']}' ({item['code']}). Removed -{int(quantity)} units due to: '{reason}'. Current balance: {new_total}."
+                                # ✨ SUCCESS TRANSACTION PRINT RECEIPT FOR LOSSES/WASTE
+                                success_msg = f"🟢 TRANSACTION SUCCESS [INVENTORY LOSS]: Stock loss reduction transaction processed for product '{item['name']}' ({item['code']}). Removed -{int(quantity)} units due to verified reason: '{reason}'. Balance: {new_total}."
                                 st.success(success_msg)
+                                
                                 db.log_activity('Inventory Manager', 'Stock Deducted', f"{item['code']} · -{int(quantity)} units ({reason})")
-                                logging.info(success_msg)
                                 st.rerun()
                         except Exception as exc: safe_error(exc)
         # DIRECT STOCK AUDIT
