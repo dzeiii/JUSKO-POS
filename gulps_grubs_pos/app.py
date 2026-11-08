@@ -161,112 +161,112 @@ elif mode == 'Admin' and page == 'Product Management':
         # Wrapped inside a form container to safely handle focus and inputs
         with st.form(key=f'add_product_master_form_{classification}', clear_on_submit=True):
             try:
-            db_products = db.list_products(active_only=False)
-            drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe', 'drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
-            
-            food_cats = set()
-            drink_cats = set()
-            combo_cats = set()
-            
-            for p in db_products:
-                if not p['category']: continue
-                clean_cat = p['category'].split(" | Custom:", 1)[0].strip()
-                clean_cat_lower = clean_cat.lower()
+                db_products = db.list_products(active_only=False)
+                drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe', 'drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
                 
-                is_drink_cat = any(dk in clean_cat_lower for dk in drink_keywords)
-                is_combo_cat = 'combo' in clean_cat_lower or 'promo' in clean_cat_lower or 'bundle' in clean_cat_lower
+                food_cats = set()
+                drink_cats = set()
+                combo_cats = set()
                 
-                if is_drink_cat: drink_cats.add(clean_cat)
-                elif is_combo_cat: combo_cats.add(clean_cat)
-                else: food_cats.add(clean_cat)
-            
-            if classification == 'Drinks (Gulps)': existing_saved_cats = sorted(list(drink_cats))
-            elif classification == 'Others (Combo/Meal Plan)': existing_saved_cats = sorted(list(combo_cats))
-            else: existing_saved_cats = sorted(list(food_cats))
-        except Exception:
-            existing_saved_cats = []
-
-        # 2. RENDER THE INTERACTIVE FIELDS OUTSIDE THE FORM SO THEY WORK INSTANTLY
-        name = st.text_input('Product name *', placeholder='Enter product name', key=f'f_name_{classification}').strip()
-        
-        search_query = st.session_state.get(f'f_cat_select_{classification}', '')
-        options_pool = existing_saved_cats.copy()
-        if search_query and search_query not in options_pool:
-            options_pool.insert(0, search_query)
-
-        category_selection = st.selectbox(
-            'Category *',
-            options=options_pool,
-            index=None,
-            placeholder="Type a new category OR select a saved one...",
-            key=f'f_cat_select_{classification}'
-        )
-        
-        if category_selection is not None:
-            category = str(category_selection).strip()
-        else:
-            category = str(search_query).strip()
-
-        def parse_and_format_price(raw_text):
-            if not raw_text: return 0.0
-            clean_digits = raw_text.replace('₱', '').strip()
-            try: return float(clean_digits)
-            except ValueError: return 0.0
-
-        price = 0.0
-        size_prices = {}
-
-        # --- PATH 1: FOODS ---
-        if classification == 'Foods (Grubs)':
-            price_input = st.text_input('Price (₱) *', placeholder='0.00', key=f'f_price_{classification}').strip()
-            price = parse_and_format_price(price_input)
-            
-        # --- PATH 2: DRINKS (NOW FULLY DYNAMIC!) ---
-        elif classification == 'Drinks (Gulps)':
-            st.caption('Configure your cup sizes and pricing:')
-            s8, s12, s16 = st.columns(3)
-            
-            with s8:
-                use8 = st.checkbox('Offer 8 oz', value=False, key=f'{classification}_use_8')
-                if use8:
-                    price8 = st.number_input('8 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_8')
-                    size_prices[8] = cents_from_peso(price8)
-            with s12:
-                use12 = st.checkbox('Offer 12 oz', value=False, key=f'{classification}_use_12') # Defaulted to False so it updates dynamically
-                if use12:
-                    price12 = st.number_input('12 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_12')
-                    size_prices[12] = cents_from_peso(price12)
-            with s16:
-                use16 = st.checkbox('Offer 16 oz', value=False, key=f'{classification}_use_16') # Defaulted to False so it updates dynamically
-                if use16:
-                    price16 = st.number_input('16 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_16')
-                    size_prices[16] = cents_from_peso(price16)
-            
-            st.divider()
-            st.markdown("##### 🥤 Other / Custom Size Profile")
-            use_custom = st.checkbox('Offer a different custom size', value=False, key=f'{classification}_use_custom')
-            if use_custom:
-                c_size_col, c_price_col = st.columns(2)
-                with c_size_col: 
-                    custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key=f'{classification}_lbl_custom').strip()
-                with c_price_col: 
-                    custom_price = st.number_input('Custom Size Price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_custom')
+                for p in db_products:
+                    if not p['category']: continue
+                    clean_cat = p['category'].split(" | Custom:", 1)[0].strip()
+                    clean_cat_lower = clean_cat.lower()
+                    
+                    is_drink_cat = any(dk in clean_cat_lower for dk in drink_keywords)
+                    is_combo_cat = 'combo' in clean_cat_lower or 'promo' in clean_cat_lower or 'bundle' in clean_cat_lower
+                    
+                    if is_drink_cat: drink_cats.add(clean_cat)
+                    elif is_combo_cat: combo_cats.add(clean_cat)
+                    else: food_cats.add(clean_cat)
                 
-                if custom_label:
-                    size_prices[99] = cents_from_peso(custom_price)
-                    category = f"{category} | Custom:{custom_label}"
-                
-        # --- PATH 3: OTHERS ---
-        elif classification == 'Others (Combo/Meal Plan)':
-            price_input = st.text_input('Price (₱) *', placeholder='0.00', key=f'f_price_{classification}').strip()
-            price = parse_and_format_price(price_input)
-
-        # 3. USE A SMALLER FORM ONLY FOR THE THRESHOLDS AND SUBMIT ACTIONS
-        with st.form(key=f'add_product_submit_form_{classification}', clear_on_submit=True):
-            low_stock_threshold = st.number_input('Low-stock alert boundary count', min_value=0, value=5, step=1)
-            high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
+                if classification == 'Drinks (Gulps)': existing_saved_cats = sorted(list(drink_cats))
+                elif classification == 'Others (Combo/Meal Plan)': existing_saved_cats = sorted(list(combo_cats))
+                else: existing_saved_cats = sorted(list(food_cats))
+            except Exception:
+                existing_saved_cats = []
+    
+            # 2. RENDER THE INTERACTIVE FIELDS OUTSIDE THE FORM SO THEY WORK INSTANTLY
+            name = st.text_input('Product name *', placeholder='Enter product name', key=f'f_name_{classification}').strip()
             
-            submit_form_btn = st.form_submit_button('Add product to Catalog', type='primary', use_container_width=True)
+            search_query = st.session_state.get(f'f_cat_select_{classification}', '')
+            options_pool = existing_saved_cats.copy()
+            if search_query and search_query not in options_pool:
+                options_pool.insert(0, search_query)
+    
+            category_selection = st.selectbox(
+                'Category *',
+                options=options_pool,
+                index=None,
+                placeholder="Type a new category OR select a saved one...",
+                key=f'f_cat_select_{classification}'
+            )
+            
+            if category_selection is not None:
+                category = str(category_selection).strip()
+            else:
+                category = str(search_query).strip()
+    
+            def parse_and_format_price(raw_text):
+                if not raw_text: return 0.0
+                clean_digits = raw_text.replace('₱', '').strip()
+                try: return float(clean_digits)
+                except ValueError: return 0.0
+    
+            price = 0.0
+            size_prices = {}
+    
+            # --- PATH 1: FOODS ---
+            if classification == 'Foods (Grubs)':
+                price_input = st.text_input('Price (₱) *', placeholder='0.00', key=f'f_price_{classification}').strip()
+                price = parse_and_format_price(price_input)
+                
+            # --- PATH 2: DRINKS (NOW FULLY DYNAMIC!) ---
+            elif classification == 'Drinks (Gulps)':
+                st.caption('Configure your cup sizes and pricing:')
+                s8, s12, s16 = st.columns(3)
+                
+                with s8:
+                    use8 = st.checkbox('Offer 8 oz', value=False, key=f'{classification}_use_8')
+                    if use8:
+                        price8 = st.number_input('8 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_8')
+                        size_prices[8] = cents_from_peso(price8)
+                with s12:
+                    use12 = st.checkbox('Offer 12 oz', value=False, key=f'{classification}_use_12') # Defaulted to False so it updates dynamically
+                    if use12:
+                        price12 = st.number_input('12 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_12')
+                        size_prices[12] = cents_from_peso(price12)
+                with s16:
+                    use16 = st.checkbox('Offer 16 oz', value=False, key=f'{classification}_use_16') # Defaulted to False so it updates dynamically
+                    if use16:
+                        price16 = st.number_input('16 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_16')
+                        size_prices[16] = cents_from_peso(price16)
+                
+                st.divider()
+                st.markdown("##### 🥤 Other / Custom Size Profile")
+                use_custom = st.checkbox('Offer a different custom size', value=False, key=f'{classification}_use_custom')
+                if use_custom:
+                    c_size_col, c_price_col = st.columns(2)
+                    with c_size_col: 
+                        custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key=f'{classification}_lbl_custom').strip()
+                    with c_price_col: 
+                        custom_price = st.number_input('Custom Size Price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_custom')
+                    
+                    if custom_label:
+                        size_prices[99] = cents_from_peso(custom_price)
+                        category = f"{category} | Custom:{custom_label}"
+                    
+            # --- PATH 3: OTHERS ---
+            elif classification == 'Others (Combo/Meal Plan)':
+                price_input = st.text_input('Price (₱) *', placeholder='0.00', key=f'f_price_{classification}').strip()
+                price = parse_and_format_price(price_input)
+    
+            # 3. USE A SMALLER FORM ONLY FOR THE THRESHOLDS AND SUBMIT ACTIONS
+            with st.form(key=f'add_product_submit_form_{classification}', clear_on_submit=True):
+                low_stock_threshold = st.number_input('Low-stock alert boundary count', min_value=0, value=5, step=1)
+                high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
+                
+                submit_form_btn = st.form_submit_button('Add product to Catalog', type='primary', use_container_width=True)
             
         if submit_form_btn:
             clean_name = name.strip()
