@@ -805,10 +805,10 @@ elif mode == 'Cashier' and page == 'New Sale':
                         cat_lower = display_cat_clean.lower()
 
                         is_milktea = ('milktea' in cat_lower or 'milktea' in prod_name_lower)
-                        is_milkshake = ('milkshake' in cat_loweror 'milkshake' in prod_name_lower)
-                        is_lemonade_slushie = ('slushie' in cat_loweror 'slushie' in prod_name_lower)
-                        is_lemonade = ('lemonade' in cat_loweror 'lemonade' in prod_name_lower ) and not is_lemonade_slushie
-                        is_coffee = ('coffee' in cat_loweror 'coffee' in prod_name_lower)
+                        is_milkshake = ('milkshake' in cat_lower or 'milkshake' in prod_name_lower)
+                        is_lemonade_slushie = ('slushie' in cat_lower or 'slushie' in prod_name_lower)
+                        is_lemonade = ('lemonade' in cat_lower or 'lemonade' in prod_name_lower ) and not is_lemonade_slushie
+                        is_coffee = ('coffee' in cat_lower or 'coffee' in prod_name_lower)
                         
                         # SINKER SELECTION
                         if is_drink:
