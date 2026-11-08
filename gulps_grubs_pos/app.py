@@ -163,6 +163,7 @@ elif mode == 'Admin' and page == 'Product Management':
         if 'add_category' not in st.session_state: st.session_state.add_category = ""
         if 'add_price_text' not in st.session_state: st.session_state.add_price_text = ""
 
+
         # 2. FIXED: Dynamically filter categories based on the active Product Classification state
         try:
             db_products = db.list_products(active_only=False)
@@ -194,7 +195,17 @@ elif mode == 'Admin' and page == 'Product Management':
             existing_saved_cats = []
 
         # Product Name Input
-        name = st.text_input('Product name *', value=st.session_state.add_name, placeholder='Enter product name', key='prod_name_input_field').strip()
+        name = st.text_input(
+            'Product name *', 
+            value=st.session_state.add_name, 
+            placeholder='Enter product name', 
+            key=f'prod_name_state_holder_{classification}'
+        ).strip()
+        
+        # Fallback to keep your validation string sync pristine
+        if not name:
+            name = st.session_state.get(f'prod_name_state_holder_{classification}', '').strip()
+
         category = ""
         size_prices = {}
         price = 0.0
