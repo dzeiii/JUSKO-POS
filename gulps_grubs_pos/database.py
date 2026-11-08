@@ -156,8 +156,7 @@ def get_product(product_id, db_path=DB_PATH):
     with connection(db_path) as c: return rowdict(c.execute('SELECT * FROM products WHERE id=?', (product_id,)).fetchone())
 
 def generate_product_code(classification, db_path=DB_PATH):
-    """Generates an automated, prefix-differentiated sequential product code."""
-    # 1. Map classification tags directly to distinct structural prefixes
+    """Generates a gap-filling product code by finding the lowest available sequential number."""
     prefix_map = {
         'Foods (Grubs)': 'GRB',
         'Drinks (Gulps)': 'GLP',
@@ -166,23 +165,29 @@ def generate_product_code(classification, db_path=DB_PATH):
     prefix = prefix_map.get(classification, 'PRD')
     
     with connection(db_path) as c:
-        # Scan for the highest numeric index suffix carrying that specific category prefix
-        row = c.execute(
-            "SELECT code FROM products WHERE code LIKE ? ORDER BY id DESC LIMIT 1", 
+        # 1. Pull ALL active codes for this specific prefix from the live table columns
+        rows = c.execute(
+            "SELECT code FROM products WHERE code LIKE ?", 
             (f"{prefix}-%",)
-        ).fetchone()
+        ).fetchall()
         
-        if row:
+        # 2. Extract the numeric suffix integers into a lookup set array
+        active_numbers = set()
+        for r in rows:
             try:
-                # Extract digits after the hyphen and increment by 1
-                last_num = int(row['code'].split('-')[1])
-                new_num = last_num + 1
+                num_part = int(r['code'].split('-')[1])
+                active_numbers.add(num_part)
             except (ValueError, IndexError):
-                new_num = 1001
-        else:
-            new_num = 1001  # Starting base suffix index digit sequence
+                continue
+        
+        # 3. GAP FINDER: Start at 1001 and look for the very first number that is NOT currently on your screen
+        candidate_number = 1001
+        while candidate_number in active_numbers:
+            candidate_number += 1
             
-        return f"{prefix}-{new_num:04d}"
+        # Returns the lowest available empty slot (e.g., if 1002 is missing, it returns 1002)
+        return f"{prefix}-{candidate_number:04d}"
+
 
 def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_PATH, size_prices=None):
     code, name, category = code.strip().upper(), name.strip(), category.strip()
