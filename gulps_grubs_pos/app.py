@@ -228,19 +228,34 @@ elif mode == 'Admin' and page == 'Product Management':
                 st.divider()
                 st.caption('Configure your cup sizes and pricing details:')
                 
-                # Render Size 8 oz Lane - Instantly unlocks text box when checked
+                # Render Size 8 oz Lane - FIXED: Tied explicitly to session state keys for instant unlocking reactivity
                 use8 = st.checkbox('Offer 8 oz Size Options', value=False, key=f'{classification}_use_8')
-                price8_input = st.text_input('8 oz Size Pricing (₱) *', placeholder='0.00', disabled=not use8, key=f'{classification}_val_8_text').strip()
+                price8_input = st.text_input(
+                    '8 oz Size Pricing (₱) *', 
+                    placeholder='0.00', 
+                    disabled=not st.session_state.get(f'{classification}_use_8', False), 
+                    key=f'{classification}_val_8_text'
+                ).strip()
                 price8 = parse_and_format_price(price8_input) if use8 else 0.0
                     
-                # Render Size 12 oz Lane - Instantly unlocks text box when checked
+                # Render Size 12 oz Lane - FIXED: Tied explicitly to session state keys for instant unlocking reactivity
                 use12 = st.checkbox('Offer 12 oz Size Options', value=True, key=f'{classification}_use_12')
-                price12_input = st.text_input('12 oz Size Pricing (₱) *', placeholder='0.00', disabled=not use12, key=f'{classification}_val_12_text').strip()
+                price12_input = st.text_input(
+                    '12 oz Size Pricing (₱) *', 
+                    placeholder='0.00', 
+                    disabled=not st.session_state.get(f'{classification}_use_12', True), 
+                    key=f'{classification}_val_12_text'
+                ).strip()
                 price12 = parse_and_format_price(price12_input) if use12 else 0.0
                     
-                # Render Size 16 oz Lane - Instantly unlocks text box when checked
+                # Render Size 16 oz Lane - FIXED: Tied explicitly to session state keys for instant unlocking reactivity
                 use16 = st.checkbox('Offer 16 oz Size Options', value=True, key=f'{classification}_use_16')
-                price16_input = st.text_input('16 oz Size Pricing (₱) *', placeholder='0.00', disabled=not use16, key=f'{classification}_val_16_text').strip()
+                price16_input = st.text_input(
+                    '16 oz Size Pricing (₱) *', 
+                    placeholder='0.00', 
+                    disabled=not st.session_state.get(f'{classification}_use_16', True), 
+                    key=f'{classification}_val_16_text'
+                ).strip()
                 price16 = parse_and_format_price(price16_input) if use16 else 0.0
                 
                 st.divider()
@@ -254,7 +269,12 @@ elif mode == 'Admin' and page == 'Product Management':
                     with c_size_col: 
                         custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key=f'{classification}_lbl_custom').strip()
                     with c_price_col: 
-                        custom_price_input = st.text_input('Custom Size Price (₱) *', placeholder='0.00', key=f'{classification}_val_custom_text').strip()
+                        custom_price_input = st.text_input(
+                            'Custom Size Price (₱) *', 
+                            placeholder='0.00', 
+                            disabled=not st.session_state.get(f'{classification}_use_custom', False),
+                            key=f'{classification}_val_custom_text'
+                        ).strip()
                         custom_price = parse_and_format_price(custom_price_input)
 
                 # Route size information securely to satisfy your active insertion structures
@@ -264,6 +284,7 @@ elif mode == 'Admin' and page == 'Product Management':
                 if use_custom and custom_label and custom_price > 0:
                     size_prices[99] = cents_from_peso(custom_price)
                     category = f"{category} | Custom:{custom_label}"
+
 
             # PATH 3: OTHERS
             elif classification == 'Others (Combo/Meal Plan)':
