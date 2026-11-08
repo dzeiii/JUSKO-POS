@@ -155,68 +155,65 @@ elif mode == 'Admin' and page == 'Product Management':
     tab1, tab2, tab3 = st.tabs(['Add product', 'Edit / Delete', 'View Catalog'])
     
     with tab1:
+           with tab1:
         classification = st.radio('Product Classification *', ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], horizontal=True)
         st.markdown("---")
         
-        # Dynamically pull pre-saved category recommendation lists
+        # 1. Initialize master session state variables for input fields
+        if 'add_name' not in st.session_state: st.session_state.add_name = ""
+        if 'add_category' not in st.session_state: st.session_state.add_category = ""
+        if 'add_price_text' not in st.session_state: st.session_state.add_price_text = ""
+
+        # 2. FIXED: Dynamically filter categories based on the active Product Classification state
         try:
             db_products = db.list_products(active_only=False)
+            
+            # Group keywords together to accurately identify existing drink mappings
             drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe', 'drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
             
-            food_cats = set()
-            drink_cats = set()
-            combo_cats = set()
-            
+            filtered_saved_cats = set()
             for p in db_products:
-                if not p['category']: continue
+                if not p['category']:
+                    continue
+                # Extract the clean category name before any custom sizing split text
                 clean_cat = p['category'].split(" | Custom:", 1)[0].strip()
                 clean_cat_lower = clean_cat.lower()
                 
+                # Check if the item's category name fits a drink profile
                 is_drink_cat = any(dk in clean_cat_lower for dk in drink_keywords)
-                is_combo_cat = 'combo' in clean_cat_lower or 'promo' in clean_cat_lower or 'bundle' in clean_cat_lower
                 
-                if is_drink_cat: drink_cats.add(clean_cat)
-                elif is_combo_cat: combo_cats.add(clean_cat)
-                else: food_cats.add(clean_cat)
-            
-            if classification == 'Drinks (Gulps)': existing_saved_cats = sorted(list(drink_cats))
-            elif classification == 'Others (Combo/Meal Plan)': existing_saved_cats = sorted(list(combo_cats))
-            else: existing_saved_cats = sorted(list(food_cats))
+                # Route categories into lists that match the selected layout view
+                if classification == 'Drinks (Gulps)' and is_drink_cat:
+                    filtered_saved_cats.add(clean_cat)
+                elif classification == 'Foods (Grubs)' and not is_drink_cat and 'combo' not in clean_cat_lower:
+                    filtered_saved_cats.add(clean_cat)
+                elif classification == 'Others (Combo/Meal Plan)' and 'combo' in clean_cat_lower:
+                    filtered_saved_cats.add(clean_cat)
+                    
+            existing_saved_cats = sorted(list(filtered_saved_cats))
         except Exception:
             existing_saved_cats = []
 
-        # Setup stable typing state layers
-        search_query_key = f'f_cat_search_raw_{classification}'
-        if search_query_key not in st.session_state:
-            st.session_state[search_query_key] = ""
-            
-        options_pool = existing_saved_cats.copy()
-        current_typing = st.session_state[search_query_key].strip()
-        if current_typing and current_typing not in options_pool:
-            options_pool.insert(0, current_typing)
+        # Product Name Input
+        name = st.text_input('Product name *', value=st.session_state.add_name, placeholder='Enter product name', key='prod_name_input_field').strip()
+        category = ""
+        size_prices = {}
+        price = 0.0
 
-        # --- MAIN FORM BLOCK CONTAINER ---
-        with st.form(key=f'add_product_submit_form_{classification}', clear_on_submit=True):
-            # 1. Product Name Input
-            name = st.text_input('Product name *', placeholder='Enter product name', key=f'f_name_{classification}').strip()
-            
-            category = ""
-            size_prices = {}
-            price = 0.0
-
-            # 2. Unified Category Dropdown (Type or Select)
-            category_selection = st.selectbox(
-                'Category *',
-                options=options_pool,
-                index=None,
-                placeholder="Type a new category OR select a saved one...",
-                key=f'f_cat_select_{classification}'
-            )
-            
-            if category_selection is not None:
-                category = str(category_selection).strip()
-            else:
-                category = str(current_typing).strip()
+        # --- 3. DYNAMIC CLASSIFICATION-FILTERED SELECTION FIELD ---
+        category_selection = st.selectbox(
+            'Category *',
+            options=existing_saved_cats,
+            index=None, 
+            placeholder=f"Type a new category OR select an existing {classification.split(' ')[0].lower()} category...",
+            key=f'dropdown_cat_selector_{classification}' # Unique key per classification to prevent widget state collisions
+        )
+        
+        # Isolate selection string value types safely
+        if category_selection is None:
+            category = str(st.session_state.get(f'dropdown_cat_selector_{classification}', '') or '').strip()
+        else:
+            category = str(category_selection).strip()
 
             def parse_and_format_price(raw_text):
                 if not raw_text: return 0.0
