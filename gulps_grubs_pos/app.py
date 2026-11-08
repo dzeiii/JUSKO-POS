@@ -158,6 +158,7 @@ elif mode == 'Admin' and page == 'Product Management':
         classification = st.radio('Product Classification *', ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], horizontal=True)
         st.markdown("---")
         
+        # Wrapped inside a form container to safely handle focus and inputs
         with st.form(key=f'add_product_master_form_{classification}', clear_on_submit=True):
             try:
                 db_products = db.list_products(active_only=False)
@@ -168,27 +169,20 @@ elif mode == 'Admin' and page == 'Product Management':
                 combo_cats = set()
                 
                 for p in db_products:
-                    if not p['category']: 
-                        continue
+                    if not p['category']: continue
                     clean_cat = p['category'].split(" | Custom:", 1)[0].strip()
                     clean_cat_lower = clean_cat.lower()
                     
                     is_drink_cat = any(dk in clean_cat_lower for dk in drink_keywords)
                     is_combo_cat = 'combo' in clean_cat_lower or 'promo' in clean_cat_lower or 'bundle' in clean_cat_lower
                     
-                    if is_drink_cat:
-                        drink_cats.add(clean_cat)
-                    elif is_combo_cat:
-                        combo_cats.add(clean_cat)
-                    else:
-                        food_cats.add(clean_cat)
+                    if is_drink_cat: drink_cats.add(clean_cat)
+                    elif is_combo_cat: combo_cats.add(clean_cat)
+                    else: food_cats.add(clean_cat)
                 
-                if classification == 'Drinks (Gulps)':
-                    existing_saved_cats = sorted(list(drink_cats))
-                elif classification == 'Others (Combo/Meal Plan)':
-                    existing_saved_cats = sorted(list(combo_cats))
-                else:
-                    existing_saved_cats = sorted(list(food_cats))
+                if classification == 'Drinks (Gulps)': existing_saved_cats = sorted(list(drink_cats))
+                elif classification == 'Others (Combo/Meal Plan)': existing_saved_cats = sorted(list(combo_cats))
+                else: existing_saved_cats = sorted(list(food_cats))
             except Exception:
                 existing_saved_cats = []
 
@@ -199,26 +193,27 @@ elif mode == 'Admin' and page == 'Product Management':
             size_prices = {}
             price = 0.0
 
-            # --- 2. FIXED: Renders the selectbox dropdown context row properly whenever entries match your selected mode ---
-            if existing_saved_cats:
-                options_list = ["-- Type a new custom category instead --"] + existing_saved_cats
-                suggested_pick = st.selectbox(
-                    '📋 Quick Select: Reuse an existing saved category (Optional)',
-                    options=options_list,
-                    index=0,
-                    key=f'f_suggest_drop_{classification}'
-                )
-                
-                price_placeholder_text = "Enter category name..." if suggested_pick == "-- Type a new custom category instead --" else f"Selected: {suggested_pick}"
-                typed_cat = st.text_input('Category Name *', placeholder=price_placeholder_text, key=f'f_cat_text_{classification}').strip()
-                
-                if suggested_pick != "-- Type a new custom category instead --" and not typed_cat:
-                    category = str(suggested_pick).strip()
-                else:
-                    category = str(typed_cat).strip()
+            # --- 2. THE UNIFIED "TYPE-OR-SELECT" DROPDOWN FIELD ---
+            # Automatically reads the search query so typing a new custom category is always valid
+            search_query = st.session_state.get(f'f_cat_select_{classification}', '')
+            
+            options_pool = existing_saved_cats.copy()
+            if search_query and search_query not in options_pool:
+                options_pool.insert(0, search_query) # Dynamically injects what you type as a valid selection choice!
+
+            category_selection = st.selectbox(
+                'Category *',
+                options=options_pool,
+                index=None,
+                placeholder="Type a new category OR select a saved one...",
+                key=f'f_cat_select_{classification}'
+            )
+            
+            # Isolate the text string values securely
+            if category_selection is not None:
+                category = str(category_selection).strip()
             else:
-                # Fallback text box shows up immediately if no historical categories match the active workspace mode
-                category = st.text_input('Category Name *', placeholder='e.g., Streetfood, Snacks, Main Dishes', key=f'f_cat_text_direct_{classification}').strip()
+                category = str(search_query).strip()
 
             def parse_and_format_price(raw_text):
                 if not raw_text: return 0.0
