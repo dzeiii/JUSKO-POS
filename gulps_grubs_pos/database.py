@@ -384,22 +384,26 @@ def list_orders(pending_only=False, db_path=DB_PATH, order_type=None):
     sql='SELECT * FROM pending_orders'+((' WHERE '+' AND '.join(clauses)) if clauses else '')+' ORDER BY priority ASC, sequence_no ASC'
     with connection(db_path) as c: return [dict(r) for r in c.execute(sql,params).fetchall()]
 
-def add_order(customer_name, details, priority, order_type='Food', db_path=DB_PATH):
-    from datetime import datetime, timedelta
-    now = (datetime.utcnow() + timedelta(hours=8)).isoformat()
-
-    customer_name,details=customer_name.strip(),details.strip()
-    if not customer_name or len(customer_name)>100: raise ValueError('Customer name is required (maximum 100 characters).')
-    if not details or len(details)>500: raise ValueError('Order details are required (maximum 500 characters).')
-    if order_type not in ('Food','Drink','Pickup'): raise ValueError('Order type must be Food, Drink, or Pickup.')
-    if isinstance(priority,bool) or not isinstance(priority,int) or priority not in range(1,6): raise ValueError('Priority must be from 1 (most urgent) to 5 (least urgent).')
-    now=datetime.now().isoformat(timespec='seconds')
+def add_order(customer_name, details, priority, order_type='Drink', db_path=DB_PATH):
+    """Safely adds a checkout transaction ticket into the kitchen priority pending queue table."""
+    current_time = get_ph_iso_timestamp()
+    
     with connection(db_path) as c:
-        cur=c.execute('INSERT INTO pending_orders(customer_name,details,order_type,priority,sequence_no,created_at) VALUES(?,?,?,?,?,?)',(customer_name,details,order_type,priority,0,now))
-        oid=cur.lastrowid
-        c.execute('UPDATE pending_orders SET sequence_no=? WHERE id=?',(oid,oid))
-        c.execute('INSERT INTO activity_history(actor_mode,action,details,created_at) VALUES(?,?,?,?)',('Cashier','Order queued',f'Order #{oid} · {order_type} · {customer_name} · Priority {priority} · {details}',now))
-        return oid
+        max_seq_row = c.execute('SELECT MAX(sequence_no) as max_seq FROM pending_orders').fetchone()
+        next_sequence_no = (max_seq_row['max_seq'] + 1) if (max_seq_row and max_seq_row['max_seq'] is not None) else 1
+        c.execute('''
+            INSERT INTO pending_orders (
+                customer_name, details, order_type, priority, sequence_no, status, created_at
+            ) VALUES (?, ?, ?, ?, ?, 'Pending', ?)
+        ''', (
+            customer_name.strip(), 
+            details.strip(), 
+            order_type, 
+            int(priority), 
+            next_sequence_no, 
+            current_time
+        ))
+        return c.lastrowid
 
 def update_order_status(order_id, status, db_path=DB_PATH):
     if status not in ('Completed','Cancelled'): raise ValueError('Invalid order status.')
