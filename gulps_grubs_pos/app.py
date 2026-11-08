@@ -180,14 +180,29 @@ elif mode=='Admin' and page=='Product Management':
         size_prices = {}
         price = 0.0
         
-        # --- PATH 1: FOODS ---
+                # --- PATH 1: FOODS ---
         if classification == 'Foods (Grubs)':
-            category = st.text_input('Category *', placeholder='e.g. Streetfood, Donut and Waffles').strip()
+            # Use a selectbox of common presets instead of open text to prevent typing accidents
+            category = st.selectbox('Category *', [
+                'Streetfood', 
+                'Donut and Waffles', 
+                'Snacks', 
+                'Sides', 
+                'Main Dishes'
+            ], key='food_cat_select')
             price = st.number_input('Price (₱)', min_value=0.0, step=5.0, format='%.2f')
             
         # --- PATH 2: DRINKS ---
         elif classification == 'Drinks (Gulps)':
-            base_category = st.text_input('Category Name *', placeholder='e.g. Milkshake, Float, Milktea').strip()
+            # Core categories are locked to ensure your sinker/add-on radio rules don't break!
+            base_category = st.selectbox('Category Name *', [
+                'Milktea', 
+                'Milkshake', 
+                'Lemonade Slushie', 
+                'Lemonade', 
+                'Coffee', 
+                'Beverage'
+            ], key='drink_cat_select')
             
             st.caption('Configure your cup sizes and pricing:')
             s8, s12, s16 = st.columns(3)
@@ -208,6 +223,7 @@ elif mode=='Admin' and page=='Product Management':
             
             c_size_col, c_price_col = st.columns(2)
             with c_size_col:
+                # This text box stays fully open so the admin can type any size name they want (e.g., 22oz, 1-Liter)
                 custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', disabled=not use_custom, key=f'{classification}_lbl_custom').strip()
             with c_price_col:
                 custom_price = st.number_input('Custom Size Price (₱)', min_value=0.0, step=5.0, format='%.2f', disabled=not use_custom, key=f'{classification}_val_custom')
@@ -221,7 +237,7 @@ elif mode=='Admin' and page=='Product Management':
                 category = f"{base_category} | Custom:{custom_label}"
             else:
                 category = base_category
-        
+    
             if size_prices:
                 price = next(iter(size_prices.values())) / 100
                 
