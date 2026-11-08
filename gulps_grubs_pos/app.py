@@ -153,21 +153,10 @@ elif mode == 'Admin' and page == 'Product Management':
 
     st.subheader('Product Catalog Management')
     tab1, tab2, tab3 = st.tabs(['Add product','Edit / Delete','View Catalog'])
-    @st.fragment
-    def render_reactive_drink_sizes(classification):
-        use8 = st.checkbox('Offer 8 oz', value=False, key=f'{classification}_use_8')
-        if use8:
-            st.number_input('8 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_8')    
-        use12 = st.checkbox('Offer 12 oz', value=True, key=f'{classification}_use_12')
-        if use12:
-            st.number_input('12 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_12')         
-        use16 = st.checkbox('Offer 16 oz', value=True, key=f'{classification}_use_16')
-        if use16:
-            st.number_input('16 oz price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_16')
+       
     with tab1:
         classification = st.radio('Product Classification *',['Foods (Grubs)','Drinks (Gulps)','Others (Combo/Meal Plan)'],horizontal=True)
         st.markdown("---")
-        
         try:
             db_products = db.list_products(active_only=False)
             drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade','slushie', 'slush', 'coffee', 'float', 'frappe','drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
@@ -215,11 +204,13 @@ elif mode == 'Admin' and page == 'Product Management':
             category = ""
             size_prices = {}
             price = 0.0
-            
-            category = st.text_input(
-                'Category *', 
-                placeholder="Type your category name here (e.g., Waffle, Streetfood)...", 
-                key=f'f_cat_text_input_lane_{classification}').strip()
+
+            # Single Unified Auto-Suggest Combo Box
+            category_selection = st.selectbox('Category *',options=options_pool,index=None,placeholder="Type a new category OR select a saved one...",key=f'f_cat_select_{classification}')
+            if category_selection is not None:
+                category = str(category_selection).strip()
+            else:
+                category = str(user_typing).strip()
                 
             def parse_and_format_price(raw_text):
                 if not raw_text:
@@ -235,17 +226,31 @@ elif mode == 'Admin' and page == 'Product Management':
                 price = parse_and_format_price(price_input)
 
             # PATH 2: DRINKS
-                        # --- PATH 2: DRINKS (FIXED SIZE-CONDITIONAL SHOW/HIDE LAYOUT) ---
-                        # --- PATH 2: DRINKS (FIXED SIZE-CONDITIONAL SHOW/HIDE LAYOUT) ---
+                        # --- PATH 2: DRINKS (STABLE VISIBILITY CONTROLS LOGIC) ---
             elif classification == 'Drinks (Gulps)':
-                st.caption('Configure your cup sizes and pricing:')
+                st.caption('Configure your cup sizes and pricing details:')
                 
-                # Call the fragment function for instant layout processing
-                render_reactive_drink_sizes(classification)
+                # Render Size 8 oz Lane
+                use8 = st.checkbox('Offer 8 oz Size Options', value=False, key=f'{classification}_use_8')
+                # FIXED: The input lane stays visible but unlocks dynamically right when checked!
+                price8_input = st.text_input('8 oz Size Pricing (₱) *', placeholder='0.00', disabled=not use8, key=f'{classification}_val_8_text').strip()
+                price8 = parse_and_format_price(price8_input) if use8 else 0.0
+                    
+                # Render Size 12 oz Lane
+                use12 = st.checkbox('Offer 12 oz Size Options', value=True, key=f'{classification}_use_12')
+                # FIXED: The input lane stays visible but unlocks dynamically right when checked!
+                price12_input = st.text_input('12 oz Size Pricing (₱) *', placeholder='0.00', disabled=not use12, key=f'{classification}_val_12_text').strip()
+                price12 = parse_and_format_price(price12_input) if use12 else 0.0
+                    
+                # Render Size 16 oz Lane
+                use16 = st.checkbox('Offer 16 oz Size Options', value=True, key=f'{classification}_use_16')
+                # FIXED: The input lane stays visible but unlocks dynamically right when checked!
+                price16_input = st.text_input('16 oz Size Pricing (₱) *', placeholder='0.00', disabled=not use16, key=f'{classification}_val_16_text').strip()
+                price16 = parse_and_format_price(price16_input) if use16 else 0.0
                 
                 st.divider()
-                st.markdown("##### 🥤 Other / Custom Size Profile")
-                use_custom = st.checkbox('Offer a different custom size', value=False, key=f'{classification}_use_custom')
+                st.markdown("##### 🥤 Other / Custom Sizing Configuration")
+                use_custom = st.checkbox('Enable a different custom size profile', value=False, key=f'{classification}_use_custom')
                 
                 custom_label = ""
                 custom_price = 0.0
@@ -254,15 +259,17 @@ elif mode == 'Admin' and page == 'Product Management':
                     with c_size_col: 
                         custom_label = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key=f'{classification}_lbl_custom').strip()
                     with c_price_col: 
-                        custom_price = st.number_input('Custom Size Price (₱)', min_value=1.0, step=5.0, format='%.2f', key=f'{classification}_val_custom')
+                        custom_price_input = st.text_input('Custom Size Price (₱) *', placeholder='0.00', key=f'{classification}_val_custom_text').strip()
+                        custom_price = parse_and_format_price(custom_price_input)
 
-                # Maintain your existing backend variable mapping assignments
-                if st.session_state.get(f'{classification}_use_8'): size_prices[8] = cents_from_peso(st.session_state.get(f'{classification}_val_8', 0.0))
-                if st.session_state.get(f'{classification}_use_12'): size_prices[12] = cents_from_peso(st.session_state.get(f'{classification}_val_12', 0.0))
-                if st.session_state.get(f'{classification}_use_16'): size_prices[16] = cents_from_peso(st.session_state.get(f'{classification}_val_16', 0.0))
+                # Route size information securely to satisfy your active insertion structures
+                if use8 and price8 > 0: size_prices[8] = cents_from_peso(price8)
+                if use12 and price12 > 0: size_prices[12] = cents_from_peso(price12)
+                if use16 and price16 > 0: size_prices[16] = cents_from_peso(price16)
                 if use_custom and custom_label and custom_price > 0:
                     size_prices[99] = cents_from_peso(custom_price)
                     category = f"{category} | Custom:{custom_label}"
+
 
             # PATH 3: OTHERS
             elif classification == 'Others (Combo/Meal Plan)':
@@ -276,89 +283,82 @@ elif mode == 'Admin' and page == 'Product Management':
 
             submit_form_btn = st.form_submit_button('Add product to Catalog',type='primary',use_container_width=True)
 
-        # SUBMIT BUTTON
+        # OUTSIDE FORM CONTAINER
         if submit_form_btn:
-            # --- 🚨 STEP 1: INITIALIZE HELPER FUNCTIONS AT THE VERY TOP OF THE LOOP 🚨 ---
-            def has_consecutive_repetitions(text, max_allowed=3):
-                if not text: return False
-                count = 1
-                for i in range(1, len(text)):
-                    if text[i] == text[i-1] and text[i].isalnum():
-                        count += 1
-                        if count > max_allowed: return True
-                    else: count = 1
-                return False
-
-            def looks_like_gibberish(text):
-                words = [w for w in text.split() if w.isalpha()]
-                if not words: return False
-                vowels = set("aeiou")
-                for word in words:
-                    if len(word) >= 5 and not any(char in vowels for char in word): return True
-                return False
-
-            # --- STEP 2: CLEAN INCOMING INPUT STRINGS ---
             clean_name = name.strip()
             clean_category = category.strip()
-            
-            name_audit = clean_name.lower()
-            category_audit = clean_category.lower()
-            combined_audit = f"{name_audit} {category_audit}"
 
-            food_dictionary = [
-                'food', 'snack', 'grub', 'fry', 'fries', 'potato', 'burger', 'sandwich', 'bun', 'bread', 
-                'waffle', 'donut', 'doughnut', 'cake', 'pastry', 'cookie', 'pie', 'sweet', 'dessert', 
-                'crepe', 'rice', 'meal', 'combo', 'box', 'platter', 'bucket', 'chicken', 'wings', 'pork', 
-                'beef', 'meat', 'fish', 'seafood', 'sauce', 'dip', 'bbq', 'cheese', 'street', 'grill', 
-                'bacon', 'egg', 'noodles', 'soup', 'pasta', 'salad', 'kikiam', 'lumpia', 'siomai', 'balls'
+            if ( not clean_category and st.session_state.get(f'f_cat_select_{classification}')):
+                clean_category = str(st.session_state[f'f_cat_select_{classification}']).strip()
+            test_string = f"{clean_name} {clean_category}".lower()
+
+            def has_consecutive_repetitions(text, max_allowed=3):
+                if not text:
+                    return False
+                count = 1
+                for i in range(1, len(text)):
+                    if text[i] == text[i - 1] and text[i].isalnum():
+                        count += 1
+                        if count > max_allowed:
+                            return True
+                    else:
+                        count = 1
+                return False
+                
+            def looks_like_gibberish(text):
+                words = [w for w in text.split()if w.isalpha()]
+                if not words:
+                    return False
+                vowels = set("aeiou")
+                for word in words:
+                    if (len(word) >= 4and not any(char in vowels for char in word)):
+                        return True
+                return False
+            culinary_dictionary = [
+                'tea', 'milk', 'coffee', 'juice', 'shake', 'smoothie', 'soda', 'cola', 'drink', 'beverage','water', 'brew', 'ice', 'syrup', 'slush','lumpia',
+                'frappe', 'float', 'latte', 'food', 'snack','fry', 'fries', 'potato', 'burger', 'sandwich','bun', 'bread', 'waffle', 'donut', 'doughnut', 'kikiam', 
+                'cake', 'pastry', 'cookie', 'pie', 'sweet','dessert', 'crepe', 'rice', 'meal', 'combo','box', 'platter', 'bucket', 'chicken', 'wings', 'salad',
+                'pork', 'beef', 'meat', 'fish', 'seafood','sauce', 'dip', 'bbq', 'cheese', 'street','grill', 'bacon', 'egg', 'noodles', 'soup','pasta', 
             ]
 
-            drink_dictionary = [
-                'tea', 'milk', 'coffee', 'juice', 'shake', 'smoothie', 'soda', 'cola', 'drink', 'beverage', 
-                'gulp', 'water', 'brew', 'ice', 'syrup', 'slush', 'frappe', 'float', 'latte', 'milktea', 
-                'milkshake', 'slushie', 'macchiato', 'espresso', 'capuccino', 'lemonade', 'soda', 'pop'
+            prohibited_keywords = [
+                'person', 'human', 'people', 'teacher','student', 'animal', 'object', 'thing'
             ]
 
-            prohibited_keywords = ['person', 'human', 'people', 'teacher', 'student', 'animal', 'object', 'thing']
+            drink_keywords = [
+                'milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe','drink', 'beverage', 'juice', 'tea', 'brew', 'gulp'
+            ]
 
             try:
-                existing_product_names = [str(item['name']).lower().strip() for item in db.list_products(active_only=True)]
-            except Exception: 
+                existing_product_names = [str(item['name']).lower().strip() for item in db.list_products(active_only=True)
+                ]
+            except Exception:
                 existing_product_names = []
 
-            # Run basic format audits safely now that helpers are compiled
-            is_spam_text = has_consecutive_repetitions(combined_audit, max_allowed=3)
-            is_nonsense_word = looks_like_gibberish(combined_audit)
-            contains_junk = any(junk in combined_audit for junk in prohibited_keywords)
-
-            # Strict field-level context enforcement
-            if classification == 'Drinks (Gulps)':
-                is_valid_context = any(word in category_audit for word in drink_dictionary)
-                mismatch_error = f"Selected 'Drinks (Gulps)' but entered a non-beverage category '{clean_category}'."
-            elif classification == 'Foods (Grubs)':
-                has_drink_trigger_in_food = any(word in category_audit for word in drink_dictionary) or any(word in name_audit for word in drink_dictionary)
-                is_valid_context = any(word in category_audit for word in food_dictionary) and not has_drink_trigger_in_food
-                mismatch_error = f"Selected 'Foods (Grubs)' but entered a drink or non-food asset configuration layer."
-            else:
-                is_valid_context = any(word in combined_audit for word in food_dictionary + drink_dictionary)
-                mismatch_error = "Entered an invalid combo meal category context description."
-
-            # --- STEP 3: RUN THE SELECTION TREE WITH VALIDATED INITIALIZATIONS ---
-            if clean_name and name_audit in existing_product_names: 
-                st.error(f"🔴 Catalog Conflict: A product named '{clean_name}' already exists in your store inventory!")
-            elif not clean_name: 
+            is_spam_text = (has_consecutive_repetitions(test_string,max_allowed=3) or has_consecutive_repetitions(clean_category,max_allowed=3))
+            is_nonsense_word = (looks_like_gibberish(test_string)or looks_like_gibberish(clean_category))
+            contains_junk = any(junk in test_string for junk in prohibited_keywords)
+            category_has_drink_terms = any(dk in clean_category.lower() for dk in drink_keywords)
+            is_valid_culinary = any(word in test_string for word in culinary_dictionary)
+            if not clean_name:
                 st.error("Product name is required.")
-            elif not clean_category: 
+            elif not clean_category:
                 st.error("Category structure specification is required.")
-            elif is_spam_text or is_nonsense_word: 
-                st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish text patterns.")
-            elif contains_junk: 
-                st.error("🔴 Context Validation Alert: Junk classifications (person, human, object) are strictly blocked.")
-            elif not is_valid_context:
-                st.error(f"🔴 Context/Classification Mismatch: {mismatch_error} Please allocate your item correctly.")
-            elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0: 
+            elif clean_name.lower() in existing_product_names:
+                st.error(f"🔴 Catalog Conflict: A product named '{clean_name}' already exists!")
+            elif is_spam_text or is_nonsense_word:
+                st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish.")
+            elif contains_junk:
+                st.error("🔴 Context Validation Alert: Junk classifications are blocked.")
+            elif (classification == 'Drinks (Gulps)'and not category_has_drink_terms):
+                st.error("🔴 Classification Mismatch: Selected 'Drinks (Gulps)' but entered a non-beverage category.")
+            elif (classification == 'Foods (Grubs)'and category_has_drink_terms):
+                st.error("🔴 Classification Mismatch: Selected'Foods (Grubs)' but entered a drink category.")
+            elif not is_valid_culinary:
+                st.error("🔴 Context Validation Alert: Category must be related to food or beverages.")
+            elif (classification in ['Foods (Grubs)','Others (Combo/Meal Plan)']and price <= 0.0):
                 st.error("🔴 Validation Error: Price field is required and must be greater than ₱0.00.")
-            elif classification == 'Drinks (Gulps)' and not size_prices: 
+            elif (classification == 'Drinks (Gulps)'and not size_prices):
                 st.error("🔴 Validation Error: Sizing prices are required. Enable and price at least one size option.")
             else:
                 try:
@@ -366,17 +366,24 @@ elif mode == 'Admin' and page == 'Product Management':
                     generated_code = db.generate_product_code(classification)
                     starting_stock = 0
                     db.add_product(
-                        code=generated_code, name=clean_name, category=clean_category, price_cents=price_cents, 
-                        stock=starting_stock, threshold=low_stock_threshold,
-                        size_prices=size_prices if classification == 'Drinks (Gulps)' else None
-                    )    
-                    formatted_display_price = f"₱{price:,.2f}" if classification != 'Drinks (Gulps)' else "Configured Sizes"
-                    success_msg = f"✨ SUCCESS: Product '{clean_name}' successfully added to catalog under category '{clean_category}' ({formatted_display_price}) (Code: {generated_code})."
-                    st.success(success_msg)
-                    db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
-                    st.rerun()
-                except Exception as e: safe_error(e)
+                        code=generated_code,
+                        name=clean_name,
+                        category=clean_category,
+                        price_cents=price_cents,
+                        stock=starting_stock,
+                        threshold=low_stock_threshold,
+                        size_prices=(size_prices if classification == 'Drinks (Gulps)'else None)
+                    )
 
+                    st.session_state[text_state_key] = ""
+                    formatted_display_price = (f"₱{price:,.2f}" if classification != 'Drinks (Gulps)' else "Configured Sizes")
+                    success_msg = (f"✨ SUCCESS: Product '{clean_name}'successfully added to catalog under category'{clean_category}' at ({formatted_display_price}) (Code: {generated_code}).")
+                    st.success(success_msg)
+                    db.log_activity('Admin','Product Created',f"{generated_code} · {clean_name}")
+                    logging.info(success_msg)
+                    st.rerun()
+                except Exception as e:
+                    safe_error(e)
                     
     # EDIT / DELETE TAB
     with tab2:
