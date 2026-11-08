@@ -979,23 +979,15 @@ elif mode == 'Cashier' and page == 'New Sale':
             confirm = st.form_submit_button('Confirm sale',type='primary',use_container_width=True)
             if confirm:
                 try:
-                    if not customer_name.strip():
+                    if not customer_name.strip(): 
                         raise ValueError("Please enter the customer name.")
-                    raw_cart_values = (
-                        list(st.session_state.cart._items.values())
-                        if hasattr(st.session_state.cart, '_items')
-                        else list(st.session_state.cart.items())
-                    )
-                    sale = db.checkout(raw_cart_values, cashier_label=determined_cashier)
-                    st.session_state.last_sale = sale
-                    if not raw_cart_values:
-                        raise ValueError("Your shopping cart is empty.")
                     determined_cashier = "Cashier"
                     if 'cashier_name' in locals() and cashier_name:
                         determined_cashier = cashier_name.strip()
                     elif 'cashier_label' in locals() and cashier_label:
                         determined_cashier = cashier_label.strip()
-                        
+                    sale = db.checkout(raw_cart_values, cashier_label=determined_cashier)
+                    st.session_state.last_sale = sale
                     order_details_list = []
                     for item in raw_cart_values:
                         size_suffix = f" ({item['custom_size_lbl']})" if item.get('custom_size_lbl') else ""
@@ -1005,21 +997,13 @@ elif mode == 'Cashier' and page == 'New Sale':
                         customer_name=customer_name.strip(), 
                         details=order_details_str, 
                         priority=int(priority_level)
-                   
-                   
-                    
+                    )
                     st.session_state.cart.clear()
-                    success_msg = (f"TRANSACTION SUCCESS [CASHIER]: Receipt #{sale['transaction_id']} processed successfully! Customer: {customer_name.strip()} | Total: {money(sale['total_cents'])}")
-                    db.log_activity('Cashier','Sale Completed',"Receipt #{sale['transaction_id']}", "Total: {money(sale['total_cents'])}")
-                    logging.info(success_msg)
+                    success_msg = f"🟢 TRANSACTION SUCCESS [CASHIER]: Sale checkout processed successfully!"
                     st.success(success_msg)
                     st.rerun()
                 except Exception as e:
                     st.error(f"🔍 INTERNAL SYSTEM ERROR DETECTED: {str(e)}")
-                    st.warning("Something went wrong while saving your changes. No incomplete transaction was committed.")
-
-                    logging.exception("Cashier checkout failed.")
-                    safe_error(e)
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     st.subheader('Cashier - Order Priority & Pickup Queue')
