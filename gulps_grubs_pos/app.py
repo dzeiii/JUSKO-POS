@@ -237,7 +237,7 @@ elif mode=='Admin' and page=='Product Management':
         
         # Submit Button Action Block
         if st.button('Add product to Catalog', type='primary'):
-            # Clean and isolate inputs for formatting analysis
+            # Clean and isolate inputs for analysis
             clean_name = name.strip()
             clean_category = category.strip()
             test_string = f"{clean_name} {clean_category}".lower()
@@ -253,7 +253,7 @@ elif mode=='Admin' and page=='Product Management':
                     else: count = 1
                 return False
 
-            # --- 2. GIBBERISH VOWEL CORE CHECKER ---
+            # --- 2. GIBBERISH DETECTOR ---
             def looks_like_gibberish(text):
                 words = [w for w in text.split() if w.isalpha()]
                 if not words: return False
@@ -263,41 +263,40 @@ elif mode=='Admin' and page=='Product Management':
                         return True
                 return False
 
-            # --- 3. BROAD FOOD-INDUSTRY DICTIONARY ---
-            culinary_dictionary = [
-                'tea', 'milk', 'coffee', 'juice', 'shake', 'smoothie', 'soda', 'cola', 'drink', 'beverage', 'gulp',
-                'water', 'brew', 'ice', 'syrup', 'slush', 'frappe', 'float', 'latte', 'grub', 'food', 'snack',
-                'fry', 'fries', 'potato', 'burger', 'sandwich', 'bun', 'bread', 'waffle', 'donut', 'doughnut',
-                'cake', 'pastry', 'cookie', 'pie', 'sweet', 'dessert', 'crepe', 'rice', 'meal', 'combo', 'box',
-                'platter', 'bucket', 'chicken', 'wings', 'pork', 'beef', 'meat', 'fish', 'seafood', 'sauce',
-                'dip', 'bbq', 'cheese', 'street', 'grill', 'bacon', 'egg', 'noodles', 'soup', 'pasta', 'salad',
-                'grub', 'gulp'
-            ]
-
-            # --- 4. EXPLICIT NON-FOOD BLACKLIST ---
+            # --- 3. CORE VALIDATION LISTS ---
             prohibited_keywords = ['person', 'human', 'people', 'teacher', 'student', 'animal', 'object', 'thing']
-            
-            # Run calculations
+            drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe', 'drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
+
+            # Run basic analysis indicators
             is_spam_text = has_consecutive_repetitions(test_string, max_allowed=3) or has_consecutive_repetitions(clean_category, max_allowed=3)
             is_nonsense_word = looks_like_gibberish(test_string) or looks_like_gibberish(clean_category)
             contains_junk = any(junk in test_string for junk in prohibited_keywords)
-            is_valid_culinary = any(word in test_string for word in culinary_dictionary)
+            
+            # Identify if the user inputs drink keywords in the category
+            category_has_drink_terms = any(dk in clean_category.lower() for dk in drink_keywords)
 
-            # --- FIXED EXECUTION ORDER: Check for spam first regardless of empty neighbors ---
-            if clean_category and (is_spam_text or is_nonsense_word):
-                st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish patterns. Please use genuine descriptions.")
-            elif clean_category and (contains_junk or not is_valid_culinary):
-                st.error("🔴 Context Validation Alert: Category must be related to food or beverages.")
-            elif not clean_name:
+            # --- DYNAMIC TYPE VALIDATION ENFORCEMENT ---
+            if not clean_name:
                 st.error("Product name is required.")
             elif not clean_category:
                 st.error("Category structure specification is required.")
+            elif is_spam_text or is_nonsense_word:
+                st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish patterns. Please use genuine descriptions.")
+            elif contains_junk:
+                st.error("🔴 Context Validation Alert: Junk classifications (person, human, object) are strictly blocked.")
+                
+            # --- ✨ FIXED: STRICT CROSS-VALIDATION ENFORCEMENT PANE ---
+            elif classification == 'Drinks (Gulps)' and not category_has_drink_terms:
+                st.error(f"🔴 Classification Mismatch: You selected 'Drinks (Gulps)' but entered a non-beverage category '{category}'. Please choose a drink-related category.")
+            elif classification == 'Foods (Grubs)' and category_has_drink_terms:
+                st.error(f"🔴 Classification Mismatch: You selected 'Foods (Grubs)' but entered a drink-related category '{category}'. Please change the classification or category name.")
+                
             elif classification == 'Drinks (Gulps)' and not size_prices:
                 st.error("Please enable at least one size configuration option for drink catalog items.")
             else:
                 try:
                     price_cents = cents_from_peso(price)
-                    generated_code = db.generate_product_code()
+                    generated_code = db.generate_product_code(classification)
                     starting_stock = 0
                     
                     db.add_product(
@@ -306,12 +305,10 @@ elif mode=='Admin' and page=='Product Management':
                         size_prices=size_prices if classification == 'Drinks (Gulps)' else None
                     )
                     
-                    # --- SUCCESS TRANSACTION PRINTS & AUDITS ---
                     success_msg = f"✨ SUCCESS: Product '{clean_name}' successfully added to catalog under category '{clean_category}' (Code: {generated_code})."
                     st.success(success_msg)
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     logging.info(success_msg)
-                    
                     st.rerun()
                 except Exception as e: safe_error(e)
 
