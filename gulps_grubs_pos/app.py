@@ -331,6 +331,13 @@ elif mode == 'Admin' and page == 'Product Management':
 
         # --- OUTSIDE FORM CONTAINER: Form data routing checks execute safely downstream ---
         if submit_form_btn:
+            def to_sentence_case(text):
+                """Automatically converts any text input into clean sentence case words."""
+                if not text: return ""
+                # Split text by spaces, capitalize each word cleanly, and join them back
+                words = [word.strip().capitalize() for word in text.split() if word.strip()]
+                return " ".join(words)
+
             def has_consecutive_repetitions(text, max_allowed=3):
                 if not text: return False
                 count = 1
@@ -349,13 +356,15 @@ elif mode == 'Admin' and page == 'Product Management':
                     if len(word) >= 5 and not any(char in vowels for char in word): return True
                 return False
 
-            clean_name = name.strip()
-            clean_category = f"{category.strip()}{drink_category_suffix}" if classification == 'Drinks (Gulps)' else category.strip()
+            clean_name = to_sentence_case(name)        
+            clean_category = to_sentence_case(category) 
+            
+            final_save_category = f"{clean_category}{drink_category_suffix}" if classification == 'Drinks (Gulps)' else clean_category
             
             name_audit = clean_name.lower()
-            category_audit = category.strip().lower()
+            category_audit = clean_category.lower()
             combined_audit = f"{name_audit} {category_audit}"
-
+            
             food_dictionary = [
                 'food', 'snack', 'grub', 'fry', 'fries', 'potato', 'burger', 'sandwich', 'bun', 'bread', 
                 'waffle', 'donut', 'doughnut', 'cake', 'pastry', 'cookie', 'pie', 'sweet', 'dessert', 
