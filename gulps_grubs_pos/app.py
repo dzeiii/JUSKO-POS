@@ -531,14 +531,26 @@ elif mode == 'Admin' and page == 'Product Management':
                     updated_sizes = None
                 st.divider()
                 new_threshold = st.number_input('Low-stock alert at',min_value=0,max_value=1000000,value=int(p['low_stock_threshold']),step=1)
-                save_changes = st.button('Save All Product Details',type='primary',key=f"unified_save_btn_{p['id']}")
+                save_changes = st.button('Save All Product Details', type='primary', key=f"unified_save_btn_{p['id']}")
                 if save_changes:
-                    if not new_name or not new_cat: st.error("Product name and category definitions cannot be left blank.")
+                    if not new_name or not new_cat: 
+                        st.error("Product name and category definitions cannot be left blank.")
                     else:
                         try: 
                             db.update_product(p['id'], p['code'], new_name, new_cat, int(new_base_price_cents), int(new_threshold))
-                            if is_a_drink and updated_sizes is not None:
-                                db.set_product_sizes(p['id'], updated_sizes)
+                            
+                            if is_a_drink:
+                                updated_sizes = {}
+                                for size_key, input_val in size_inputs.items():
+                                    cents_val = int(round(input_val * 100))
+                                    if cents_val > 0:
+                                        updated_sizes[size_key] = cents_val
+
+                                if updated_sizes:
+                                    db.set_product_sizes(p['id'], updated_sizes)
+                                else:
+                                    with db.connection() as clean_conn:
+                                        clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
                             else:
                                 with db.connection() as clean_conn:
                                     clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
@@ -549,7 +561,9 @@ elif mode == 'Admin' and page == 'Product Management':
                             db.log_activity('Admin', 'Product Updated', f"{p['code']} · {new_name}")
                             logging.info(success_msg)
                             st.rerun()
-                        except Exception as e: safe_error(e)
+                        except Exception as e: 
+                            safe_error(e)
+
                 st.divider()
                 st.error('### 🚨 DANGER ZONE: PERMANENT PURGE')
                 st.markdown("Clicking delete below will execute a HARD DELETE. This completely wipes the item profile row from the database catalog and cannot be undone.", 
