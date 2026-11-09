@@ -1036,14 +1036,14 @@ elif mode == 'Cashier' and page == 'Pickup Queue Priority':
         if st.button('Mark Next Order Completed', type='primary'):
             try:
                 db.update_order_status(next_order.order_id, 'Completed')
-                
-                # ✨ SUCCESS TRANSACTION PRINT RECORD
-                success_msg = f"🔔 SUCCESS [KITCHEN/CASHIER]: Pickup Order #{next_order.order_id} for customer '{next_order.payload['customer_name']}' successfully marked as COMPLETED and cleared from active lane."
+                success_msg = f"🔔 SUCCESS: Pickup Order #{next_order.order_id} for customer '{next_order.payload['customer_name']}' successfully marked as COMPLETED."
                 st.success(success_msg)
                 db.log_activity('Cashier', 'Queue Cleared', f"Order #{next_order.order_id} marked complete")
                 logging.info(success_msg)
                 st.rerun()
-            except Exception as e: safe_error(e)
+            except Exception as e: 
+                safe_error(e)
+
     else:
         st.success('No pending pickup orders in queue.')
     st.markdown("#### All Pending Pickup Orders")
