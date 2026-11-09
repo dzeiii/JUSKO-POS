@@ -1310,7 +1310,7 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
                 st.dataframe(
                     pd.DataFrame(checklist_data),
                     use_container_width=True,
-                    hide_index=True
+                    hide_index=True,
                     height = None
                 )
         with right_dash:
