@@ -69,6 +69,31 @@ if 'mode' not in st.session_state: st.session_state.mode = 'Admin'
 
 st.markdown(load_html_template('brand_banner.html'), unsafe_allow_html=True)
 
+if 'global_toast' in st.session_state and st.session_state.global_toast:
+    toast_data = st.session_state.global_toast
+    st.markdown(
+        f"""
+        <div style="
+            background-color: {toast_data['bg']}; 
+            color: white; 
+            padding: 16px; 
+            border-radius: 8px; 
+            margin-bottom: 25px; 
+            font-size: 15px; 
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.12);
+            display: flex;
+            align-items: center;
+        ">
+            <span style="font-size: 22px; margin-right: 12px;">{toast_data['icon']}</span>
+            <div>{toast_data['msg']}</div>
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
+    # Clear the alert immediately so it vanishes seamlessly on the next click or navigation change
+    st.session_state.global_toast = None
+    
 with st.container(key='site_header'):
     logo_col, brand_col, mode_col, page_col = st.columns([1.05, 1.8, 1.55, 5.2], vertical_alignment='center', gap='small')
     with logo_col:
@@ -430,23 +455,26 @@ elif mode == 'Admin' and page == 'Product Management':
                         stock=starting_stock, threshold=low_stock_threshold,
                         size_prices=size_prices if classification == 'Drinks (Gulps)' else None
                     )   
-                    #SUCCESS TRANSACTION PRINT RECEIPT FOR CATALOG CREATION
+                    
                     formatted_display_price = f"₱{price:,.2f}" if classification != 'Drinks (Gulps)' else "Configured Sizes Array"
-                    success_msg = f"🟢 TRANSACTION SUCCESS [ADMIN]: Menu product item '{clean_name}' successfully added to store catalog database! Assigned code: '{generated_code}' under active category grouping: '{clean_category}' at '{formatted_display_price}')."
-                    st.success(success_msg)
+                    audit_msg = f"Menu product item '{clean_name}' successfully added to store catalog database! Assigned code: '{generated_code}' under active category grouping: '{clean_category}' at '{formatted_display_price}'."
+                    
+                    st.session_state.global_toast = {
+                        "msg": f"SUCCESS: Product '{clean_name}' successfully added to catalog as code '{generated_code}'!",
+                        "bg": "#2e7d32",  # High-Visibility Emerald Green
+                        "icon": "🟢"
+                    }
                     
                     # Log audit values securely to history trails
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
-                    logging.info(success_msg)
+                    logging.info(f"TRANSACTION SUCCESS [ADMIN]: {audit_msg}")
 
-                    # Save success message before rerunning
-                    st.session_state.product_success_message = success_msg
-
-                    # Trigger automatic clearing
+                    # Trigger automatic form resetting configuration
                     st.session_state.clear_product_form = True
-                    
                     st.rerun()
-                except Exception as e: safe_error(e)
+                except Exception as e: 
+                    safe_error(e)
+
 
     # EDIT / DELETE TAB
     with tab2:
@@ -555,11 +583,15 @@ elif mode == 'Admin' and page == 'Product Management':
                                 with db.connection() as clean_conn:
                                     clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
                             
-                            # ✨ SUCCESS TRANSACTION PRINT RECORD
-                            success_msg = f"📝 SUCCESS [ADMIN]: Product '{p['code']}' details updated successfully (New Name: '{new_name}', New Category: '{new_cat}')."
-                            st.success(success_msg)
+                            audit_msg = f"Product '{p['code']}' details updated successfully (New Name: '{new_name}', New Category: '{new_cat}')."
+                            
+                            st.session_state.global_toast = {
+                                "msg": f"⚙️ UPDATE SUCCESS: Product details for '{p['code']}' have been cleanly updated!",
+                                "bg": "#1565c0",  
+                                "icon": "⚙️"
+                            }
                             db.log_activity('Admin', 'Product Updated', f"{p['code']} · {new_name}")
-                            logging.info(success_msg)
+                            logging.info(f"SUCCESS [ADMIN]: {audit_msg}")
                             st.rerun()
                         except Exception as e: 
                             safe_error(e)
@@ -575,14 +607,21 @@ elif mode == 'Admin' and page == 'Product Management':
                         try:
                             success, msg = db.delete_product(p['id'])
                             if success:
-                                # ✨ SUCCESS TRANSACTION PRINT RECORD
-                                success_msg = f"🗑️ SUCCESS [ADMIN]: Product '{p['code']} — {p['name']}' was permanently removed from the master database catalog files."
-                                st.success(success_msg)
+                                audit_msg = f"Product '{p['code']} — {p['name']}' was permanently removed from the master database catalog files."
+                                st.session_state.global_toast = {
+                                    "msg": f"🚨 PURGE REMOVAL: Product '{p['code']}' has been permanently wiped from the store catalog!",
+                                    "bg": "#c62828", 
+                                    "icon": "🚨"
+                                }
+                                
                                 db.log_activity('Admin', 'Product Deleted', f"{p['code']} · {p['name']}")
-                                logging.info(success_msg)
+                                logging.info(f"SUCCESS [ADMIN]: {audit_msg}")
                                 st.rerun()
-                            else: st.error(msg)
-                        except Exception as e: safe_error(e)
+                            else: 
+                                st.error(msg)
+                        except Exception as e: 
+                            safe_error(e)
+
     # VIEW CATALOG TAB
     with tab3:
         st.markdown("---")
@@ -1028,7 +1067,6 @@ elif mode == 'Cashier' and page == 'New Sale':
                     if not raw_cart_values:
                         raise ValueError("Your checkout shopping basket is completely empty.")
                     
-                    # FIX: Safely retrieve the cashier label without checking nonexistent 'cashier_name' variables
                     determined_cashier = cashier_label.strip() if cashier_label else "Cashier"
                         
                     sale = db.checkout(raw_cart_values, cashier_label=determined_cashier)
@@ -1036,7 +1074,6 @@ elif mode == 'Cashier' and page == 'New Sale':
 
                     order_details_list = []
                     for item in raw_cart_values:
-                        # FIX: Determine size from 'size_oz' instead of missing 'custom_size_lbl'
                         size_val = item.get('size_oz')
                         size_suffix = ""
                         if size_val is not None:
@@ -1054,14 +1091,17 @@ elif mode == 'Cashier' and page == 'New Sale':
                         priority=int(priority_level)
                     )
 
-                    # Clear shopping cart basket and execute rerun refresh
+                    # Clear shopping cart basket 
                     st.session_state.cart.clear()
-                    
-                    success_msg = f"🟢 TRANSACTION SUCCESS [CASHIER]: Sale checkout processed successfully!"
-                    st.success(success_msg)
+                    st.session_state.global_toast = {
+                        "msg": f"🏁 TRANSACTION SUCCESSFUL: Sale checkout processed for '{customer_name.strip()}'! Total Paid: {money(sale['total_cents'])}.",
+                        "bg": "#2e7d32",  
+                        "icon": "💰"
+                    }
                     st.rerun()
                 except Exception as e:
                     st.error(f"🔍 INTERNAL SYSTEM ERROR DETECTED: {str(e)}")
+
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     st.subheader('Cashier - Order Priority & Pickup Queue')
@@ -1074,13 +1114,18 @@ elif mode == 'Cashier' and page == 'Pickup Queue Priority':
         if st.button('Mark Next Order Completed', type='primary'):
             try:
                 db.update_order_status(next_order.order_id, 'Completed')
-                success_msg = f"🔔 SUCCESS: Pickup Order #{next_order.order_id} for customer '{next_order.payload['customer_name']}' successfully marked as COMPLETED."
-                st.success(success_msg)
+                st.session_state.global_toast = {
+                    "msg": f"🔔 QUEUE ACTION: Order #{next_order.order_id} for '{next_order.payload['customer_name']}' has been marked as COMPLETED and cleared from active lane.",
+                    "bg": "#1565c0",  # Information Blue
+                    "icon": "🏁"
+                }
+                
                 db.log_activity('Cashier', 'Queue Cleared', f"Order #{next_order.order_id} marked complete")
-                logging.info(success_msg)
+                logging.info(f"Order #{next_order.order_id} marked complete.")
                 st.rerun()
             except Exception as e: 
                 st.exception(e)
+
 
     else:
         st.success('No pending pickup orders in queue.')
@@ -1250,13 +1295,15 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
                             new_total = item['stock'] + int(quantity)
                             db.update_product_stock_direct(item['id'], new_total, actor="Inventory Manager")
                             
-                            # ✨ SUCCESS TRANSACTION PRINT RECEIPT FOR SHIPMENT DELIVERY
-                            success_msg = f"🟢 TRANSACTION SUCCESS [INVENTORY]: Incoming item shipment delivery entry logged for product '{item['name']}' ({item['code']}). Added +{int(quantity)} shelf units. New verified database balance value: {new_total} stock units."
-                            st.success(success_msg)
-                            
+                            st.session_state.global_toast = {
+                                "msg": f"📈 STOCK INCREASED: Added +{int(quantity)} units to '{item['name']}'. New Balance: {new_total} units.",
+                                "bg": "#2e7d32",  
+                                "icon": "➕"
+                            }
                             db.log_activity('Inventory Manager', 'Stock Added', f"{item['code']} · +{int(quantity)} units")
                             st.rerun()
                         except Exception as exc: safe_error(exc)
+
       # DEDUCT STOCK
         with itab2:
             st.markdown("#### Record Spoilage, Damage, or Waste")
@@ -1276,13 +1323,15 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
                                 new_total = item['stock'] - int(quantity)
                                 db.update_product_stock_direct(item['id'], new_total, actor=f"Inventory Manager ({reason})")
                                 
-                                # ✨ SUCCESS TRANSACTION PRINT RECEIPT FOR LOSSES/WASTE
-                                success_msg = f"🟢 TRANSACTION SUCCESS [INVENTORY LOSS]: Stock loss reduction transaction processed for product '{item['name']}' ({item['code']}). Removed -{int(quantity)} units due to verified reason: '{reason}'. Balance: {new_total}."
-                                st.success(success_msg)
-                                
+                                st.session_state.global_toast = {
+                                    "msg": f"📉 STOCK DEDUCTED: Removed -{int(quantity)} units from '{item['name']}' due to '{reason}'. New Balance: {new_total} units.",
+                                    "bg": "#ef6c00",
+                                    "icon": "🗑️"
+                                }
                                 db.log_activity('Inventory Manager', 'Stock Deducted', f"{item['code']} · -{int(quantity)} units ({reason})")
                                 st.rerun()
                         except Exception as exc: safe_error(exc)
+
         # DIRECT STOCK AUDIT
         with itab3:
             st.markdown("#### Direct Physical Inventory Audit Override")
@@ -1294,15 +1343,16 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
                 with st.form('inventory_manager_audit'):
                     exact_stock = st.number_input('Actual physical count on shelf',min_value=0,value=int(item['stock']),step=1)
                     submit = st.form_submit_button('Overwrite Stock Balance Value',type='primary')
-                    if submit:
+                                       if submit:
                         try:
                             db.update_product_stock_direct(item['id'], int(exact_stock), actor="Inventory Manager Audit Override")
-                            
-                            # ✨ SUCCESS TRANSACTION PRINT RECORD
-                            success_msg = f"✏️ SUCCESS [INVENTORY AUDIT]: Manual override executed for product '{item['name']}' ({item['code']}). Database calibrated and locked to match physical stock count value of: exactly {int(exact_stock)} units."
-                            st.success(success_msg)
+                            st.session_state.global_toast = {
+                                "msg": f"📐 COUNTS CALIBRATED: Overwrote '{item['name']}' stock balance level to exactly {int(exact_stock)} units.",
+                                "bg": "#1565c0",  
+                                "icon": "✏️"
+                            }
                             db.log_activity('Inventory Manager', 'Stock Count Audited', f"{item['code']} · Overwrote to {int(exact_stock)}")
-                            logging.info(success_msg)
+                            logging.info(f"SUCCESS [INVENTORY AUDIT]: Override executed for '{item['name']}' to {int(exact_stock)}.")
                             st.rerun()
                         except Exception as exc: safe_error(exc)
 
