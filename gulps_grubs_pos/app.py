@@ -479,12 +479,23 @@ elif mode == 'Admin' and page == 'Product Management':
                 if is_a_drink:
                     new_base_cat = st.text_input('Category Name *',value=base_cat_name).strip()
                     st.markdown('Available drink size pricing')
-                    standard_sizes = {k: v for k, v in current_sizes.items() if k in (8, 12, 16)}
-                    if not standard_sizes:
-                        standard_sizes = {12: p['price_cents'],16: p['price_cents']}
-                    size_cols = st.columns(len(standard_sizes))
-                    for size_idx, size in enumerate(sorted(standard_sizes.keys())):
-                        size_inputs[size] = size_cols[size_idx].number_input(f'{size} oz price (₱)',min_value=0.0,value=float(standard_sizes[size] / 100),step=5.0,format='%.2f',key=f'form_price_{p["id"]}_{size}')
+                    all_possible_sizes = [8, 12, 16]
+                    size_cols = st.columns(len(all_possible_sizes))
+                    
+                    for size_idx, size in enumerate(all_possible_sizes):
+                        existing_price_cents = current_sizes.get(size, 0)
+                        if not current_sizes and size in (12, 16):
+                            existing_price_cents = p.get('price_cents', 0)  
+                        initial_value = float(existing_price_cents) / 100.0
+                        size_inputs[size] = size_cols[size_idx].number_input(
+                            f'{size} oz price (₱)',
+                            min_value=0.0,
+                            value=initial_value,
+                            step=1.0,
+                            format="%.2f",
+                            key=f"edit_price_{p['code']}_{size}" # Added unique key to prevent streamlit render conflicts
+                        )
+
                     st.divider()
                     st.markdown('🥤 Other / Custom Size Configuration')
                     has_custom = st.checkbox("Enable a different custom size profile for this product",value=is_custom_drink,key=f"form_has_cust_{p['id']}")
