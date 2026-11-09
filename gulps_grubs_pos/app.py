@@ -680,7 +680,7 @@ elif mode == 'Admin' and page == 'Activity History':
             
             try:
                 dt_obj = datetime.strptime(raw_time, "%Y-%m-%d %H:%M")
-                if "15:" in raw_time and r.get('action') in ['Queue Cleared', 'Queue Action']:
+                if "15:" in raw_time:
                     dt_obj += timedelta(hours=8)
                 display_time = dt_obj.strftime("%Y-%m-%d %H:%M")
             except Exception:
