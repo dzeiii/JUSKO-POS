@@ -1343,7 +1343,7 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
                 with st.form('inventory_manager_audit'):
                     exact_stock = st.number_input('Actual physical count on shelf',min_value=0,value=int(item['stock']),step=1)
                     submit = st.form_submit_button('Overwrite Stock Balance Value',type='primary')
-                                       if submit:
+                    if submit:
                         try:
                             db.update_product_stock_direct(item['id'], int(exact_stock), actor="Inventory Manager Audit Override")
                             st.session_state.global_toast = {
