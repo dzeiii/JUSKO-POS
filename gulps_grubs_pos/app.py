@@ -1067,12 +1067,12 @@ elif mode == 'Cashier' and page == 'Last Transaction':
         st.dataframe(
             pd.DataFrame([
                 {
-                    'Code': x['code'],
-                    'Product': x['name'],
+                    'Code': x.get('product_code', x.get('code', '—')),
+                    'Product': x.get('product_name', x.get('name', '—')),
                     'Qty': x['quantity'],
                     'Unit price': money(x['unit_price_cents']),
                     'Subtotal': money(x['subtotal_cents'])
-                } for x in sale['items']]),use_container_width=True,hide_index=True)
+                } for x in sale['items']]), use_container_width=True, hide_index=True)
 
 elif mode == 'Cashier' and page == 'Sales History':
     st.subheader('📜 Sales Transaction History')
