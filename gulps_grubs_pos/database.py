@@ -398,12 +398,12 @@ def add_order(customer_name, details, priority, order_type='Drink', db_path=DB_P
         
         return cursor.lastrowid 
 
-def update_order_status(order_id, status, db_path=DB_PATH):
-    if status not in ('Completed','Cancelled'): raise ValueError('Invalid order status.')
-    with connection(db_path) as c:
-        cur=c.execute("UPDATE pending_orders SET status=?,completed_at=? WHERE id=? AND status='Pending'",(status,datetime.now().isoformat(timespec='seconds'),order_id))
-        if cur.rowcount != 1: raise ValueError('Pending order not found; it may already be processed.')
-        c.execute('INSERT INTO activity_history(actor_mode,action,details,created_at) VALUES(?,?,?,?)',('Kitchen' if status=='Completed' else 'Cashier',f'Order {status.lower()}',f'Order #{order_id}',datetime.now().isoformat(timespec='seconds')))
+# 🟢 CORRECTED VERSION FOR database.py
+def update_order_status(order_id, status):
+    with connection() as conn:
+        conn.execute("UPDATE pending_orders SET status = ? WHERE id = ?", (status, order_id))
+        conn.execute("INSERT INTO activity_log (actor_mode, action, details) VALUES (?, ?, ?)", 
+                     ("Cashier", "Queue Action", f"Order #{order_id} marked {status}"))
 
 def log_activity(actor_mode, action, details='', db_path=DB_PATH):
     """Persist an audit entry for important Admin, Cashier, and Kitchen actions."""
