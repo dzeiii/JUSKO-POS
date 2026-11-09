@@ -1042,7 +1042,7 @@ elif mode == 'Cashier' and page == 'Pickup Queue Priority':
                 logging.info(success_msg)
                 st.rerun()
             except Exception as e: 
-                safe_error(e)
+                st.exception(e)
 
     else:
         st.success('No pending pickup orders in queue.')
