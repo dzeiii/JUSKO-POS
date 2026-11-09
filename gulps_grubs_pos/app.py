@@ -432,10 +432,8 @@ elif mode == 'Admin' and page == 'Product Management':
                     )   
                     #SUCCESS TRANSACTION PRINT RECEIPT FOR CATALOG CREATION
                     formatted_display_price = f"₱{price:,.2f}" if classification != 'Drinks (Gulps)' else "Configured Sizes Array"
-                    success_msg = f"Product '{clean_name}' successfully added to store catalog!"
-                    
-                    # 🟢 FLOATING MODAL POPUP WINDOW OVERLAY
-                    st.toast(success_msg, icon='🟢')
+                    success_msg = f"🟢 TRANSACTION SUCCESS [ADMIN]: Menu product item '{clean_name}' successfully added to store catalog database! Assigned code: '{generated_code}' under active category grouping: '{clean_category}' at '{formatted_display_price}')."
+                    st.success(success_msg)
                     
                     # Log audit values securely to history trails
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
@@ -558,9 +556,10 @@ elif mode == 'Admin' and page == 'Product Management':
                                     clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
                             
                             # ✨ SUCCESS TRANSACTION PRINT RECORD
-                            st.toast(f"📝 Product '{p['code']}' details updated successfully!", icon='📝')
+                            success_msg = f"📝 SUCCESS [ADMIN]: Product '{p['code']}' details updated successfully (New Name: '{new_name}', New Category: '{new_cat}')."
+                            st.success(success_msg)
                             db.log_activity('Admin', 'Product Updated', f"{p['code']} · {new_name}")
-                            logging.info(f"SUCCESS [ADMIN]: Product '{p['code']}' updated successfully.")
+                            logging.info(success_msg)
                             st.rerun()
                         except Exception as e: 
                             safe_error(e)
