@@ -1313,24 +1313,31 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
                 reason = st.text_input('Reason for Deduction *',placeholder=('e.g., Expired ingredients, ''Spilled drink, Counter error')).strip()
                 submit = st.form_submit_button('Confirm Stock Deduction',type='primary')
                 if submit:
-                    if selected is None: st.error("Please select a valid menu product from the dropdown box first.")
-                    elif not reason: st.error("A validation reason is required to process inventory deductions.")
+                    if selected is None: 
+                        st.error("Please select a valid menu product from the dropdown box first.")
                     else:
-                        try:
-                            item = choices[selected]
-                            if int(quantity) > item['stock']: st.error(f"Cannot deduct {quantity} units. Product only has {item['stock']} units currently in stock.")
-                            else:
+                        item = choices[selected]
+                        # 🟢 FIX: Block deductions immediately if the product is already out of stock
+                        if int(item['stock']) <= 0:
+                            st.error(f"🔴 Inventory Conflict: Cannot deduct stock from '{item['name']}' because current stock is already 0 units.")
+                        elif not reason: 
+                            st.error("A validation reason is required to process inventory deductions.")
+                        elif int(quantity) > item['stock']: 
+                            st.error(f"Cannot deduct {quantity} units. Product only has {item['stock']} units currently in stock.")
+                        else:
+                            try:
                                 new_total = item['stock'] - int(quantity)
                                 db.update_product_stock_direct(item['id'], new_total, actor=f"Inventory Manager ({reason})")
                                 
                                 st.session_state.global_toast = {
                                     "msg": f"📉 STOCK DEDUCTED: Removed -{int(quantity)} units from '{item['name']}' due to '{reason}'. New Balance: {new_total} units.",
-                                    "bg": "#ef6c00",
-                                    "icon": "🗑️"
+                                    "bg": "#ef6c00",  
+                                    "icon": "⚠️"
                                 }
+                                
                                 db.log_activity('Inventory Manager', 'Stock Deducted', f"{item['code']} · -{int(quantity)} units ({reason})")
                                 st.rerun()
-                        except Exception as exc: safe_error(exc)
+                            except Exception as exc: safe_error(exc)
 
         # DIRECT STOCK AUDIT
         with itab3:
