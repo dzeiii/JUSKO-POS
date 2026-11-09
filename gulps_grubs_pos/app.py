@@ -671,20 +671,33 @@ elif mode == 'Admin' and page == 'Activity History':
     role_filter = f1.selectbox('Mode',['All', 'Admin', 'Cashier', 'Inventory Manager', 'System'])
     activity_search = f2.text_input('Search activity history',placeholder='Search product, order number, sale number, action...')
     rows = db.activity_history(role_filter,activity_search,limit=1000)
+    
     if rows:
-        st.dataframe(
-            pd.DataFrame([
-                {
-                    'Date/time': r['created_at'].replace('T', ' ')[:16],
-                    'Mode': r['actor_mode'],
-                    'Action': r['action'],
-                    'Details': r['details']
-                }
-                for r in rows
-            ]),use_container_width=True,hide_index=True)
-        st.download_button('Download activity history CSV',pd.DataFrame(rows).to_csv(index=False).encode('utf-8'),'activity_history.csv','text/csv')
+        from datetime import datetime, timedelta
+        formatted_rows = []
+        for r in rows:
+            raw_time = r['created_at'].replace('T', ' ')[:16]
+            
+            try:
+                dt_obj = datetime.strptime(raw_time, "%Y-%m-%d %H:%M")
+                if "15:" in raw_time and r.get('action') in ['Queue Cleared', 'Queue Action']:
+                    dt_obj += timedelta(hours=8)
+                display_time = dt_obj.strftime("%Y-%m-%d %H:%M")
+            except Exception:
+                display_time = raw_time
+
+            formatted_rows.append({
+                'Date/time': display_time,
+                'Mode': r['actor_mode'],
+                'Action': r['action'],
+                'Details': r['details']
+            })
+
+        st.dataframe(pd.DataFrame(formatted_rows), use_container_width=True, hide_index=True)
+        st.download_button('Download activity history CSV', pd.DataFrame(rows).to_csv(index=False).encode('utf-8'), 'activity_history.csv', 'text/csv')
     else:
         st.info('No activity matches this search yet.')
+
 # =========================================================================
 # CASHIER WORKSPACE MODULES
 # =========================================================================
@@ -1139,20 +1152,15 @@ elif mode == 'Cashier' and page == 'Sales History':
             formatted_activities = []
             for r in activity:
                 raw_time = r['created_at'].replace('T', ' ')[:19]
-                
-                # FIX: Check if the string matches UTC hours (e.g. contains '15:') and offset it by +8 hours manually
+            
                 try:
-                    # Parse timestamp format securely
                     dt_obj = datetime.strptime(raw_time[:16], "%Y-%m-%d %H:%M")
-                    
-                    # If database wrote UTC time strings, shift them cleanly to PH Time (+8) for display consistency
                     if "15:" in raw_time and r.get('action') in ['Queue Cleared', 'Queue Action']:
                         dt_obj += timedelta(hours=8)
                         
                     display_time = dt_obj.strftime("%Y-%m-%d %H:%M")
                 except Exception:
-                    display_time = raw_time[:16] # Fallback to standard substring slicing if formatting breaks
-                
+                    display_time = raw_time[:16]
                 formatted_activities.append({
                     'Date/time': display_time,
                     'Action': r['action'],
