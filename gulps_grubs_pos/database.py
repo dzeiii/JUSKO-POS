@@ -397,13 +397,12 @@ def add_order(customer_name, details, priority, order_type='Drink', db_path=DB_P
         ))
         
         return cursor.lastrowid 
-
-# 🟢 CORRECTED VERSION FOR database.py
+        
 def update_order_status(order_id, status):
     with connection() as conn:
-        conn.execute("UPDATE pending_orders SET status = ? WHERE id = ?", (status, order_id))
-        conn.execute("INSERT INTO activity_log (actor_mode, action, details) VALUES (?, ?, ?)", 
-                     ("Cashier", "Queue Action", f"Order #{order_id} marked {status}"))
+        conn.execute("UPDATE pending_orders SET status = ? WHERE id = ?", (status, order_id))    
+    
+    log_activity('Cashier', 'Queue Action', f"Order #{order_id} marked {status}")
 
 def log_activity(actor_mode, action, details='', db_path=DB_PATH):
     """Persist an audit entry for important Admin, Cashier, and Kitchen actions."""
