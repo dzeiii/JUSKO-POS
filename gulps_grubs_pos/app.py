@@ -1052,7 +1052,7 @@ elif mode == 'Cashier' and page == 'Pickup Queue Priority':
         st.dataframe(
             pd.DataFrame([
                 {'Order #': o['id'],'Customer': o['customer_name'],'Details': o['details'],'Priority': o['priority'],'Status': o['status'],'Created': o['created_at'].replace('T', ' ')[:16]}
-                for o in all_orders]),use_container_width=True,hide_index=True)
+                for o in all_orders]),use_container_width=True,hide_index=True, height=400)
     else:
         st.info('No pickup orders found in the database.')
 
