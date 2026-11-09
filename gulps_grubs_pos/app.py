@@ -69,29 +69,41 @@ if 'mode' not in st.session_state: st.session_state.mode = 'Admin'
 
 st.markdown(load_html_template('brand_banner.html'), unsafe_allow_html=True)
 
+# =========================================================================
+# 🔔 GLOBAL TRANSACTIONS NOTIFICATION HUB (Pure Browser CSS Async Animation)
+# =========================================================================
 if 'global_toast' in st.session_state and st.session_state.global_toast:
     toast_data = st.session_state.global_toast
+    
     st.markdown(
         f"""
-        <div style="
-            background-color: {toast_data['bg']}; 
-            color: white; 
-            padding: 16px; 
-            border-radius: 8px; 
-            margin-bottom: 25px; 
-            font-size: 15px; 
-            font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.12);
-            display: flex;
-            align-items: center;
-        ">
-            <span style="font-size: 22px; margin-right: 12px;">{toast_data['icon']}</span>
-            <div>{toast_data['msg']}</div>
+        <style>
+            @keyframes slideDismiss {{
+                0% {{ opacity: 1; transform: translateY(0); max-height: 120px; margin-bottom: 25px; padding: 16px; }}
+                80% {{ opacity: 1; transform: translateY(0); max-height: 120px; margin-bottom: 25px; padding: 16px; }}
+                100% {{ opacity: 0; transform: translateY(-20px); max-height: 0px; margin-bottom: 0px; padding: 0px; overflow: hidden; visibility: hidden; }}
+            }}
+            .async-alert-banner {{
+                background-color: {toast_data['bg']}; 
+                color: white; 
+                border-radius: 8px; 
+                font-size: 15px; 
+                font-weight: bold;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.12);
+                display: flex;
+                align-items: center;
+                animation: slideDismiss 3.5s forwards cubic-bezier(0.4, 0, 0.2, 1);
+                pointer-events: none; /* Prevents container from trapping pointer focal clicks */
+            }}
+        </style>
+        <div class="async-alert-banner">
+            <span style="font-size: 22px; margin-right: 12px; padding-left: 16px; padding-top: 12px; padding-bottom: 12px;">{toast_data['icon']}</span>
+            <div style="padding-right: 16px; padding-top: 12px; padding-bottom: 12px;">{toast_data['msg']}</div>
         </div>
         """, 
         unsafe_allow_html=True
     )
-    # Clear the alert immediately so it vanishes seamlessly on the next click or navigation change
+    # Safely clear the data bucket completely behind the scenes
     st.session_state.global_toast = None
     
 with st.container(key='site_header'):
