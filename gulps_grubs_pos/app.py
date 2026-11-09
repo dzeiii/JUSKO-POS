@@ -84,7 +84,7 @@ with st.container(key='site_header'):
         if mode == 'Admin':
             page = st.radio('Admin navigation', ['Dashboard', 'Product Management', 'Sales History', 'Activity History'], horizontal=True, key='admin_page', label_visibility='collapsed')
         elif mode == 'Cashier':
-            cashier_options = ['Dashboard', 'New Sale', 'Pickup Queue Priority', 'Last Transaction', 'Sales History']
+            cashier_options = ['Dashboard', 'New Sale', 'Pickup Queue Priority', 'Sales History']
             current_selection = st.session_state.get('cashier_page', 'Dashboard')
             if current_selection not in cashier_options:
                 current_selection = 'Dashboard'
@@ -1056,34 +1056,51 @@ elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     else:
         st.info('No pickup orders found in the database.')
 
-elif mode == 'Cashier' and page == 'Last Transaction':
-    st.subheader('Last Transaction')
-    sale = st.session_state.last_sale
-    if not sale:
-        st.info('Complete a sale in New Sale to display details here.')
-    else:
-        st.success(f"Sale #{sale['transaction_id']} {sale['created_at'].replace('T', ' ')[:16]}")
-        st.metric('Total Paid', money(sale['total_cents']))
-        
-        # COMPLETE FIX: Use safe .get() fallback wrappers for ALL dictionary items
-        st.dataframe(
-            pd.DataFrame([
-                {
-                    'Code': x.get('product_code', x.get('code', '—')),
-                    'Product': x.get('product_name', x.get('name', '—')),
-                    'Qty': x.get('quantity', 1),
-                    'Unit price': money(x.get('unit_price_cents', 0)),
-                    'Subtotal': money(x.get('subtotal_cents', 0))
-                } for x in sale.get('items', [])]), use_container_width=True, hide_index=True)
-        
 elif mode == 'Cashier' and page == 'Sales History':
     st.subheader('📜 Sales Transaction History')
+    
+    # ⚡ PART A: DYNAMIC LAST TRANSACTION ANCHOR
+    sale = st.session_state.get('last_sale')
+    if sale:
+        with st.expander("⚡ Just Checked Out (Last Transaction Details)", expanded=True):
+            tx_id = sale.get('transaction_id')
+            st.success(f"Receipt Reference: Sale #{tx_id} · Recorded at {sale['created_at'].replace('T', ' ')[:16]}")
+            
+            # Sub-metrics display card
+            sm1, sm2 = st.columns(2)
+            sm1.metric('Total Paid Amount', money(sale['total_cents']))
+            sm2.markdown("<br>", unsafe_allow_html=True) # visual spacing buffer
+            
+            try:
+                items_details = db.transaction_items(tx_id)
+                if items_details:
+                    st.dataframe(
+                        pd.DataFrame([
+                            {
+                                'Code': x.get('product_code', '—'),
+                                'Product': x.get('product_name', '—'),
+                                'Size': f"{x['size_oz']} oz" if x.get('size_oz') else '—',
+                                'Options/Notes': x.get('customizations', '—'),
+                                'Qty': x.get('quantity', 1),
+                                'Unit Price': money(x.get('unit_price_cents', 0)),
+                                'Subtotal': money(x.get('subtotal_cents', 0))
+                            } for x in items_details
+                        ]), use_container_width=True, hide_index=True
+                    )
+            except Exception as e:
+                st.caption(f"Could not render layout items: {str(e)}")
+    
+    st.divider()
+
+    # 📜 PART B: RECENT SALES & HISTORY SEARCH
+    st.markdown("#### 🔍 Historical Audit Search")
     st.caption('Search completed sales and cashier actions. Records remain saved in SQLite after the app is closed.')
     h1, h2 = st.columns([1, 2])
-    cashier_history_search = h1.text_input('Search sales / actions',placeholder='sale number, product, customer')
-    cashier_role_filter = h2.selectbox('History type',['All cashier activity','Completed sales','Queue actions'])
+    cashier_history_search = h1.text_input('Search sales / actions', placeholder='sale number, product, customer')
+    cashier_role_filter = h2.selectbox('History type', ['All cashier activity', 'Completed sales', 'Queue actions'])
     sales = db.transaction_history()
     term = cashier_history_search.casefold().strip()
+    
     if cashier_role_filter != 'Queue actions':
         sale_rows = []
         for r in sales:
@@ -1107,22 +1124,15 @@ elif mode == 'Cashier' and page == 'Sales History':
                     ),
                     'Total': money(r['total_cents'])
                 })
-        st.markdown('#### Completed sales')
+        st.markdown('##### Completed sales')
         if sale_rows:
-            st.dataframe(
-                pd.DataFrame(sale_rows),
-                use_container_width=True,
-                hide_index=True
-            )
+            st.dataframe(pd.DataFrame(sale_rows), use_container_width=True, hide_index=True)
         else:
             st.info('No sales match this search.')
+            
     if cashier_role_filter != 'Completed sales':
-        activity = db.activity_history(
-            'Cashier',
-            cashier_history_search,
-            limit=500
-        )
-        st.markdown('#### Cashier actions and queue history')
+        activity = db.activity_history('Cashier', cashier_history_search, limit=500)
+        st.markdown('##### Cashier actions and queue history')
         if activity:
             st.dataframe(
                 pd.DataFrame([
@@ -1130,14 +1140,12 @@ elif mode == 'Cashier' and page == 'Sales History':
                         'Date/time': r['created_at'].replace('T', ' ')[:16],
                         'Action': r['action'],
                         'Details': r['details']
-                    }
-                    for r in activity
-                ]),
-                use_container_width=True,
-                hide_index=True
+                    } for r in activity
+                ]), use_container_width=True, hide_index=True
             )
         else:
             st.info('No cashier activity matches this search.')
+
 # =========================================================================
 # INVENTORY MANAGER WORKSPACE MODULES
 # =========================================================================
