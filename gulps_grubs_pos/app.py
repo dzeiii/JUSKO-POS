@@ -981,6 +981,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                 try:
                     if not customer_name.strip(): 
                         raise ValueError("Please enter the customer name.")
+                    
                     if hasattr(st.session_state.cart, '_items'):
                         raw_cart_values = list(st.session_state.cart._items.values())
                     else:
@@ -989,18 +990,23 @@ elif mode == 'Cashier' and page == 'New Sale':
                     if not raw_cart_values:
                         raise ValueError("Your checkout shopping basket is completely empty.")
                     
-                    determined_cashier = "Cashier"
-                    if 'cashier_name' in locals() and cashier_name:
-                        determined_cashier = cashier_name.strip()
-                    elif 'cashier_label' in locals() and cashier_label:
-                        determined_cashier = cashier_label.strip()
+                    # FIX: Safely retrieve the cashier label without checking nonexistent 'cashier_name' variables
+                    determined_cashier = cashier_label.strip() if cashier_label else "Cashier"
                         
                     sale = db.checkout(raw_cart_values, cashier_label=determined_cashier)
                     st.session_state.last_sale = sale
 
                     order_details_list = []
                     for item in raw_cart_values:
-                        size_suffix = f" ({item['custom_size_lbl']})" if item.get('custom_size_lbl') else ""
+                        # FIX: Determine size from 'size_oz' instead of missing 'custom_size_lbl'
+                        size_val = item.get('size_oz')
+                        size_suffix = ""
+                        if size_val is not None:
+                            if int(size_val) == 99:
+                                size_suffix = " (Custom Size)"
+                            else:
+                                size_suffix = f" ({size_val} oz)"
+                                
                         order_details_list.append(f"{item['quantity']}x {item.get('name', 'Product')}{size_suffix}")
                     order_details_str = ", ".join(order_details_list)
                     
@@ -1010,8 +1016,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                         priority=int(priority_level)
                     )
 
-
-                    # 4. Clear shopping cart basket and execute rerun refresh
+                    # Clear shopping cart basket and execute rerun refresh
                     st.session_state.cart.clear()
                     
                     success_msg = f"🟢 TRANSACTION SUCCESS [CASHIER]: Sale checkout processed successfully!"
