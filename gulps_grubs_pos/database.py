@@ -399,10 +399,15 @@ def add_order(customer_name, details, priority, order_type='Drink', db_path=DB_P
         return cursor.lastrowid 
         
 def update_order_status(order_id, status):
-    with connection() as conn:
-        conn.execute("UPDATE pending_orders SET status = ? WHERE id = ?", (status, order_id))    
+    from app import ph_datetime_string
     
-    log_activity('Cashier', 'Queue Action', f"Order #{order_id} marked {status}")
+    with connection() as conn:
+        conn.execute("UPDATE pending_orders SET status = ? WHERE id = ?", (status, order_id))
+        current_ph_time = ph_datetime_string()
+        conn.execute("""
+            INSERT INTO activity_history (created_at, actor_mode, action, details) 
+            VALUES (?, ?, ?, ?)
+        """, (current_ph_time, "Cashier", "Queue Action", f"Order #{order_id} marked {status}"))
 
 def log_activity(actor_mode, action, details='', db_path=DB_PATH):
     """Persist an audit entry for important Admin, Cashier, and Kitchen actions."""
