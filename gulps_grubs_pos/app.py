@@ -1063,17 +1063,19 @@ elif mode == 'Cashier' and page == 'Last Transaction':
         st.info('Complete a sale in New Sale to display details here.')
     else:
         st.success(f"Sale #{sale['transaction_id']} {sale['created_at'].replace('T', ' ')[:16]}")
-        st.metric('Total Paid',money(sale['total_cents']))
+        st.metric('Total Paid', money(sale['total_cents']))
+        
+        # COMPLETE FIX: Use safe .get() fallback wrappers for ALL dictionary items
         st.dataframe(
             pd.DataFrame([
                 {
                     'Code': x.get('product_code', x.get('code', '—')),
                     'Product': x.get('product_name', x.get('name', '—')),
-                    'Qty': x['quantity'],
-                    'Unit price': money(x['unit_price_cents']),
-                    'Subtotal': money(x['subtotal_cents'])
-                } for x in sale['items']]), use_container_width=True, hide_index=True)
-
+                    'Qty': x.get('quantity', 1),
+                    'Unit price': money(x.get('unit_price_cents', 0)),
+                    'Subtotal': money(x.get('subtotal_cents', 0))
+                } for x in sale.get('items', [])]), use_container_width=True, hide_index=True)
+        
 elif mode == 'Cashier' and page == 'Sales History':
     st.subheader('📜 Sales Transaction History')
     st.caption('Search completed sales and cashier actions. Records remain saved in SQLite after the app is closed.')
