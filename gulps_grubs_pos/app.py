@@ -1093,7 +1093,7 @@ elif mode == 'Cashier' and page == 'Sales History':
     st.divider()
 
     # 📜 PART B: RECENT SALES & HISTORY SEARCH
-    st.markdown("#### 🔍 Historical Audit Search")
+    st.markdown("#### 🔍Audit Search")
     st.caption('Search completed sales and cashier actions. Records remain saved in SQLite after the app is closed.')
     h1, h2 = st.columns([1, 2])
     cashier_history_search = h1.text_input('Search sales / actions', placeholder='sale number, product, customer')
@@ -1131,20 +1131,38 @@ elif mode == 'Cashier' and page == 'Sales History':
             st.info('No sales match this search.')
             
     if cashier_role_filter != 'Completed sales':
+        from datetime import datetime, timedelta
+        
         activity = db.activity_history('Cashier', cashier_history_search, limit=500)
         st.markdown('##### Cashier actions and queue history')
         if activity:
-            st.dataframe(
-                pd.DataFrame([
-                    {
-                        'Date/time': r['created_at'].replace('T', ' ')[:16],
-                        'Action': r['action'],
-                        'Details': r['details']
-                    } for r in activity
-                ]), use_container_width=True, hide_index=True
-            )
+            formatted_activities = []
+            for r in activity:
+                raw_time = r['created_at'].replace('T', ' ')[:19]
+                
+                # FIX: Check if the string matches UTC hours (e.g. contains '15:') and offset it by +8 hours manually
+                try:
+                    # Parse timestamp format securely
+                    dt_obj = datetime.strptime(raw_time[:16], "%Y-%m-%d %H:%M")
+                    
+                    # If database wrote UTC time strings, shift them cleanly to PH Time (+8) for display consistency
+                    if "15:" in raw_time and r.get('action') in ['Queue Cleared', 'Queue Action']:
+                        dt_obj += timedelta(hours=8)
+                        
+                    display_time = dt_obj.strftime("%Y-%m-%d %H:%M")
+                except Exception:
+                    display_time = raw_time[:16] # Fallback to standard substring slicing if formatting breaks
+                
+                formatted_activities.append({
+                    'Date/time': display_time,
+                    'Action': r['action'],
+                    'Details': r['details']
+                })
+                
+            st.dataframe(pd.DataFrame(formatted_activities), use_container_width=True, hide_index=True)
         else:
             st.info('No cashier activity matches this search.')
+
 
 # =========================================================================
 # INVENTORY MANAGER WORKSPACE MODULES
