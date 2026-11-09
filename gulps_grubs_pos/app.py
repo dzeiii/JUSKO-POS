@@ -722,7 +722,7 @@ elif mode == 'Cashier' and page == 'Dashboard':
                 "Total Bill": money(r['total_cents'])
             })
 
-        st.dataframe(pd.DataFrame(receipt_ledger),use_container_width=True,hide_index=True, height= None)
+        st.dataframe(pd.DataFrame(receipt_ledger),use_container_width=True,hide_index=True)
 
 
 elif mode == 'Cashier' and page == 'New Sale':
@@ -1052,7 +1052,7 @@ elif mode == 'Cashier' and page == 'Pickup Queue Priority':
         st.dataframe(
             pd.DataFrame([
                 {'Order #': o['id'],'Customer': o['customer_name'],'Details': o['details'],'Priority': o['priority'],'Status': o['status'],'Created': o['created_at'].replace('T', ' ')[:16]}
-                for o in all_orders]),use_container_width=True,hide_index=True, height=None)
+                for o in all_orders]),use_container_width=True,hide_index=True)
     else:
         st.info('No pickup orders found in the database.')
 
@@ -1310,8 +1310,7 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
                 st.dataframe(
                     pd.DataFrame(checklist_data),
                     use_container_width=True,
-                    hide_index=True,
-                    height = None
+                    hide_index=True
                 )
         with right_dash:
             st.markdown("#### 📦 Excess Inventory Trackers")
