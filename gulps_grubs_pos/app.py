@@ -1310,7 +1310,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                 }[x]
             )
 
-            cashier_label = st.text_input('Cashier name (optional)',value='Cashier')
+            cashier_label = st.text_input('Cashier name (optional)',placeholder='Cashier')
             confirm = st.form_submit_button('Confirm sale',type='primary',use_container_width=True)
             if confirm:
                 try:
@@ -1324,7 +1324,15 @@ elif mode == 'Cashier' and page == 'New Sale':
                     
                     if not raw_cart_values:
                         raise ValueError("Your checkout shopping basket is completely empty.")
-                    
+
+                    normalized_cart_values = []
+                    for original_item in raw_cart_values:
+                        cloned_item = original_item.copy()
+                        item_size = cloned_item.get('size_oz')
+                        if item_size is not None and int(item_size) >= 99:
+                            cloned_item['size_oz'] = 99  # Safe database value mapping
+                        normalized_cart_values.append(cloned_item)
+                        
                     determined_cashier = cashier_label.strip() if cashier_label else "Cashier"
                         
                     sale = db.checkout(raw_cart_values, cashier_label=determined_cashier)
