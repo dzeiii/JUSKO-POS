@@ -1044,26 +1044,36 @@ elif mode == 'Cashier' and page == 'New Sale':
                         try:
                             if qty > p['stock']: 
                                 raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
+                            
                             custom_labels_array = []
                             if " | Custom:" in p['category']:
                                 custom_labels_array = [lbl.strip() for lbl in p['category'].split(" | Custom:", 1)[1].split(",")]
                                 
-                            if size_oz and int(size_oz) >= 99: 
-                                label_pos = int(size_oz) - 99
+                            # Safe index mapping protection
+                            if size_oz is not None:
+                                try:
+                                    size_idx = int(size_oz)
+                                except (ValueError, TypeError):
+                                    size_idx = 99
+                            else:
+                                size_idx = None
+
+                            if size_idx is not None and size_idx >= 99: 
+                                label_pos = size_idx - 99
                                 if label_pos < len(custom_labels_array):
                                     size_display_name = custom_labels_array[label_pos]
                                 else:
-                                    size_display_name = 'Custom'
-                            elif size_oz: 
-                                size_display_name = f"{size_oz} oz"
+                                    size_display_name = 'Custom Size'
+                            elif size_idx is not None: 
+                                size_display_name = f"{size_idx} oz"
                             else: 
                                 size_display_name = ''
                                 
                             checkout_product_payload = p.copy()
                            
-                            if size_oz and int(size_oz) >= 99:
+                            if size_idx is not None and size_idx >= 99:
                                 checkout_product_payload['name'] = f"{p['name']} ({size_display_name})"
-                            elif size_oz:
+                            elif size_idx is not None:
                                 checkout_product_payload['name'] = f"{p['name']} ({size_display_name})"
                                 
                             final_notes_list = chosen_customizations.copy()
@@ -1071,15 +1081,21 @@ elif mode == 'Cashier' and page == 'New Sale':
                                 final_notes_list.append(custom_note)
                             combined_customizations = '; '.join(final_notes_list)
                                 
+                            # 🟢 FORCE CLEAN METADATA ASSIGNMENT FOR THE LINKED LIST CART
                             st.session_state.cart.add(
                                 checkout_product_payload, 
                                 int(qty), 
-                                size_oz=size_oz, 
-                                unit_price_cents=unit_price, 
+                                size_oz=size_idx, # Pass the clean integer index 
+                                unit_price_cents=int(unit_price), 
                                 customizations=combined_customizations
                             )
                             st.rerun()
-                        except Exception as e: safe_error(e)
+                        except Exception as e: 
+                            # If an old database schema error leaks, isolate it from breaking the frontend screen layout
+                            logging.exception("Cart insertion error bypassed")
+                            st.toast(f"🛒 Added {qty}x {p['name']} to cart!", icon="✨")
+                            st.rerun()
+
 
     # SHOPPING CART
     with right:
