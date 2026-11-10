@@ -2,6 +2,8 @@
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from dataclasses import dataclass
+from typing import Optional, List, Dict, Any
 
 @dataclass
 class CartNode:
@@ -12,6 +14,7 @@ class CartNode:
     quantity: int
     size_oz: Optional[int] = None
     customizations: str = ''
+    category: str = '' # 🟢 Added to store product grouping text safely
     next: Optional['CartNode'] = None
 
 
@@ -37,17 +40,21 @@ class LinkedListCart:
             
             if current.product_id == product_payload['id'] and current_size == target_size and current.customizations == customizations:
                 current.quantity += int(quantity)
-                current.subtotal_cents = current.quantity * current.unit_price_cents
                 return
             current = current.next
 
+        # 🟢 FIX: Map dictionary payload fields correctly to match dataclass fields exactly!
         new_node = CartNode(
-            product_payload, 
-            int(quantity), 
-            size_oz=target_size, 
-            unit_price_cents=int(unit_price_cents), 
-            customizations=customizations
+            product_id=int(product_payload['id']),
+            code=str(product_payload['code']),
+            name=str(product_payload['name']),
+            unit_price_cents=int(unit_price_cents),
+            quantity=int(quantity),
+            size_oz=target_size,
+            customizations=customizations,
+            category=str(product_payload.get('category', ''))
         )
+        
         if not self.head:
             self.head = new_node
         else:
@@ -80,16 +87,18 @@ class LinkedListCart:
         item_list = []
         current = self.head
         while current:
+            # 🟢 FIX: Read explicit parameters straight from node variables securely
             node_data = {
-                'id': getattr(current, 'product_id', current.item.get('id') if hasattr(current, 'item') else None),
-                'product_id': getattr(current, 'product_id', current.item.get('id') if hasattr(current, 'item') else None),
-                'name': getattr(current, 'product_name', current.item.get('name') if hasattr(current, 'item') else 'Product'),
+                'id': current.product_id,
+                'product_id': current.product_id,
+                'code': current.code,
+                'name': current.name,
                 'quantity': current.quantity,
                 'size_oz': current.size_oz,
                 'unit_price_cents': current.unit_price_cents,
-                'subtotal_cents': current.subtotal_cents,
-                'customizations': getattr(current, 'customizations', ''),
-                'category': current.item.get('category', '') if hasattr(current, 'item') and isinstance(current.item, dict) else ''
+                'subtotal_cents': current.unit_price_cents * current.quantity,
+                'customizations': current.customizations,
+                'category': current.category
             }
             item_list.append(node_data)
             current = current.next
@@ -106,6 +115,7 @@ class LinkedListCart:
         count, node = 0, self.head
         while node: count += 1; node = node.next
         return count
+
 
 
 @dataclass
