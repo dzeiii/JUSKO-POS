@@ -471,7 +471,7 @@ elif mode == 'Admin' and page == 'Product Management':
                 st.error(f"🔴 Drink Configuration Error: {drink_config_error}")
             elif classification == 'Drinks (Gulps)' and not size_prices:
                 st.error("🔴 Validation Error: Enable and configure at least one drink size.")
-                        else:
+            else:
                 try:
                     price_cents = cents_from_peso(price) if classification != 'Drinks (Gulps)' else 0
                     starting_stock = 0
