@@ -201,7 +201,15 @@ def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_
     now = datetime.now().isoformat()
     
     with connection(db_path) as c:
-        # The code must enter a 'try' block before using an 'except' block below
+        while True:
+            collision_check = c.execute('SELECT 1 FROM products WHERE code = ?', (code,)).fetchone()
+            if not collision_check:
+                break
+            try:
+                prefix, num_part = code.split("-")
+                code = f"{prefix}-{int(num_part) + 1}"
+            except (ValueError, IndexError):
+                code = f"{code}_1"
         try:
             res = c.execute('''
                 INSERT INTO products (code, name, category, price_cents, stock, low_stock_threshold, active, created_at, updated_at)
@@ -221,7 +229,6 @@ def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_
 
         except sqlite3.IntegrityError as e:
             raise ValueError(f"The product code '{code}' is already taken.")
-
 
 def _validate_size_prices(size_prices, allow_subset=False):
     valid = isinstance(size_prices, dict) and bool(size_prices) and set(size_prices).issubset({8, 12, 16})
