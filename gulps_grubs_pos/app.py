@@ -629,9 +629,11 @@ elif mode == 'Admin' and page == 'Product Management':
                     
                     if lbl_val or prc_val > 0:
                         edit_custom_inputs.append({"label": lbl_val, "price": prc_val})
+                        
                 if st.button("➕ Add more size", key=f"edit_add_more_sizes_btn_{p['id']}"):
                     st.session_state[f"edit_custom_count_{p['id']}"] += 1
                     st.rerun()
+                    
                 updated_sizes = {}
                 # Maintain standard sizes (8, 12, 16) safely
                 for sz, pr_val in size_inputs.items():
@@ -660,12 +662,14 @@ elif mode == 'Admin' and page == 'Product Management':
                 else:
                     new_base_price_cents = p['price_cents']
 
-                else:
-                    new_cat = st.text_input('Category',value=p['category'],key=f"edit_cat_food_{p['id']}").strip()
-                    new_price_val = st.number_input('Price (₱)',min_value=0.0,value=float(p['price_cents'] / 100),step=5.0,format='%.2f',key=f"edit_price_food_{p['id']}")
-                    new_base_price_cents = cents_from_peso(new_price_val)
-                    updated_sizes = None
-                st.divider()
+            else:
+                new_cat = st.text_input('Category', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
+                new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents'] / 100), step=5.0, format='%.2f', key=f"edit_price_food_{p['id']}")
+                new_base_price_cents = cents_from_peso(new_price_val)
+                updated_sizes = None
+                
+            st.divider()
+
                 new_threshold = st.number_input('Low-stock alert at',min_value=0,max_value=1000000,value=int(p['low_stock_threshold']),step=1)
                 save_changes = st.button('Save All Product Details', type='primary', key=f"unified_save_btn_{p['id']}")
                 if save_changes:
