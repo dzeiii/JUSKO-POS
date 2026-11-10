@@ -471,11 +471,26 @@ elif mode == 'Admin' and page == 'Product Management':
                 st.error(f"🔴 Drink Configuration Error: {drink_config_error}")
             elif classification == 'Drinks (Gulps)' and not size_prices:
                 st.error("🔴 Validation Error: Enable and configure at least one drink size.")
-            else:
+                        else:
                 try:
                     price_cents = cents_from_peso(price) if classification != 'Drinks (Gulps)' else 0
-                    generated_code = db.generate_product_code(classification)
                     starting_stock = 0
+                    
+                    # 🟢 PERFORMANCE FIX: Safely determine the absolute maximum id count string from the database files 
+                    # to prevent collisions caused by legacy purged code remnants.
+                    try:
+                        with db.connection() as conn:
+                            max_row = conn.execute("SELECT MAX(id) FROM products").fetchone()
+                            next_id_offset = (max_row[0] if max_row and max_row[0] is not None else 0) + 1
+                        
+                        # Dynamically step forward past the counter to assign an absolute pristine unique identity key string
+                        if classification == 'Drinks (Gulps)':
+                            generated_code = f"GLP-{1000 + next_id_offset}"
+                        else:
+                            generated_code = f"GRB-{1000 + next_id_offset}"
+                    except Exception:
+                        # Safe fallback to standard tracker loop if direct max analysis yields an interface exception
+                        generated_code = db.generate_product_code(classification)
                 
                     db.add_product(
                         code=generated_code, 
@@ -488,21 +503,23 @@ elif mode == 'Admin' and page == 'Product Management':
                     )   
                     
                     formatted_display_price = f"₱{price:,.2f}" if classification != 'Drinks (Gulps)' else "Configured Sizes Array"
-                    audit_msg = f"Menu product item '{clean_name}' successfully added to store catalog database! Assigned code: '{generated_code}' under active category grouping: '{final_save_category}' at '{formatted_display_price}'."
+                    audit_msg = f"Menu product item '{clean_name}' successfully added to store catalog database! Assigned code: '{generated_code}' under active category grouping: '{final_save_category}'."
                     
                     st.session_state.global_toast = {
-                        "msg": f"SUCCESS: Product '{clean_name}' successfully added to catalog as code '{generated_code}'!",
-                        "bg": "#2e7d32",  
+                        "msg": f"SUCCESS: Product '{clean_name}' successfully added to catalog as unique code '{generated_code}'!",
+                        "bg": "#2e7d32",  # High-Visibility Emerald Green
                         "icon": "🟢"
                     }
                     
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     logging.info(f"TRANSACTION SUCCESS [ADMIN]: {audit_msg}")
+
+                    # Flush temporary layout form states cleanly
                     st.session_state.clear_product_form = True
+                    st.session_state.custom_sizes_count = 1
                     st.rerun()
                 except Exception as e: 
                     safe_error(e)
-
 
     # EDIT / DELETE TAB
     with tab2:
