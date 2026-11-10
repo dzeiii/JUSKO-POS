@@ -215,17 +215,36 @@ def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_
                 INSERT INTO products (code, name, category, price_cents, stock, low_stock_threshold, active, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
             ''', (code, name, category, price_cents, stock, threshold, now, now))
-            
             product_id = res.lastrowid
-            
-            if size_prices:
-                for size_oz, pr_cents in size_prices.items():
+        except sqlite3.IntegrityError:
+            raise ValueError(f"The product code '{code}' is already taken.")
+
+        if size_prices and product_id:
+            db_size_idx = 99
+            for size_oz, pr_cents in size_prices.items():
+                current_size_value = int(size_oz) if int(size_oz) in (8, 12, 16) else db_size_idx
+                
+                try:
                     c.execute('''
                         INSERT INTO product_sizes (product_id, size_oz, price_cents)
                         VALUES (?, ?, ?)
-                    ''', (product_id, int(size_oz), pr_cents))
+                    ''', (product_id, current_size_value, pr_cents))
+                except sqlite3.IntegrityError:
+                    while True:
+                        db_size_idx += 1
+                        try:
+                            c.execute('''
+                                INSERT INTO product_sizes (product_id, size_oz, price_cents)
+                                VALUES (?, ?, ?)
+                            ''', (product_id, db_size_idx, pr_cents))
+                            break
+                        except sqlite3.IntegrityError:
+                            continue
+                if current_size_value >= 99:
+                    db_size_idx += 1
                     
             return product_id
+
 
         except sqlite3.IntegrityError as e:
             raise ValueError(f"The product code '{code}' is already taken.")
