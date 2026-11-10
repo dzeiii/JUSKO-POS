@@ -463,25 +463,26 @@ elif mode == 'Admin' and page == 'Product Management':
                     starting_stock = 0
                 
                     db.add_product(
-                        code=generated_code, name=clean_name, category=clean_category, price_cents=price_cents, 
-                        stock=starting_stock, threshold=low_stock_threshold,
+                        code=generated_code, 
+                        name=clean_name, 
+                        category=final_save_category, 
+                        price_cents=price_cents, 
+                        stock=starting_stock, 
+                        threshold=low_stock_threshold,
                         size_prices=size_prices if classification == 'Drinks (Gulps)' else None
                     )   
                     
                     formatted_display_price = f"₱{price:,.2f}" if classification != 'Drinks (Gulps)' else "Configured Sizes Array"
-                    audit_msg = f"Menu product item '{clean_name}' successfully added to store catalog database! Assigned code: '{generated_code}' under active category grouping: '{clean_category}' at '{formatted_display_price}'."
+                    audit_msg = f"Menu product item '{clean_name}' successfully added to store catalog database! Assigned code: '{generated_code}' under active category grouping: '{final_save_category}' at '{formatted_display_price}'."
                     
                     st.session_state.global_toast = {
                         "msg": f"SUCCESS: Product '{clean_name}' successfully added to catalog as code '{generated_code}'!",
-                        "bg": "#2e7d32",  # High-Visibility Emerald Green
+                        "bg": "#2e7d32",  
                         "icon": "🟢"
                     }
                     
-                    # Log audit values securely to history trails
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     logging.info(f"TRANSACTION SUCCESS [ADMIN]: {audit_msg}")
-
-                    # Trigger automatic form resetting configuration
                     st.session_state.clear_product_form = True
                     st.rerun()
                 except Exception as e: 
