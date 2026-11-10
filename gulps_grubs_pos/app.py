@@ -929,16 +929,24 @@ elif mode == 'Cashier' and page == 'New Sale':
                     # DISPLAY PRODUCT PRICE
                     if is_drink:
                         price_parts = []
+                        custom_labels_array = []
+                        if " | Custom:" in p['category']:
+                            custom_labels_array = [lbl.strip() for lbl in p['category'].split(" | Custom:", 1)[1].split(",")]
+                        
                         for size, price in sizes.items():
-                            if int(size) == 99 and custom_size_text:
-                                price_parts.append(f"{custom_size_text} {money(price)}")
-                            elif int(size) == 99:
-                                price_parts.append(f"Custom Size {money(price)}")
+                            size_idx = int(size)
+                            if size_idx >= 99:
+                                label_pos = size_idx - 99
+                                if label_pos < len(custom_labels_array):
+                                    price_parts.append(f"{custom_labels_array[label_pos]} {money(price)}")
+                                else:
+                                    price_parts.append(f"Custom {money(price)}")
                             else:
                                 price_parts.append(f"{size} oz {money(price)}")
                         price_line = ' · '.join(price_parts)
                     else:
                         price_line = money(p['price_cents'])
+
                     
                     # CASHIER PRODUCT CARD
                     card_html = load_html_template('product_card.html', name=str(p['name']), product_name=str(p['name']),
@@ -966,9 +974,22 @@ elif mode == 'Cashier' and page == 'New Sale':
                             if is_drink:
                                 st.markdown("##### 🥤 Sizing Configuration")
                                 available_sizes = list(sizes.keys())
+                                
+                                # Re-parse active names array safely
+                                custom_labels_array = []
+                                if " | Custom:" in p['category']:
+                                    custom_labels_array = [lbl.strip() for lbl in p['category'].split(" | Custom:", 1)[1].split(",")]
+
+                                # 🟢 FIX PART B: MATCH LABELS PERFECTLY PER KEY (99, 100, 101...)
                                 def size_label_formatter(z):
-                                    if int(z) == 99 and custom_size_text: return custom_size_text
+                                    size_idx = int(z)
+                                    if size_idx >= 99:
+                                        label_pos = size_idx - 99
+                                        if label_pos < len(custom_labels_array):
+                                            return custom_labels_array[label_pos]
+                                        return "Custom Size"
                                     return f"{z} oz"
+                                    
                                 size_oz = st.radio('Choose Size:', available_sizes, format_func=size_label_formatter, horizontal=True, key=f"size_{p['id']}")
                                 unit_price = sizes[size_oz]
                                 st.caption(f"Base Size Price: {money(unit_price)}")
