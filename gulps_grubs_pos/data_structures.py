@@ -76,14 +76,24 @@ class LinkedListCart:
 
     def clear(self): self.head = None
 
-    def items(self) -> list[dict[str, Any]]:
-        result, node = [], self.head
-        while node:
-            result.append({'product_id': node.product_id, 'code': node.code, 'name': node.name,
-                           'unit_price_cents': node.unit_price_cents, 'quantity': node.quantity,
-                           'size_oz': node.size_oz, 'customizations': node.customizations, 'subtotal_cents': node.unit_price_cents * node.quantity})
-            node = node.next
-        return result
+    def items(self):
+        item_list = []
+        current = self.head
+        while current:
+            node_data = {
+                'id': getattr(current, 'product_id', current.item.get('id') if hasattr(current, 'item') else None),
+                'product_id': getattr(current, 'product_id', current.item.get('id') if hasattr(current, 'item') else None),
+                'name': getattr(current, 'product_name', current.item.get('name') if hasattr(current, 'item') else 'Product'),
+                'quantity': current.quantity,
+                'size_oz': current.size_oz,
+                'unit_price_cents': current.unit_price_cents,
+                'subtotal_cents': current.subtotal_cents,
+                'customizations': getattr(current, 'customizations', ''),
+                'category': current.item.get('category', '') if hasattr(current, 'item') and isinstance(current.item, dict) else ''
+            }
+            item_list.append(node_data)
+            current = current.next
+        return item_list
 
     def total_cents(self) -> int:
         total, node = 0, self.head
