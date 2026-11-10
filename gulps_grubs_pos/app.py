@@ -1105,10 +1105,9 @@ elif mode == 'Cashier' and page == 'New Sale':
         if not items:
             st.info('Your cart is empty. Add a product to begin.')
         else:
-            for item in items:
+                        for cart_item in items:
                 with st.container(border=True):
-                    # 🟢 FIX: Access variables safely with clean fallbacks to prevent rendering crashes
-                    size_val = item.get('size_oz')
+                    size_val = cart_item.get('size_oz')
                     size_lbl = ""
                     
                     if size_val is not None:
@@ -1116,9 +1115,9 @@ elif mode == 'Cashier' and page == 'New Sale':
                         if size_idx >= 99:
                             try:
                                 # Fetch clean category fallback description directly from database if memory field is blank
-                                raw_cat_string = item.get('category')
+                                raw_cat_string = cart_item.get('category')
                                 if not raw_cat_string:
-                                    master_prod = db.get_product(item['product_id'])
+                                    master_prod = db.get_product(cart_item['product_id'])
                                     raw_cat_string = master_prod.get('category', '') if master_prod else ''
                                 
                                 custom_labels_array = []
@@ -1136,34 +1135,37 @@ elif mode == 'Cashier' and page == 'New Sale':
                             size_lbl = f"{size_val} oz"
                         
                     # Clean the displayed name string format cleanly 
-                    base_display_name = item.get('name', 'Product').split(" (")[0].strip()
+                    base_display_name = cart_item.get('name', 'Product').split(" (")[0].strip()
                     display_title = f"**{base_display_name} ({size_lbl})**" if size_lbl else f"**{base_display_name}**"
-                    options_label = f"\n\n<small style='color:gray;'>{item['customizations']}</small>" if item.get('customizations') else ""
+                    options_label = f"\n\n<small style='color:gray;'>{cart_item['customizations']}</small>" if cart_item.get('customizations') else ""
 
                     c1, c2 = st.columns(2)
-                    c1.markdown(f"{display_title}{options_label}\n\n{money(item['unit_price_cents'])} each", unsafe_allow_html=True)
-                    c2.markdown(f"**{money(item['subtotal_cents'])}**")
+                    c1.markdown(f"{display_title}{options_label}\n\n{money(cart_item['unit_price_cents'])} each", unsafe_allow_html=True)
+                    c2.markdown(f"**{money(cart_entry_subtotal := cart_item['unit_price_cents'] * cart_item['quantity'])}**")
 
                     qcol, rmcol = st.columns([2, 1])
-                    new_q = qcol.number_input('Quantity',min_value=1,max_value=1000000,value=int(item['quantity']),step=1,
-                        key=(f"cart_q_{item['product_id']} {item.get('size_oz') or 'std'} {abs(hash(str(item.get('customizations', ''))))}"))
-                    if qcol.button('Update',key=(f"update_{item['product_id']} {item.get('size_oz') or 'std'} {abs(hash(str(item.get('customizations',''))))}")):
+                    new_q = qcol.number_input('Quantity', min_value=1, max_value=1000000, value=int(cart_item['quantity']), step=1,
+                        key=(f"cart_q_{cart_item['product_id']} {cart_item.get('size_oz') or 'std'} {abs(hash(str(cart_item.get('customizations', ''))))}"))
+                    
+                    if qcol.button('Update', key=(f"update_{cart_item['product_id']} {cart_item.get('size_oz') or 'std'} {abs(hash(str(cart_item.get('customizations',''))))}")):
                         try:
-                            p = db.get_product(item['product_id'])
-                            if not p or not p['active']:
+                            # 🟢 FIX: Changed variable from 'p' to 'db_product' to resolve variable leak collision
+                            db_product = db.get_product(cart_item['product_id'])
+                            if not db_product or not db_product['active']:
                                 raise ValueError('This product is no longer available. Remove it from the cart.')
-                            if int(new_q) > p['stock']:
-                                raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
-                            cart.set_quantity(item['product_id'],int(new_q),item.get('size_oz'),item.get('customizations', ''))
+                            if int(new_q) > db_product['stock']:
+                                raise ValueError(f"Only {db_product['stock']} unit(s) are in stock.")
+                            cart.set_quantity(cart_item['product_id'], int(new_q), cart_item.get('size_oz'), cart_item.get('customizations', ''))
                             st.rerun()
                         except Exception as e:
                             safe_error(e)
-                    if rmcol.button('Remove',
-                        key=(f"remove_{item['product_id']} {item.get('size_oz') or 'std'} {abs(hash(str(item.get('customizations',''))))}")):
-                        cart.remove(item['product_id'],item.get('size_oz'),item.get('customizations', ''))
+                            
+                    if rmcol.button('Remove', key=(f"remove_{cart_item['product_id']} {cart_item.get('size_oz') or 'std'} {abs(hash(str(cart_item.get('customizations',''))))}")):
+                        cart.remove(cart_item['product_id'], cart_item.get('size_oz'), cart_item.get('customizations', ''))
                         st.rerun()
 
         st.divider()
+
         st.markdown(f"### Total: {money(cart.total_cents())}")
         with st.form('checkout_form'):
             customer_name = st.text_input('Customer name *',placeholder='e.g. John Doe')
