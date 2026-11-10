@@ -165,13 +165,11 @@ def generate_product_code(classification, db_path=DB_PATH):
     prefix = prefix_map.get(classification, 'PRD')
     
     with connection(db_path) as c:
-        # 1. Pull ALL active codes for this specific prefix from the live table columns
         rows = c.execute(
             "SELECT code FROM products WHERE code LIKE ?", 
             (f"{prefix}-%",)
         ).fetchall()
-        
-        # 2. Extract the numeric suffix integers into a lookup set array
+    
         active_numbers = set()
         for r in rows:
             try:
@@ -180,14 +178,11 @@ def generate_product_code(classification, db_path=DB_PATH):
             except (ValueError, IndexError):
                 continue
         
-        # 3. GAP FINDER: Start at 1001 and look for the very first number that is NOT currently on your screen
         candidate_number = 1001
         while candidate_number in active_numbers:
             candidate_number += 1
             
-        # Returns the lowest available empty slot (e.g., if 1002 is missing, it returns 1002)
         return f"{prefix}-{candidate_number:04d}"
-
 
 def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_PATH, size_prices=None):
     code, name, category = code.strip().upper(), name.strip(), category.strip()
@@ -202,14 +197,19 @@ def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_
     
     with connection(db_path) as c:
         while True:
-            collision_check = c.execute('SELECT 1 FROM products WHERE code = ?', (code,)).fetchone()
+            collision_check = c.execute('SELECT 1 FROM products WHERE UPPER(code) = ?', (code,)).fetchone()
             if not collision_check:
-                break
+                break 
+                
             try:
-                prefix, num_part = code.split("-")
-                code = f"{prefix}-{int(num_part) + 1}"
+                parts = code.split("-")
+                prefix = parts[0]
+                num_part = int(parts[1])
+                code = f"{prefix}-{num_part + 1}"
             except (ValueError, IndexError):
                 code = f"{code}_1"
+                break
+
         try:
             res = c.execute('''
                 INSERT INTO products (code, name, category, price_cents, stock, low_stock_threshold, active, created_at, updated_at)
