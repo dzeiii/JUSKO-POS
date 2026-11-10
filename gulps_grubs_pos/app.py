@@ -478,8 +478,6 @@ elif mode == 'Admin' and page == 'Product Management':
                 st.error(f"🔴 Context/Classification Mismatch: {mismatch_error} Please allocate your item correctly.")
             elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0: 
                 st.error("🔴 Validation Error: Price field is required and must be greater than ₱0.00.")
-            elif classification == 'Drinks (Gulps)' and drink_config_error:
-                st.error(f"🔴 Drink Configuration Error: {drink_config_error}")
             elif classification == 'Drinks (Gulps)' and not size_prices:
                 st.error("🔴 Validation Error: Enable and configure at least one drink size.")
             else:
@@ -1047,17 +1045,26 @@ elif mode == 'Cashier' and page == 'New Sale':
                             if qty > p['stock']: 
                                 raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
                             
-                            # 1. Check size variables on-the-fly
-                            if size_oz and int(size_oz) == 99 and custom_size_text: 
-                                size_display_name = custom_size_text
+                            # Determine custom strings array safely
+                            custom_labels_array = []
+                            if " | Custom:" in p['category']:
+                                custom_labels_array = [lbl.strip() for lbl in p['category'].split(" | Custom:", 1)[1].split(",")]
+
+                            if size_oz and int(size_oz) >= 99: 
+                                label_pos = int(size_oz) - 99
+                                if label_pos < len(custom_labels_array):
+                                    size_display_name = custom_labels_array[label_pos]
+                                else:
+                                    size_display_name = 'Custom Size'
                             elif size_oz: 
                                 size_display_name = f"{size_oz} oz"
                             else: 
                                 size_display_name = ''
+                                
                             checkout_product_payload = p.copy()
                            
-                            if size_oz and int(size_oz) == 99 and custom_size_text:
-                                checkout_product_payload['name'] = f"{p['name']} ({custom_size_text})"
+                            if size_oz and int(size_oz) >= 99:
+                                checkout_product_payload['name'] = f"{p['name']} ({size_display_name})"
                                 
                             final_notes_list = chosen_customizations.copy()
                             if custom_note: 
