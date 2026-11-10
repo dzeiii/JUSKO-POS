@@ -777,14 +777,15 @@ elif mode == 'Admin' and page == 'Product Management':
         st.markdown("---")
         st.markdown("#### 🔍 Filter & Sort Product Catalog")
         search_col, category_col, sort_col = st.columns([2, 1.2, 1.2])
+        
         with search_col:
-            search = st.text_input('Search by code or product name',key='product_search_input')
+            search = st.text_input('Search by code or product name', key='product_search_input')
         with category_col:
-            raw_categories = {prod['category'].split(" | Custom:", 1)[0].strip()for prod in all_products}
+            raw_categories = {prod['category'].split(" | Custom:", 1)[0].strip() for prod in all_products}
             category_options = (["All Categories"] + sorted(list(raw_categories)))
-            selected_search_category = st.selectbox("Filter by Category",category_options,key='product_category_filter')
+            selected_search_category = st.selectbox("Filter by Category", category_options, key='product_category_filter')
         with sort_col:
-            sort_option = st.selectbox("Arrange Products By",[
+            sort_option = st.selectbox("Arrange Products By", [
                     "Product Name (A-Z)",
                     "Product Name (Z-A)",
                     "Product Code (Ascending)",
@@ -792,43 +793,76 @@ elif mode == 'Admin' and page == 'Product Management':
                     "Lowest Price First",
                     "Lowest Stock Level First",
                     "Highest Stock Level First"
-                ],key='catalog_sort_selector')
+                ], key='catalog_sort_selector')
+                
         filtered_items = []
         for prod in all_products:
             matches_keyword = search.casefold() in (prod['code'] + ' ' + prod['name']).casefold()
             clean_item_category = prod['category'].split(" | Custom:", 1)[0].strip()
-            matches_category = (selected_search_category == "All Categories"or clean_item_category == selected_search_category)
+            matches_category = (selected_search_category == "All Categories" or clean_item_category == selected_search_category)
             if matches_keyword and matches_category:
                 filtered_items.append(prod)
+                
         if sort_option == "Product Name (A-Z)":
             filtered_items.sort(key=lambda x: x['name'].lower())
         elif sort_option == "Product Name (Z-A)":
-            filtered_items.sort(key=lambda x: x['name'].lower(),reverse=True)
+            filtered_items.sort(key=lambda x: x['name'].lower(), reverse=True)
         elif sort_option == "Product Code (Ascending)":
             filtered_items.sort(key=lambda x: x['code'].lower())
         elif sort_option == "Highest Price First":
-            filtered_items.sort(key=lambda x: x['price_cents'],reverse=True)
+            filtered_items.sort(key=lambda x: x['price_cents'], reverse=True)
         elif sort_option == "Lowest Price First":
             filtered_items.sort(key=lambda x: x['price_cents'])
         elif sort_option == "Lowest Stock Level First":
             filtered_items.sort(key=lambda x: x['stock'])
         elif sort_option == "Highest Stock Level First":
-            filtered_items.sort(key=lambda x: x['stock'],reverse=True)
+            filtered_items.sort(key=lambda x: x['stock'], reverse=True)
+            
         if filtered_items:
-            st.dataframe(
-                pd.DataFrame([{
-                        'Code': prod['code'],
-                        'Product': prod['name'],
-                        'Category': prod['category'].split(" | Custom:", 1)[0],
-                        'Price': (' · '.join(f"{size if size != 99 else 'Custom'} oz {money(price)}" for size, price in db.get_product_sizes(prod['id']).items())
-                                if db.get_product_sizes(prod['id'])
-                                else money(prod['price_cents'])),
-                                'Stock': prod['stock'],
-                                'Low-stock threshold': prod['low_stock_threshold'],
-                                'Status': (
-                                    'Active' if prod['active'] else 'Inactive')}
-                                    for prod in filtered_items
-                                    ]),use_container_width=True, hide_index=True)
+            # 🟢 DYNAMIC MATRIX GENERATOR FOR TABLE DATA LAYOUTS
+            formatted_table_rows = []
+            for prod in filtered_items:
+                prod_sizes_dict = db.get_product_sizes(prod['id'])
+                
+                if prod_sizes_dict:
+                    price_strings_list = []
+                    
+                    # Unpack standard sizes safely if they exist
+                    if 8 in prod_sizes_dict: price_strings_list.append(f"8oz: {money(prod_sizes_dict[8])}")
+                    if 12 in prod_sizes_dict: price_strings_list.append(f"12oz: {money(prod_sizes_dict[12])}")
+                    if 16 in prod_sizes_dict: price_strings_list.append(f"16oz: {money(prod_sizes_dict[16])}")
+                    
+                    # Unpack comma-separated string descriptions array cleanly
+                    custom_labels_array = []
+                    if " | Custom:" in str(prod['category']):
+                        custom_labels_array = [lbl.strip() for lbl in str(prod['category']).split(" | Custom:", 1)[1].split(",")]
+                    
+                    # Map database indices sequentially starting from 99 onwards
+                    custom_sizes_in_db = {sz: cents for sz, cents in prod_sizes_dict.items() if int(sz) >= 99}
+                    for sz_key in sorted(custom_sizes_in_db.keys()):
+                        label_pos = int(sz_key) - 99
+                        if label_pos < len(custom_labels_array):
+                            size_name_header = custom_labels_array[label_pos]
+                        else:
+                            size_name_header = "Custom Size"
+                        price_strings_list.append(f"{size_name_header}: {money(custom_sizes_in_db[sz_key])}")
+                        
+                    compiled_price_display = " · ".join(price_strings_list)
+                else:
+                    # Fallback single flat price for grubs/food items
+                    compiled_price_display = money(prod['price_cents'])
+                    
+                formatted_table_rows.append({
+                    'Code': prod['code'],
+                    'Product': prod['name'],
+                    'Category': prod['category'].split(" | Custom:", 1)[0].strip(),
+                    'Price': compiled_price_display,
+                    'Stock': prod['stock'],
+                    'Low-stock threshold': prod['low_stock_threshold'],
+                    'Status': 'Active' if prod['active'] else 'Inactive'
+                })
+                
+            st.dataframe(pd.DataFrame(formatted_table_rows), use_container_width=True, hide_index=True)
         else:
             st.info('No catalog products match your search keyword or selected category filter.')
 
