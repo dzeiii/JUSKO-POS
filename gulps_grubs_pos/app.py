@@ -1105,7 +1105,7 @@ elif mode == 'Cashier' and page == 'New Sale':
         if not items:
             st.info('Your cart is empty. Add a product to begin.')
         else:
-                        for cart_item in items:
+            for cart_item in items:
                 with st.container(border=True):
                     size_val = cart_item.get('size_oz')
                     size_lbl = ""
