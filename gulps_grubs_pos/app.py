@@ -1107,7 +1107,7 @@ elif mode == 'Cashier' and page == 'New Sale':
         else:
             for item in items:
                 with st.container(border=True):
-                    # 🟢 FIX: Decode custom size identifiers cleanly by parsing the comma-separated labels array
+                    # 🟢 FIX: Access variables safely with clean fallbacks to prevent rendering crashes
                     size_val = item.get('size_oz')
                     size_lbl = ""
                     
@@ -1115,25 +1115,31 @@ elif mode == 'Cashier' and page == 'New Sale':
                         size_idx = int(size_val)
                         if size_idx >= 99:
                             try:
+                                # Fetch clean category fallback description directly from database if memory field is blank
+                                raw_cat_string = item.get('category')
+                                if not raw_cat_string:
+                                    master_prod = db.get_product(item['product_id'])
+                                    raw_cat_string = master_prod.get('category', '') if master_prod else ''
+                                
                                 custom_labels_array = []
-                                if " | Custom:" in item.get('category', ''):
-                                    custom_labels_array = [lbl.strip() for lbl in item['category'].split(" | Custom:", 1)[1].split(",")]
+                                if " | Custom:" in str(raw_cat_string):
+                                    custom_labels_array = [lbl.strip() for lbl in str(raw_cat_string).split(" | Custom:", 1)[1].split(",")]
                                 
                                 label_pos = size_idx - 99
                                 if label_pos < len(custom_labels_array):
                                     size_lbl = custom_labels_array[label_pos]
                                 else:
-                                    size_lbl = "Custom"
+                                    size_lbl = "Custom Size"
                             except Exception:
-                                size_lbl = "Custom"
+                                size_lbl = "Custom Size"
                         else:
                             size_lbl = f"{size_val} oz"
                         
-                    # Build titles uniformly matching item size labels
-                    display_title = f"**{item['name']} ({size_lbl})**" if size_lbl else f"**{item['name']}**"
+                    # Clean the displayed name string format cleanly 
+                    base_display_name = item.get('name', 'Product').split(" (")[0].strip()
+                    display_title = f"**{base_display_name} ({size_lbl})**" if size_lbl else f"**{base_display_name}**"
                     options_label = f"\n\n<small style='color:gray;'>{item['customizations']}</small>" if item.get('customizations') else ""
 
-                    
                     c1, c2 = st.columns(2)
                     c1.markdown(f"{display_title}{options_label}\n\n{money(item['unit_price_cents'])} each", unsafe_allow_html=True)
                     c2.markdown(f"**{money(item['subtotal_cents'])}**")
