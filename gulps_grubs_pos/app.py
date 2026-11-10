@@ -482,11 +482,13 @@ elif mode == 'Admin' and page == 'Product Management':
                 try:
                     price_cents = cents_from_peso(price) if classification != 'Drinks (Gulps)' else 0
                     starting_stock = 0
+
                     all_existing_products = db.list_products(active_only=False)
                     prefix = "GLP" if classification == 'Drinks (Gulps)' else "GRB"
                     existing_numbers = []
+                    
                     for prod in all_existing_products:
-                        code_str = prod.get('code', '')
+                        code_str = str(prod.get('code', ''))
                         if code_str.startswith(f"{prefix}-"):
                             try:
                                 num_part = int(code_str.split("-")[1])
@@ -498,17 +500,16 @@ elif mode == 'Admin' and page == 'Product Management':
                         next_code_number = max(existing_numbers) + 1
                     else:
                         next_code_number = 1001 
-
                     while True:
                         generated_code = f"{prefix}-{next_code_number}"
                         
                         with db.connection() as conn:
-                            collision_check = conn.execute("SELECT 1 FROM products WHERE code = ?", (generated_code,)).fetchone()
+                            conn.row_factory = sqlite3.Row
+                            collision_check = conn.execute("SELECT 1 FROM products WHERE UPPER(code) = UPPER(?)", (generated_code,)).fetchone()
                         
                         if not collision_check:
                             break 
-                        
-                        next_code_number += 1
+                        next_code_number += 1 
 
                     db.add_product(
                         code=generated_code, 
@@ -525,7 +526,7 @@ elif mode == 'Admin' and page == 'Product Management':
                     
                     st.session_state.global_toast = {
                         "msg": f"🟢 SUCCESS: Product '{clean_name}' successfully added to catalog as unique code '{generated_code}'!",
-                        "bg": "#2e7d32",  
+                        "bg": "#2e7d32",  # Vibrant Emerald Green
                         "icon": "🟢"
                     }
                     
@@ -537,7 +538,6 @@ elif mode == 'Admin' and page == 'Product Management':
                     st.rerun()
                 except Exception as e: 
                     safe_error(e)
-
 
     # EDIT / DELETE TAB
     with tab2:
