@@ -197,20 +197,21 @@ def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_
     
     with connection(db_path) as c:
         # Loop to ensure we find an absolutely unique code if a number is already taken
+               # Loop to ensure we find an absolutely unique code if a number is already taken
         while True:
             collision_check = c.execute('SELECT 1 FROM products WHERE UPPER(code) = ?', (code,)).fetchone()
             if not collision_check:
                 break
             try:
                 parts = code.split("-")
-                # 🟢 FIXED: Added proper list array indexing [0] and [1] here
+                # 🟢 EXACT FIX: Explicitly include array bracket indicators [0] and [1]
                 prefix = parts[0]
                 num_part = int(parts[1])
                 code = f"{prefix}-{num_part + 1}"
             except (ValueError, IndexError):
                 code = f"{code}_1"
                 break
-
+                
         # 1. Insert the main product safely into catalog
         try:
             res = c.execute('''
@@ -250,6 +251,7 @@ def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_
                     
             return product_id
         return product_id
+        
 def _validate_size_prices(size_prices, allow_subset=False):
     valid = isinstance(size_prices, dict) and bool(size_prices) and set(size_prices).issubset({8, 12, 16})
     if not valid or (not allow_subset and set(size_prices) != {8, 12, 16}):
