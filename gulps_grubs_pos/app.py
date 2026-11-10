@@ -570,7 +570,7 @@ elif mode == 'Admin' and page == 'Product Management':
                 
                 is_a_drink = is_custom_drink or any(
                     d in base_cat_name.lower()
-                    for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage', 'tea']
+                    for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage', 'tea', 'gulp', 'fruit tea']
                 )
                 
                 size_inputs = {}
