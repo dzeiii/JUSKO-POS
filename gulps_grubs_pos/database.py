@@ -255,10 +255,20 @@ def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_
         return product_id
         
 def _validate_size_prices(size_prices, allow_subset=False):
+    valid_base_sizes = {8, 12, 16}
+    
     if not isinstance(size_prices, dict) or not size_prices:
         raise ValueError('Set valid prices for the available drink sizes.')
         
     for size, price in size_prices.items():
+        size_idx = int(size)
+        
+        # Check if it's either a standard base size OR a custom size index key (>= 99)
+        is_valid_size = size_idx in valid_base_sizes or size_idx >= 99
+        
+        if not is_valid_size:
+            raise ValueError('Drink size must be 8 oz, 12 oz, 16 oz, or a valid custom designation.')
+            
         if isinstance(price, bool) or not isinstance(price, int) or price < 0:
             raise ValueError(f'The {size} oz price must be a non-negative whole number of centavos.')
 
