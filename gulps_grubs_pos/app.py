@@ -596,21 +596,39 @@ elif mode == 'Admin' and page == 'Product Management':
                 custom_labels_array = []
                 if " | Custom:" in orig_category:
                     custom_labels_array = [lbl.strip() for lbl in orig_category.split(" | Custom:", 1)[1].split(",")]
-                if f"edit_custom_count_{p['id']}" not in st.session_state:
-                    st.session_state[f"edit_custom_count_{p['id']}"] = max(1, len(custom_labels_array))
+            
+                total_slots_to_render = max(len(custom_labels_array), len(custom_sizes_in_db))
+                if f"edit_custom_count_{p['id']}" in st.session_state:
+                    total_slots_to_render = max(total_slots_to_render, st.session_state[f"edit_custom_count_{p['id']}"])
+                else:
+                    st.session_state[f"edit_custom_count_{p['id']}"] = total_slots_to_render
 
                 edit_custom_inputs = []
+                visible_variant_counter = 1 
+                
+                has_any_active_data = False
+                for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
+                    associated_db_key = 99 + i
+                    if not st.session_state.get(f"delete_custom_{p['id']}_{associated_db_key}", False):
+                        saved_lbl = custom_labels_array[i] if i < len(custom_labels_array) else ""
+                        # Check if a label physically exists in DB or has been typed into session state fields
+                        if saved_lbl or st.session_state.get(f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"):
+                            has_any_active_data = True
+                            break
+                            
+                if not has_any_active_data and len(custom_sizes_in_db) == 0:
+                    st.session_state[f"edit_custom_count_{p['id']}"] = 1
         
                 for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
-                    default_label = custom_labels_array[i] if i < len(custom_labels_array) else ""
                     associated_db_key = 99 + i
-                    default_price = float(custom_sizes_in_db.get(associated_db_key, 0.0)) / 100.0
                     
-                    if st.session_state.get(f"delete_custom_{p['id']}_{i}", False):
+                    if st.session_state.get(f"delete_custom_{p['id']}_{associated_db_key}", False):
                         continue
 
-                    if st.session_state[f"edit_custom_count_{p['id']}"] > 1:
-                        st.markdown(f"**Custom Size Variant #{i + 1}**")
+                    default_label = custom_labels_array[i] if i < len(custom_labels_array) else ""
+                    default_price = float(custom_sizes_in_db.get(associated_db_key, 0.0)) / 100.0
+                    
+                    st.markdown(f"**Custom Size Variant #{visible_variant_counter}**")
                         
                     ec_col1, ec_col2, ec_col3 = st.columns([2, 2, 1])
                     with ec_col1:
@@ -618,7 +636,7 @@ elif mode == 'Admin' and page == 'Product Management':
                             "Custom Size Description Label", 
                             value=default_label, 
                             placeholder="e.g., 22oz, 1-Liter", 
-                            key=f"edit_lbl_cust_{p['id']}_{i}"
+                            key=f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"
                         ).strip()
                     with ec_col2:
                         prc_val = ec_col2.number_input(
@@ -627,23 +645,27 @@ elif mode == 'Admin' and page == 'Product Management':
                             value=default_price, 
                             step=1.0, 
                             format='%.2f', 
-                            key=f"edit_val_cust_{p['id']}_{i}"
+                            key=f"edit_val_cust_dbkey_{p['id']}_{associated_db_key}"
                         )
                     with ec_col3:
                         st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
-                        if ec_col3.button("❌ Remove", key=f"remove_custom_size_row_{p['id']}_{i}", type="secondary", use_container_width=True):
-                            st.session_state[f"delete_custom_{p['id']}_{i}"] = True
+                        if ec_col3.button("❌ Remove", key=f"remove_custom_size_row_dbkey_{p['id']}_{associated_db_key}", type="secondary", use_container_width=True):
+                            st.session_state[f"delete_custom_{p['id']}_{associated_db_key}"] = True
+                     
+                            if f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}" in st.session_state:
+                                del st.session_state[f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"]
                             st.rerun()
                     
                     if lbl_val or prc_val > 0:
                         edit_custom_inputs.append({"label": lbl_val, "price": prc_val})
+                        
+                    visible_variant_counter += 1 
                         
                 if st.button("➕ Add more size", key=f"edit_add_more_sizes_btn_{p['id']}"):
                     st.session_state[f"edit_custom_count_{p['id']}"] += 1
                     st.rerun()
                     
                 updated_sizes = {}
-                # Maintain standard sizes (8, 12, 16) safely
                 for sz, pr_val in size_inputs.items():
                     if float(pr_val) > 0.0:
                         updated_sizes[int(sz)] = cents_from_peso(pr_val)
