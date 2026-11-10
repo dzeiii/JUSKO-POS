@@ -532,12 +532,12 @@ elif mode == 'Admin' and page == 'Product Management':
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     logging.info(f"TRANSACTION SUCCESS [ADMIN]: {audit_msg}")
 
-                    # Clean out form UI memory
                     st.session_state.clear_product_form = True
                     st.session_state.custom_sizes_count = 1
                     st.rerun()
                 except Exception as e: 
                     safe_error(e)
+
 
     # EDIT / DELETE TAB
     with tab2:
