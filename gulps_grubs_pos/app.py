@@ -1044,18 +1044,16 @@ elif mode == 'Cashier' and page == 'New Sale':
                         try:
                             if qty > p['stock']: 
                                 raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
-                            
-                            # Determine custom strings array safely
                             custom_labels_array = []
                             if " | Custom:" in p['category']:
                                 custom_labels_array = [lbl.strip() for lbl in p['category'].split(" | Custom:", 1)[1].split(",")]
-
+                                
                             if size_oz and int(size_oz) >= 99: 
                                 label_pos = int(size_oz) - 99
                                 if label_pos < len(custom_labels_array):
                                     size_display_name = custom_labels_array[label_pos]
                                 else:
-                                    size_display_name = 'Custom Size'
+                                    size_display_name = 'Custom'
                             elif size_oz: 
                                 size_display_name = f"{size_oz} oz"
                             else: 
@@ -1064,6 +1062,8 @@ elif mode == 'Cashier' and page == 'New Sale':
                             checkout_product_payload = p.copy()
                            
                             if size_oz and int(size_oz) >= 99:
+                                checkout_product_payload['name'] = f"{p['name']} ({size_display_name})"
+                            elif size_oz:
                                 checkout_product_payload['name'] = f"{p['name']} ({size_display_name})"
                                 
                             final_notes_list = chosen_customizations.copy()
