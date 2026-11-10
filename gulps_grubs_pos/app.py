@@ -549,52 +549,6 @@ elif mode == 'Admin' and page == 'Product Management':
             st.info("No active products available to edit.")
         else:
             labels = {(f"{prod['code']} — {prod['name']} {'(Inactive)' if not prod['active'] else ''}"): prod for prod in all_products}
-            selected_label = st.selectbox('Select product to modify',list(labels.keys()),key='edit_select')
-            p = labels[selected_label]
-            if p['active']:
-                current_sizes = db.get_product_sizes(p['id'])
-                orig_category = p['category']
-                is_custom_drink = " | Custom:" in orig_category
-                if is_custom_drink:
-                    base_cat_name, custom_sz_label = orig_category.split(" | Custom:", 1)
-                else:
-                    base_cat_name = orig_category
-                    custom_sz_label = ""
-                st.markdown("#### Product Details")
-                ec1, ec2 = st.columns(2)
-                ec1.text_input('Product code (automatically assigned)',value=p['code'],disabled=True)
-                new_name = ec2.text_input('Product name',value=p['name']).strip()
-                is_a_drink = is_custom_drink or any(
-                    d in base_cat_name.lower()
-                    for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage']
-                )
-                size_inputs = {}
-                if is_a_drink:
-                    new_base_cat = st.text_input('Category Name *',value=base_cat_name).strip()
-                    st.markdown('Available drink size pricing')
-                    all_possible_sizes = [8, 12, 16]
-                    size_cols = st.columns(len(all_possible_sizes))
-                    
-                    for size_idx, size in enumerate(all_possible_sizes):
-                        existing_price_cents = current_sizes.get(size, 0)
-                        if not current_sizes and size in (12, 16):
-                            existing_price_cents = p.get('price_cents', 0)  
-                        initial_value = float(existing_price_cents) / 100.0
-                        size_inputs[size] = size_cols[size_idx].number_input(
-                            f'{size} oz price (₱)',
-                            min_value=0.0,
-                            value=initial_value,
-                            step=1.0,
-                            format="%.2f",
-                            key=f"edit_price_{p['code']}_{size}" # Added unique key to prevent streamlit render conflicts
-                        )
-    with tab2:
-        st.subheader("Edit or Delete Product")
-        all_products = db.list_products(active_only=False)
-        if not all_products:
-            st.info("No active products available to edit.")
-        else:
-            labels = {(f"{prod['code']} — {prod['name']} {'(Inactive)' if not prod['active'] else ''}"): prod for prod in all_products}
             selected_label = st.selectbox('Select product to modify', list(labels.keys()), key='edit_select')
             p = labels[selected_label]
             
