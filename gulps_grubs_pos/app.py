@@ -588,7 +588,7 @@ elif mode == 'Admin' and page == 'Product Management':
                             format="%.2f",
                             key=f"edit_price_{p['code']}_{size}" # Added unique key to prevent streamlit render conflicts
                         )
-                    with tab2:
+    with tab2:
         st.subheader("Edit or Delete Product")
         all_products = db.list_products(active_only=False)
         if not all_products:
