@@ -333,8 +333,10 @@ elif mode == 'Admin' and page == 'Product Management':
             if st.button("➕ Add another custom size", key="add_another_custom_size_btn"):
                 st.session_state.custom_sizes_count += 1
                 st.rerun()
-    
+
             try:    
+                size_prices = {} # 
+                
                 if use8:
                     price8 = read_drink_price(price8_input, "8 oz")
                     size_prices[8] = cents_from_peso(price8)
@@ -360,9 +362,11 @@ elif mode == 'Admin' and page == 'Product Management':
                         
                         parsed_c_price = read_drink_price(c_price_raw, f"custom size '{c_label}'")
                         
+                        # 🟢 SECURE SEPARATION INDEX
                         size_prices[custom_database_key_id] = cents_from_peso(parsed_c_price)
                         custom_labels_compiled.append(c_label)
                         
+                        # Bumps up sequentially: 99, 100, 101... safely passed now!
                         custom_database_key_id += 1  
                 
                 if custom_labels_compiled:
