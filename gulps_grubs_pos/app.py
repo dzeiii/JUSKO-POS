@@ -670,69 +670,69 @@ elif mode == 'Admin' and page == 'Product Management':
                 
             st.divider()
 
-                new_threshold = st.number_input('Low-stock alert at',min_value=0,max_value=1000000,value=int(p['low_stock_threshold']),step=1)
-                save_changes = st.button('Save All Product Details', type='primary', key=f"unified_save_btn_{p['id']}")
-                if save_changes:
-                    if not new_name or not new_cat: 
-                        st.error("Product name and category definitions cannot be left blank.")
-                    else:
-                        try: 
-                            db.update_product(p['id'], p['code'], new_name, new_cat, int(new_base_price_cents), int(new_threshold))
-                            
-                            if is_a_drink:
-                                updated_sizes = {}
-                                for size_key, input_val in size_inputs.items():
-                                    cents_val = int(round(input_val * 100))
-                                    if cents_val > 0:
-                                        updated_sizes[size_key] = cents_val
+            new_threshold = st.number_input('Low-stock alert at', min_value=0, max_value=1000000, value=int(p['low_stock_threshold']), step=1, key=f"edit_thresh_{p['id']}")
+            save_changes = st.button('Save All Product Details', type='primary', key=f"unified_save_btn_{p['id']}")
+            if save_changes:
+                if not new_name or not new_cat: 
+                    st.error("Product name and category definitions cannot be left blank.")
+                else:
+                    try: 
+                        db.update_product(p['id'], p['code'], new_name, new_cat, int(new_base_price_cents), int(new_threshold))
+                        
+                        if is_a_drink:
+                            updated_sizes = {}
+                            for size_key, input_val in size_inputs.items():
+                                cents_val = int(round(input_val * 100))
+                                if cents_val > 0:
+                                    updated_sizes[size_key] = cents_val
 
-                                if updated_sizes:
-                                    db.set_product_sizes(p['id'], updated_sizes)
-                                else:
-                                    with db.connection() as clean_conn:
-                                        clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
+                            if updated_sizes:
+                                db.set_product_sizes(p['id'], updated_sizes)
                             else:
                                 with db.connection() as clean_conn:
                                     clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
-                            
-                            audit_msg = f"Product '{p['code']}' details updated successfully (New Name: '{new_name}', New Category: '{new_cat}')."
-                            
+                        else:
+                            with db.connection() as clean_conn:
+                                clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
+                        
+                        audit_msg = f"Product '{p['code']}' details updated successfully (New Name: '{new_name}', New Category: '{new_cat}')."
+                        
+                        st.session_state.global_toast = {
+                            "msg": f"⚙️ UPDATE SUCCESS: Product details for '{p['code']}' have been cleanly updated!",
+                            "bg": "#1565c0",  
+                            "icon": "⚙️"
+                        }
+                        db.log_activity('Admin', 'Product Updated', f"{p['code']} · {new_name}")
+                        logging.info(f"SUCCESS [ADMIN]: {audit_msg}")
+                        st.rerun()
+                    except Exception as e: 
+                        safe_error(e)
+
+            st.divider()
+            st.error('### 🚨 DANGER ZONE: PERMANENT PURGE')
+            st.markdown("Clicking delete below will execute a HARD DELETE. This completely wipes the item profile row from the database catalog and cannot be undone.", 
+                        unsafe_allow_html=True)
+            with st.container(key=f"danger_zone_box_{p['id']}"):
+                check_step1 = st.checkbox("Confirm: I want to permanently delete this product profile, not deactivate it.", key=f"force_del_c1_{p['id']}")
+                check_step2 = st.checkbox("Confirm: I understand this action completely removes it from all search logs.", key=f"force_del_c2_{p['id']}")
+                if st.button('Permanently Delete From Database', key=f"hard_purge_action_{p['id']}", type='primary', disabled=not (check_step1 and check_step2)):
+                    try:
+                        success, msg = db.delete_product(p['id'])
+                        if success:
+                            audit_msg = f"Product '{p['code']} — {p['name']}' was permanently removed from the master database catalog files."
                             st.session_state.global_toast = {
-                                "msg": f"⚙️ UPDATE SUCCESS: Product details for '{p['code']}' have been cleanly updated!",
-                                "bg": "#1565c0",  
-                                "icon": "⚙️"
+                                "msg": f"🚨 PURGE REMOVAL: Product '{p['code']}' has been permanently wiped from the store catalog!",
+                                "bg": "#c62828", 
+                                "icon": "🚨"
                             }
-                            db.log_activity('Admin', 'Product Updated', f"{p['code']} · {new_name}")
+                            
+                            db.log_activity('Admin', 'Product Deleted', f"{p['code']} · {p['name']}")
                             logging.info(f"SUCCESS [ADMIN]: {audit_msg}")
                             st.rerun()
-                        except Exception as e: 
-                            safe_error(e)
-
-                st.divider()
-                st.error('### 🚨 DANGER ZONE: PERMANENT PURGE')
-                st.markdown("Clicking delete below will execute a HARD DELETE. This completely wipes the item profile row from the database catalog and cannot be undone.", 
-                            unsafe_allow_html=True)
-                with st.container(key="danger_zone_box"):
-                    check_step1 = st.checkbox("Confirm: I want to permanently delete this product profile, not deactivate it.", key=f"force_del_c1_{p['id']}")
-                    check_step2 = st.checkbox("Confirm: I understand this action completely removes it from all search logs.", key=f"force_del_c2_{p['id']}")
-                    if st.button('Permanently Delete From Database', key=f"hard_purge_action_{p['id']}", type='primary', disabled=not (check_step1 and check_step2)):
-                        try:
-                            success, msg = db.delete_product(p['id'])
-                            if success:
-                                audit_msg = f"Product '{p['code']} — {p['name']}' was permanently removed from the master database catalog files."
-                                st.session_state.global_toast = {
-                                    "msg": f"🚨 PURGE REMOVAL: Product '{p['code']}' has been permanently wiped from the store catalog!",
-                                    "bg": "#c62828", 
-                                    "icon": "🚨"
-                                }
-                                
-                                db.log_activity('Admin', 'Product Deleted', f"{p['code']} · {p['name']}")
-                                logging.info(f"SUCCESS [ADMIN]: {audit_msg}")
-                                st.rerun()
-                            else: 
-                                st.error(msg)
-                        except Exception as e: 
-                            safe_error(e)
+                        else: 
+                            st.error(msg)
+                    except Exception as e: 
+                        safe_error(e)
 
     # VIEW CATALOG TAB
     with tab3:
