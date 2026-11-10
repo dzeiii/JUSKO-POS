@@ -589,34 +589,77 @@ elif mode == 'Admin' and page == 'Product Management':
                             key=f"edit_price_{p['code']}_{size}" # Added unique key to prevent streamlit render conflicts
                         )
 
-                    st.divider()
-                    st.markdown('🥤 Other / Custom Size Configuration')
-                    has_custom = st.checkbox("Enable a different custom size profile for this product",value=is_custom_drink,key=f"form_has_cust_{p['id']}")
-                    c_col1, c_col2 = st.columns(2)
-                    edit_custom_label = c_col1.text_input("Custom Size Description Label",value=custom_sz_label,placeholder="e.g., 22oz, 1-Liter",disabled=not has_custom,key=f"form_lbl_cust_{p['id']}").strip()
-                    edit_custom_price = c_col2.number_input("Custom Size Price (₱)",min_value=0.0,value=float(current_sizes.get(99, 0.0) / 100),step=5.0,format='%.2f',disabled=not has_custom,key=f"form_val_cust_{p['id']}")
-                    updated_sizes = {}
-                    for sz_key, cents_val in current_sizes.items():
-                        updated_sizes[int(sz_key)] = int(cents_val)
-                    for sz, pr_val in size_inputs.items():
-                        if float(pr_val) > 0.0:
-                            updated_sizes[int(sz)] = cents_from_peso(pr_val)
-                    if has_custom and edit_custom_label:
-                        if float(edit_custom_price) > 0.0:
-                            updated_sizes[99] = cents_from_peso(edit_custom_price)
-                        elif 99 in current_sizes:
-                            updated_sizes[99] = int(current_sizes[99])
-                        else:
-                            updated_sizes[99] = 0
-                        new_cat = (f"{new_base_cat} | Custom:{edit_custom_label}")
-                    else:
-                        new_cat = new_base_cat
-                        if 99 in updated_sizes:
-                            del updated_sizes[99]
-                    if updated_sizes:
-                        new_base_price_cents = next(iter(updated_sizes.values()))
-                    else:
-                        new_base_price_cents = p['price_cents']
+                st.divider()
+                st.markdown('🥤 Other / Custom Size Configuration')
+                
+                custom_sizes_in_db = {sz: cents for sz, cents in current_sizes.items() if int(sz) >= 99}
+                custom_labels_array = []
+                if " | Custom:" in orig_category:
+                    custom_labels_array = [lbl.strip() for lbl in orig_category.split(" | Custom:", 1)[1].split(",")]
+                if f"edit_custom_count_{p['id']}" not in st.session_state:
+                    st.session_state[f"edit_custom_count_{p['id']}"] = max(1, len(custom_sizes_in_db))
+
+                edit_custom_inputs = []
+        
+                for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
+                    default_label = custom_labels_array[i] if i < len(custom_labels_array) else ""
+                    associated_db_key = 99 + i
+                    default_price = float(custom_sizes_in_db.get(associated_db_key, 0.0)) / 100.0
+                    
+                    if st.session_state[f"edit_custom_count_{p['id']}"] > 1:
+                        st.markdown(f"**Custom Size Variant #{i + 1}**")
+                        
+                    ec_col1, ec_col2 = st.columns(2)
+                    with ec_col1:
+                        lbl_val = ec_col1.text_input(
+                            "Custom Size Description Label", 
+                            value=default_label, 
+                            placeholder="e.g., 22oz, 1-Liter", 
+                            key=f"edit_lbl_cust_{p['id']}_{i}"
+                        ).strip()
+                    with ec_col2:
+                        prc_val = ec_col2.number_input(
+                            "Custom Size Price (₱)", 
+                            min_value=0.0, 
+                            value=default_price, 
+                            step=1.0, 
+                            format='%.2f', 
+                            key=f"edit_val_cust_{p['id']}_{i}"
+                        )
+                    
+                    if lbl_val or prc_val > 0:
+                        edit_custom_inputs.append({"label": lbl_val, "price": prc_val})
+                if st.button("➕ Add more size", key=f"edit_add_more_sizes_btn_{p['id']}"):
+                    st.session_state[f"edit_custom_count_{p['id']}"] += 1
+                    st.rerun()
+                updated_sizes = {}
+                # Maintain standard sizes (8, 12, 16) safely
+                for sz, pr_val in size_inputs.items():
+                    if float(pr_val) > 0.0:
+                        updated_sizes[int(sz)] = cents_from_peso(pr_val)
+
+                compiled_edit_labels = []
+                edit_db_key_id = 99
+                
+                for entry in edit_custom_inputs:
+                    e_lbl = entry["label"]
+                    e_prc = entry["price"]
+                    
+                    if e_lbl and e_prc > 0:
+                        updated_sizes[edit_db_key_id] = cents_from_peso(e_prc)
+                        compiled_edit_labels.append(e_lbl)
+                        edit_db_key_id += 1
+
+                if compiled_edit_labels:
+                    new_cat = f"{new_base_cat} | Custom:{', '.join(compiled_edit_labels)}"
+                else:
+                    new_cat = new_base_cat
+
+                if updated_sizes:
+                    new_base_price_cents = next(iter(updated_sizes.values()))
+                else:
+                    new_base_price_cents = p['price_cents']
+
                 else:
                     new_cat = st.text_input('Category',value=p['category'],key=f"edit_cat_food_{p['id']}").strip()
                     new_price_val = st.number_input('Price (₱)',min_value=0.0,value=float(p['price_cents'] / 100),step=5.0,format='%.2f',key=f"edit_price_food_{p['id']}")
