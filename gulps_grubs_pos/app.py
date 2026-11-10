@@ -700,7 +700,7 @@ elif mode == 'Admin' and page == 'Product Management':
                     else:
                         new_base_price_cents = p['price_cents']
 
-                        else:
+            else:
                 new_cat = st.text_input('Category', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
                 new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents'] / 100), step=5.0, format='%.2f', key=f"edit_price_food_{p['id']}")
                 new_base_price_cents = cents_from_peso(new_price_val)
