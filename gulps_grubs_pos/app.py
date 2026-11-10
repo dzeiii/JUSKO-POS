@@ -588,119 +588,174 @@ elif mode == 'Admin' and page == 'Product Management':
                             format="%.2f",
                             key=f"edit_price_{p['code']}_{size}" # Added unique key to prevent streamlit render conflicts
                         )
-
-                st.divider()
-                st.markdown('🥤 Other / Custom Size Configuration')
-                
-                custom_sizes_in_db = {sz: cents for sz, cents in current_sizes.items() if int(sz) >= 99}
-                custom_labels_array = []
-                if " | Custom:" in orig_category:
-                    custom_labels_array = [lbl.strip() for lbl in orig_category.split(" | Custom:", 1)[1].split(",")]
+                    with tab2:
+        st.subheader("Edit or Delete Product")
+        all_products = db.list_products(active_only=False)
+        if not all_products:
+            st.info("No active products available to edit.")
+        else:
+            labels = {(f"{prod['code']} — {prod['name']} {'(Inactive)' if not prod['active'] else ''}"): prod for prod in all_products}
+            selected_label = st.selectbox('Select product to modify', list(labels.keys()), key='edit_select')
+            p = labels[selected_label]
             
-                total_slots_to_render = max(len(custom_labels_array), len(custom_sizes_in_db))
-                if f"edit_custom_count_{p['id']}" in st.session_state:
-                    total_slots_to_render = max(total_slots_to_render, st.session_state[f"edit_custom_count_{p['id']}"])
-                else:
-                    st.session_state[f"edit_custom_count_{p['id']}"] = total_slots_to_render
-
-                edit_custom_inputs = []
-                visible_variant_counter = 1 
+            if p['active']:
+                current_sizes = db.get_product_sizes(p['id'])
+                orig_category = p['category']
+                is_custom_drink = " | Custom:" in orig_category
                 
-                has_any_active_data = False
-                for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
-                    associated_db_key = 99 + i
-                    if not st.session_state.get(f"delete_custom_{p['id']}_{associated_db_key}", False):
-                        saved_lbl = custom_labels_array[i] if i < len(custom_labels_array) else ""
-                        # Check if a label physically exists in DB or has been typed into session state fields
-                        if saved_lbl or st.session_state.get(f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"):
-                            has_any_active_data = True
-                            break
-                            
-                if not has_any_active_data and len(custom_sizes_in_db) == 0:
-                    st.session_state[f"edit_custom_count_{p['id']}"] = 1
-        
-                for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
-                    associated_db_key = 99 + i
+                if is_custom_drink:
+                    base_cat_name, custom_sz_label = orig_category.split(" | Custom:", 1)
+                else:
+                    base_cat_name = orig_category
+                    custom_sz_label = ""
                     
-                    if st.session_state.get(f"delete_custom_{p['id']}_{associated_db_key}", False):
-                        continue
-
-                    default_label = custom_labels_array[i] if i < len(custom_labels_array) else ""
-                    default_price = float(custom_sizes_in_db.get(associated_db_key, 0.0)) / 100.0
+                st.markdown("#### Product Details")
+                ec1, ec2 = st.columns(2)
+                ec1.text_input('Product code (automatically assigned)', value=p['code'], disabled=True)
+                new_name = ec2.text_input('Product name', value=p['name'], key=f"edit_name_field_{p['id']}").strip()
+                
+                is_a_drink = is_custom_drink or any(
+                    d in base_cat_name.lower()
+                    for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage', 'tea']
+                )
+                
+                size_inputs = {}
+                if is_a_drink:
+                    new_base_cat = st.text_input('Category Name *', value=base_cat_name, key=f"edit_base_cat_field_{p['id']}").strip()
+                    st.markdown('Available drink size pricing')
+                    all_possible_sizes = [8, 12, 16]
+                    size_cols = st.columns(len(all_possible_sizes))
                     
-                    st.markdown(f"**Custom Size Variant #{visible_variant_counter}**")
-                        
-                    ec_col1, ec_col2, ec_col3 = st.columns([2, 2, 1])
-                    with ec_col1:
-                        lbl_val = ec_col1.text_input(
-                            "Custom Size Description Label", 
-                            value=default_label, 
-                            placeholder="e.g., 22oz, 1-Liter", 
-                            key=f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"
-                        ).strip()
-                    with ec_col2:
-                        prc_val = ec_col2.number_input(
-                            "Custom Size Price (₱)", 
-                            min_value=0.0, 
-                            value=default_price, 
-                            step=1.0, 
-                            format='%.2f', 
-                            key=f"edit_val_cust_dbkey_{p['id']}_{associated_db_key}"
+                    for size_idx, size in enumerate(all_possible_sizes):
+                        existing_price_cents = current_sizes.get(size, 0)
+                        if not current_sizes and size in (12, 16):
+                            existing_price_cents = p.get('price_cents', 0)  
+                        initial_value = float(existing_price_cents) / 100.0
+                        size_inputs[size] = size_cols[size_idx].number_input(
+                            f'{size} oz price (₱)',
+                            min_value=0.0,
+                            value=initial_value,
+                            step=1.0,
+                            format="%.2f",
+                            key=f"edit_price_{p['code']}_{size}"
                         )
-                    with ec_col3:
-                        st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
-                        if ec_col3.button("❌ Remove", key=f"remove_custom_size_row_dbkey_{p['id']}_{associated_db_key}", type="secondary", use_container_width=True):
-                            st.session_state[f"delete_custom_{p['id']}_{associated_db_key}"] = True
-                     
-                            if f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}" in st.session_state:
-                                del st.session_state[f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"]
-                            st.rerun()
+                else:
+                    new_base_cat = st.text_input('Category Name *', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
+                    new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents'] / 100), step=5.0, format='%.2f', key=f"edit_price_food_{p['id']}")
+                    new_base_price_cents = cents_from_peso(new_price_val)
                     
-                    if lbl_val or prc_val > 0:
-                        edit_custom_inputs.append({"label": lbl_val, "price": prc_val})
-                        
-                    visible_variant_counter += 1 
-                        
-                if st.button("➕ Add more size", key=f"edit_add_more_sizes_btn_{p['id']}"):
-                    st.session_state[f"edit_custom_count_{p['id']}"] += 1
-                    st.rerun()
+                if is_a_drink:
+                    st.divider()
+                    st.markdown('🥤 Other / Custom Size Configuration')
                     
-                updated_sizes = {}
-                for sz, pr_val in size_inputs.items():
-                    if float(pr_val) > 0.0:
-                        updated_sizes[int(sz)] = cents_from_peso(pr_val)
-
-                compiled_edit_labels = []
-                edit_db_key_id = 99
+                    custom_sizes_in_db = {sz: cents for sz, cents in current_sizes.items() if int(sz) >= 99}
+                    custom_labels_array = []
+                    if " | Custom:" in orig_category:
+                        custom_labels_array = [lbl.strip() for lbl in orig_category.split(" | Custom:", 1)[1].split(",")]
                 
-                for entry in edit_custom_inputs:
-                    e_lbl = entry["label"]
-                    e_prc = entry["price"]
+                    total_slots_to_render = max(len(custom_labels_array), len(custom_sizes_in_db))
+                    if f"edit_custom_count_{p['id']}" in st.session_state:
+                        total_slots_to_render = max(total_slots_to_render, st.session_state[f"edit_custom_count_{p['id']}"])
+                    else:
+                        st.session_state[f"edit_custom_count_{p['id']}"] = total_slots_to_render
+
+                    edit_custom_inputs = []
+                    visible_variant_counter = 1 
                     
-                    if e_lbl and e_prc > 0:
-                        updated_sizes[edit_db_key_id] = cents_from_peso(e_prc)
-                        compiled_edit_labels.append(e_lbl)
-                        edit_db_key_id += 1
+                    has_any_active_data = False
+                    for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
+                        associated_db_key = 99 + i
+                        if not st.session_state.get(f"delete_custom_{p['id']}_{associated_db_key}", False):
+                            saved_lbl = custom_labels_array[i] if i < len(custom_labels_array) else ""
+                            if saved_lbl or st.session_state.get(f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"):
+                                has_any_active_data = True
+                                break
+                                
+                    if not has_any_active_data and len(custom_sizes_in_db) == 0:
+                        st.session_state[f"edit_custom_count_{p['id']}"] = 1
+            
+                    for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
+                        associated_db_key = 99 + i
+                        
+                        if st.session_state.get(f"delete_custom_{p['id']}_{associated_db_key}", False):
+                            continue
 
-                if compiled_edit_labels:
-                    new_cat = f"{new_base_cat} | Custom:{', '.join(compiled_edit_labels)}"
-                else:
-                    new_cat = new_base_cat
+                        default_label = custom_labels_array[i] if i < len(custom_labels_array) else ""
+                        default_price = float(custom_sizes_in_db.get(associated_db_key, 0.0)) / 100.0
+                        
+                        st.markdown(f"**Custom Size Variant #{visible_variant_counter}**")
+                            
+                        ec_col1, ec_col2, ec_col3 = st.columns([2, 2, 1])
+                        with ec_col1:
+                            lbl_val = ec_col1.text_input(
+                                "Custom Size Description Label", 
+                                value=default_label, 
+                                placeholder="e.g., 22oz, 1-Liter", 
+                                key=f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"
+                            ).strip()
+                        with ec_col2:
+                            prc_val = ec_col2.number_input(
+                                "Custom Size Price (₱)", 
+                                min_value=0.0, 
+                                value=default_price, 
+                                step=1.0, 
+                                format='%.2f', 
+                                key=f"edit_val_cust_dbkey_{p['id']}_{associated_db_key}"
+                            )
+                        with ec_col3:
+                            st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
+                            if ec_col3.button("❌ Remove", key=f"remove_custom_size_row_dbkey_{p['id']}_{associated_db_key}", type="secondary", use_container_width=True):
+                                st.session_state[f"delete_custom_{p['id']}_{associated_db_key}"] = True
+                                if f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}" in st.session_state:
+                                    del st.session_state[f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"]
+                                st.rerun()
+                        
+                        if lbl_val or prc_val > 0:
+                            edit_custom_inputs.append({"label": lbl_val, "price": prc_val})
+                            
+                        visible_variant_counter += 1 
+                            
+                    if st.button("➕ Add more size", key=f"edit_add_more_sizes_btn_{p['id']}"):
+                        st.session_state[f"edit_custom_count_{p['id']}"] += 1
+                        st.rerun()
+                        
+                    updated_sizes = {}
+                    for sz, pr_val in size_inputs.items():
+                        if float(pr_val) > 0.0:
+                            updated_sizes[int(sz)] = cents_from_peso(pr_val)
 
-                if updated_sizes:
-                    new_base_price_cents = next(iter(updated_sizes.values()))
-                else:
-                    new_base_price_cents = p['price_cents']
-            else:
+                    compiled_edit_labels = []
+                    edit_db_key_id = 99
+                    
+                    for entry in edit_custom_inputs:
+                        e_lbl = entry["label"]
+                        e_prc = entry["price"]
+                        
+                        if e_lbl and e_prc > 0:
+                            updated_sizes[edit_db_key_id] = cents_from_peso(e_prc)
+                            compiled_edit_labels.append(e_lbl)
+                            edit_db_key_id += 1
+
+                    if compiled_edit_labels:
+                        new_cat = f"{new_base_cat} | Custom:{', '.join(compiled_edit_labels)}"
+                    else:
+                        new_cat = new_base_cat
+
+                    if updated_sizes:
+                        new_base_price_cents = next(iter(updated_sizes.values()))
+                    else:
+                        new_base_price_cents = p['price_cents']
+
+                        else:
                 new_cat = st.text_input('Category', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
                 new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents'] / 100), step=5.0, format='%.2f', key=f"edit_price_food_{p['id']}")
                 new_base_price_cents = cents_from_peso(new_price_val)
                 updated_sizes = None
                 
             st.divider()
-
             new_threshold = st.number_input('Low-stock alert at', min_value=0, max_value=1000000, value=int(p['low_stock_threshold']), step=1, key=f"edit_thresh_{p['id']}")
             save_changes = st.button('Save All Product Details', type='primary', key=f"unified_save_btn_{p['id']}")
+            
             if save_changes:
                 if not new_name or not new_cat: 
                     st.error("Product name and category definitions cannot be left blank.")
@@ -760,7 +815,7 @@ elif mode == 'Admin' and page == 'Product Management':
                             st.rerun()
                         else: 
                             st.error(msg)
-                    except Exception as e: 
+                    except Exception as e:
                         safe_error(e)
 
     # VIEW CATALOG TAB
