@@ -972,8 +972,8 @@ elif mode == 'Cashier' and page == 'New Sale':
                         is_lemonade_slushie = 'slushie' in cat_lower or 'slushie' in prod_name_lower
                         is_lemonade = ('lemonade' in cat_lower or 'lemonade' in prod_name_lower) and not is_lemonade_slushie
                         is_coffee = 'coffee' in cat_lower or 'coffee' in prod_name_lower
-                        is_float_or_juice = 'float' in cat_lower or 'float' in prod_name_lower or 'juice' in cat_lower or 'juice' in prod_name_lower
-
+                        is_float_or_juice_or_tea = 'float' in cat_lower or 'float' in prod_name_lower or 'juice' in cat_lower or 'juice' in prod_name_lower or 'tea' in cat_lower or 'tea' in prod_name_lower
+                        
                         with st.popover(" Customize", use_container_width=True, disabled=p['stock'] < 1):
                             if is_drink:
                                 st.markdown("##### 🥤 Sizing Configuration")
@@ -999,7 +999,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                                 st.caption(f"Base Size Price: {money(unit_price)}")
                                 
                                 # Sinker logic inside popover window
-                                if not is_float_or_juice:
+                                if not is_float_or_juice_or_tea:
                                     st.markdown("##### Sinker Options")
                                     if is_milktea:
                                         mt_sinker = st.radio("Sinkers:", ["Pearls", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
