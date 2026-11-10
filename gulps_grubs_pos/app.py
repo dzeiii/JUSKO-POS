@@ -1324,7 +1324,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                     
                     if not raw_cart_values:
                         raise ValueError("Your checkout shopping basket is completely empty.")
-
+                    
                     normalized_cart_values = []
                     for original_item in raw_cart_values:
                         cloned_item = original_item.copy()
@@ -1332,10 +1332,11 @@ elif mode == 'Cashier' and page == 'New Sale':
                         if item_size is not None and int(item_size) >= 99:
                             cloned_item['size_oz'] = 99  # Safe database value mapping
                         normalized_cart_values.append(cloned_item)
-                        
+
                     determined_cashier = cashier_label.strip() if cashier_label else "Cashier"
                         
-                    sale = db.checkout(raw_cart_values, cashier_label=determined_cashier)
+                    # Submit the safely normalized dataset to your transaction ledger
+                    sale = db.checkout(normalized_cart_values, cashier_label=determined_cashier)
                     st.session_state.last_sale = sale
 
                     order_details_list = []
@@ -1343,8 +1344,22 @@ elif mode == 'Cashier' and page == 'New Sale':
                         size_val = item.get('size_oz')
                         size_suffix = ""
                         if size_val is not None:
-                            if int(size_val) == 99:
-                                size_suffix = " (Custom Size)"
+                            size_idx = int(size_val)
+                            if size_idx >= 99:
+                                # Keep your pristine string display text accurate on the kitchen ticket!
+                                try:
+                                    raw_cat_string = item.get('category', '')
+                                    custom_labels_array = []
+                                    if " | Custom:" in str(raw_cat_string):
+                                        custom_labels_array = [lbl.strip() for lbl in str(raw_cat_string).split(" | Custom:", 1)[1].split(",")]
+                                    
+                                    label_pos = size_idx - 99
+                                    if label_pos < len(custom_labels_array):
+                                        size_suffix = f" ({custom_labels_array[label_pos]})"
+                                    else:
+                                        size_suffix = " (Custom Size)"
+                                except Exception:
+                                    size_suffix = " (Custom Size)"
                             else:
                                 size_suffix = f" ({size_val} oz)"
                                 
@@ -1357,7 +1372,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                         priority=int(priority_level)
                     )
 
-                    # Clear shopping cart basket 
+                    # Clear shopping cart basket cleanly
                     st.session_state.cart.clear()
                     st.session_state.global_toast = {
                         "msg": f"🏁 TRANSACTION SUCCESSFUL: Sale checkout processed for '{customer_name.strip()}'! Total Paid: {money(sale['total_cents'])}.",
@@ -1367,7 +1382,6 @@ elif mode == 'Cashier' and page == 'New Sale':
                     st.rerun()
                 except Exception as e:
                     st.error(f"🔍 INTERNAL SYSTEM ERROR DETECTED: {str(e)}")
-
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     st.subheader('Cashier - Order Priority & Pickup Queue')
