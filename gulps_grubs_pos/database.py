@@ -52,10 +52,11 @@ def init_db(db_path=DB_PATH):
         );
         CREATE TABLE IF NOT EXISTS product_sizes (
           product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-          size_oz INTEGER NOT NULL CHECK(size_oz IN (8,12,16,99)), 
+          size_oz INTEGER NOT NULL, -- 💡 REMOVED: CHECK(size_oz IN (8,12,16,99))
           price_cents INTEGER NOT NULL CHECK(price_cents >= 0),
           PRIMARY KEY(product_id, size_oz)
         );
+
         CREATE TABLE IF NOT EXISTS transaction_items (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           transaction_id INTEGER NOT NULL REFERENCES transactions(id),
@@ -65,9 +66,10 @@ def init_db(db_path=DB_PATH):
           unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),
           quantity INTEGER NOT NULL CHECK(quantity > 0),
           subtotal_cents INTEGER NOT NULL CHECK(subtotal_cents >= 0),
-          size_oz INTEGER CHECK(size_oz IN (8,12,16,99) OR size_oz IS NULL),
+          size_oz INTEGER, -- 💡 REMOVED: CHECK(...) CONSTRAINT
           customizations TEXT NOT NULL DEFAULT ''
         );
+
         CREATE TABLE IF NOT EXISTS inventory_movements (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           product_id INTEGER NOT NULL REFERENCES products(id),
@@ -267,15 +269,10 @@ def get_product_sizes(product_id, db_path=DB_PATH):
         return {int(r['size_oz']): int(r['price_cents']) for r in rows}
 
 def set_product_sizes(product_id, sizes_dict, db_path=DB_PATH):
-    # --- FIND AND FIX THIS EXACT VALIDATION CHECK IN DATABASE.PY ---
-    # Ensure it allows key 99 (custom size) alongside 8, 12, and 16
-    valid_sizes = {8, 12, 16, 99}
-    
-    # Check if ANY of the keys provided are valid
-    if not sizes_dict or not any(int(sz) in valid_sizes for sz in sizes_dict.keys()):
-        raise ValueError("Set valid prices for the available drink sizes (8 oz, 12 oz, and/or 16 oz).")
+    # 🟢 ALLOW ANY POSITIVE INTEGER SIZE ID VALUE FOR MULTIPLE CONFIGURATIONS
+    if not sizes_dict:
+        raise ValueError("Set valid prices for the available drink sizes.")
 
-    # The rest of your function code continues exactly the same below...
     with connection(db_path) as c:
         c.execute('DELETE FROM product_sizes WHERE product_id = ?', (product_id,))
         for size_oz, price_cents in sizes_dict.items():
