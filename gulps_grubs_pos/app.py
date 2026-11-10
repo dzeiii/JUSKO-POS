@@ -1091,6 +1091,7 @@ elif mode == 'Cashier' and page == 'New Sale':
         else:
             for item in items:
                 with st.container(border=True):
+                    # 🟢 FIX: Decode custom size identifiers cleanly by parsing the comma-separated labels array
                     size_val = item.get('size_oz')
                     size_lbl = ""
                     
@@ -1112,10 +1113,10 @@ elif mode == 'Cashier' and page == 'New Sale':
                         else:
                             size_lbl = f"{size_val} oz"
                         
-                    # Extract pure product base name description string, filtering trailing brackets tags safely
-                    raw_base_name = item['name'].split(" (")[0].strip()
-                    display_title = f"**{raw_base_name} ({size_lbl})**" if size_lbl else f"**{raw_base_name}**"
+                    # Build titles uniformly matching item size labels
+                    display_title = f"**{item['name']} ({size_lbl})**" if size_lbl else f"**{item['name']}**"
                     options_label = f"\n\n<small style='color:gray;'>{item['customizations']}</small>" if item.get('customizations') else ""
+
                     
                     c1, c2 = st.columns(2)
                     c1.markdown(f"{display_title}{options_label}\n\n{money(item['unit_price_cents'])} each", unsafe_allow_html=True)
