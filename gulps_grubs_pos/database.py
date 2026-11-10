@@ -245,10 +245,6 @@ def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_
                     
             return product_id
 
-
-        except sqlite3.IntegrityError as e:
-            raise ValueError(f"The product code '{code}' is already taken.")
-
 def _validate_size_prices(size_prices, allow_subset=False):
     valid = isinstance(size_prices, dict) and bool(size_prices) and set(size_prices).issubset({8, 12, 16})
     if not valid or (not allow_subset and set(size_prices) != {8, 12, 16}):
