@@ -28,17 +28,33 @@ class LinkedListCart:
             node = node.next
         return None
 
-    def add(self, product: dict, quantity: int = 1, size_oz: Optional[int] = None, unit_price_cents: Optional[int] = None, customizations: str = ''):
-        if isinstance(quantity, bool) or not isinstance(quantity, int) or quantity < 1:
-            raise ValueError('Quantity must be a positive whole number.')
-        if size_oz is not None and int(size_oz) not in (8, 12, 16, 99):
-            raise ValueError("Drink size must be 8 oz, 12 oz, or 16 oz.")
-        price = int(product['price_cents'] if unit_price_cents is None else unit_price_cents)
-        existing = self.find(int(product['id']), size_oz, customizations)
-        if existing:
-            existing.quantity += quantity
+    def add(self, product_payload, quantity, size_oz=None, unit_price_cents=0, customizations=""):
+        target_size = int(size_oz) if size_oz is not None else None
+        
+        current = self.head
+        while current:
+            current_size = int(current.size_oz) if current.size_oz is not None else None
+            
+            if current.product_id == product_payload['id'] and current_size == target_size and current.customizations == customizations:
+                current.quantity += int(quantity)
+                current.subtotal_cents = current.quantity * current.unit_price_cents
+                return
+            current = current.next
+
+        new_node = CartNode(
+            product_payload, 
+            int(quantity), 
+            size_oz=target_size, 
+            unit_price_cents=int(unit_price_cents), 
+            customizations=customizations
+        )
+        if not self.head:
+            self.head = new_node
         else:
-            self.head = CartNode(int(product['id']), str(product['code']), str(product['name']), price, quantity, size_oz, customizations, self.head)
+            current = self.head
+            while current.next:
+                current = current.next
+            current.next = new_node
 
     def set_quantity(self, product_id: int, quantity: int, size_oz: Optional[int] = None, customizations: str = '') -> bool:
         node = self.find(product_id, size_oz, customizations)
