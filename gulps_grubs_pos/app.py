@@ -475,23 +475,34 @@ elif mode == 'Admin' and page == 'Product Management':
                 try:
                     price_cents = cents_from_peso(price) if classification != 'Drinks (Gulps)' else 0
                     starting_stock = 0
-                    
-                    # 🟢 PERFORMANCE FIX: Safely determine the absolute maximum id count string from the database files 
-                    # to prevent collisions caused by legacy purged code remnants.
-                    try:
-                        with db.connection() as conn:
-                            max_row = conn.execute("SELECT MAX(id) FROM products").fetchone()
-                            next_id_offset = (max_row[0] if max_row and max_row[0] is not None else 0) + 1
+                    all_existing_products = db.list_products(active_only=False)
+                    prefix = "GLP" if classification == 'Drinks (Gulps)' else "GRB"
+                    existing_numbers = []
+                    for prod in all_existing_products:
+                        code_str = prod.get('code', '')
+                        if code_str.startswith(f"{prefix}-"):
+                            try:
+                                num_part = int(code_str.split("-")[1])
+                                existing_numbers.append(num_part)
+                            except (IndexError, ValueError):
+                                continue
+
+                    if existing_numbers:
+                        next_code_number = max(existing_numbers) + 1
+                    else:
+                        next_code_number = 1001 
+
+                    while True:
+                        generated_code = f"{prefix}-{next_code_number}"
                         
-                        # Dynamically step forward past the counter to assign an absolute pristine unique identity key string
-                        if classification == 'Drinks (Gulps)':
-                            generated_code = f"GLP-{1000 + next_id_offset}"
-                        else:
-                            generated_code = f"GRB-{1000 + next_id_offset}"
-                    except Exception:
-                        # Safe fallback to standard tracker loop if direct max analysis yields an interface exception
-                        generated_code = db.generate_product_code(classification)
-                
+                        with db.connection() as conn:
+                            collision_check = conn.execute("SELECT 1 FROM products WHERE code = ?", (generated_code,)).fetchone()
+                        
+                        if not collision_check:
+                            break 
+                        
+                        next_code_number += 1
+
                     db.add_product(
                         code=generated_code, 
                         name=clean_name, 
@@ -506,15 +517,15 @@ elif mode == 'Admin' and page == 'Product Management':
                     audit_msg = f"Menu product item '{clean_name}' successfully added to store catalog database! Assigned code: '{generated_code}' under active category grouping: '{final_save_category}'."
                     
                     st.session_state.global_toast = {
-                        "msg": f"SUCCESS: Product '{clean_name}' successfully added to catalog as unique code '{generated_code}'!",
-                        "bg": "#2e7d32",  # High-Visibility Emerald Green
+                        "msg": f"🟢 SUCCESS: Product '{clean_name}' successfully added to catalog as unique code '{generated_code}'!",
+                        "bg": "#2e7d32",  
                         "icon": "🟢"
                     }
                     
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     logging.info(f"TRANSACTION SUCCESS [ADMIN]: {audit_msg}")
 
-                    # Flush temporary layout form states cleanly
+                    # Clean out form UI memory
                     st.session_state.clear_product_form = True
                     st.session_state.custom_sizes_count = 1
                     st.rerun()
