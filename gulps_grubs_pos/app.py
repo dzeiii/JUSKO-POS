@@ -606,15 +606,13 @@ elif mode == 'Admin' and page == 'Product Management':
                     associated_db_key = 99 + i
                     default_price = float(custom_sizes_in_db.get(associated_db_key, 0.0)) / 100.0
                     
-                    # 🟢 Skip rendering if this specific custom size has been marked for deletion
                     if st.session_state.get(f"delete_custom_{p['id']}_{i}", False):
                         continue
 
                     if st.session_state[f"edit_custom_count_{p['id']}"] > 1:
                         st.markdown(f"**Custom Size Variant #{i + 1}**")
                         
-                    # 🟢 Adjusted columns to 3 to accommodate a dedicated remove button
-                    ec_col1, ec_col2, ec_col3 = st.columns([2, 2, 1], vertical_alignment="end")
+                    ec_col1, ec_col2, ec_col3 = st.columns([2, 2, 1])
                     with ec_col1:
                         lbl_val = ec_col1.text_input(
                             "Custom Size Description Label", 
@@ -632,7 +630,7 @@ elif mode == 'Admin' and page == 'Product Management':
                             key=f"edit_val_cust_{p['id']}_{i}"
                         )
                     with ec_col3:
-                        # 🟢 THE ROW REMOVAL BUTTON ACTION
+                        st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
                         if ec_col3.button("❌ Remove", key=f"remove_custom_size_row_{p['id']}_{i}", type="secondary", use_container_width=True):
                             st.session_state[f"delete_custom_{p['id']}_{i}"] = True
                             st.rerun()
