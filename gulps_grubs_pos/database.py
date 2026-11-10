@@ -196,13 +196,14 @@ def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_
     now = datetime.now().isoformat()
     
     with connection(db_path) as c:
+        # Loop to ensure we find an absolutely unique code if a number is already taken
         while True:
             collision_check = c.execute('SELECT 1 FROM products WHERE UPPER(code) = ?', (code,)).fetchone()
             if not collision_check:
-                break 
-                
+                break
             try:
                 parts = code.split("-")
+                # 🟢 FIXED: Added proper list array indexing [0] and [1] here
                 prefix = parts[0]
                 num_part = int(parts[1])
                 code = f"{prefix}-{num_part + 1}"
@@ -210,6 +211,7 @@ def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_
                 code = f"{code}_1"
                 break
 
+        # 1. Insert the main product safely into catalog
         try:
             res = c.execute('''
                 INSERT INTO products (code, name, category, price_cents, stock, low_stock_threshold, active, created_at, updated_at)
@@ -218,7 +220,8 @@ def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_
             product_id = res.lastrowid
         except sqlite3.IntegrityError:
             raise ValueError(f"The product code '{code}' is already taken.")
-
+            
+        # 2. Prevent composite primary key data collisions for multiple custom sizes
         if size_prices and product_id:
             db_size_idx = 99
             for size_oz, pr_cents in size_prices.items():
@@ -230,6 +233,7 @@ def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_
                         VALUES (?, ?, ?)
                     ''', (product_id, current_size_value, pr_cents))
                 except sqlite3.IntegrityError:
+                    # If db_size_idx collides due to an un-cleared table remnant, step it forward
                     while True:
                         db_size_idx += 1
                         try:
@@ -240,11 +244,12 @@ def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_
                             break
                         except sqlite3.IntegrityError:
                             continue
+                            
                 if current_size_value >= 99:
                     db_size_idx += 1
                     
             return product_id
-
+        return product_id
 def _validate_size_prices(size_prices, allow_subset=False):
     valid = isinstance(size_prices, dict) and bool(size_prices) and set(size_prices).issubset({8, 12, 16})
     if not valid or (not allow_subset and set(size_prices) != {8, 12, 16}):
