@@ -711,46 +711,51 @@ elif mode == 'Admin' and page == 'Product Management':
             save_changes = st.button('Save All Product Details', type='primary', key=f"unified_save_btn_{p['id']}")
         
             if save_changes:
-                if not new_name or not new_cat: 
-                    st.error("Product name and category definitions cannot be left blank.")
-                else:
-                    try: 
-                        with db.connection() as save_conn:
-                            save_conn.execute("""
-                                UPDATE products 
-                                SET name = ?, category = ?, price_cents = ?, low_stock_threshold = ?, updated_at = ?
-                                WHERE id = ?
-                            """, (new_name, new_cat, int(new_base_price_cents), int(new_threshold), datetime.now().isoformat(), p['id']))
-                        
-                        # 2. Sync the individual dynamic sizing prices cleanly
-                        if is_a_drink:
-                            # Wipe old custom sizes to avoid primary key duplicates
-                            with db.connection() as clear_conn:
-                                clear_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
-                                
-                            # Insert all freshly populated sizing structures sequentially (8, 12, 16, 99, 100, etc.)
-                            if updated_sizes:
-                                for size_key, cents_val in updated_sizes.items():
-                                    clear_conn.execute("""
-                                        INSERT INTO product_sizes (product_id, size_oz, price_cents)
-                                        VALUES (?, ?, ?)
-                                    """, (p['id'], int(size_key), int(cents_val)))
-                        else:
-                            with db.connection() as clean_conn:
-                                clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
-                        
-                        audit_msg = f"Product '{p['code']}' details updated successfully (New Name: '{new_name}', New Category: '{new_cat}')."
-                        
-                        st.session_state.global_toast = {
-                            "msg": f"⚙️ UPDATE SUCCESS: Product details for '{p['code']}' have been cleanly updated!",
-                            "bg": "#1565c0",  
-                            "icon": "⚙️"
-                        }
-                        db.log_activity('Admin', 'Product Updated', f"{p['code']} · {new_name}")
-                        logging.info(f"SUCCESS [ADMIN]: {audit_msg}")
-                        st.rerun()
-                    except Exception as e: 
-                        safe_error(e)
+                    if not new_name or not new_cat: 
+                        st.error("Product name and category definitions cannot be left blank.")
+                    else:
+                        success_trigger = False
+                        try: 
+                            # 1. Update the master product table directly
+                            with db.connection() as save_conn:
+                                save_conn.execute("""
+                                    UPDATE products 
+                                    SET name = ?, category = ?, price_cents = ?, low_stock_threshold = ?, updated_at = ?
+                                    WHERE id = ?
+                                """, (new_name, new_cat, int(new_base_price_cents), int(new_threshold), datetime.now().isoformat(), p['id']))
+                            
+                            # 2. Sync the individual dynamic sizing prices cleanly
+                            if is_a_drink:
+                                # Wipe old custom sizes to avoid primary key duplicates
+                                with db.connection() as clear_conn:
+                                    clear_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
+                                    
+                                # Insert all freshly populated sizing structures sequentially (8, 12, 16, 99, 100, etc.)
+                                if updated_sizes:
+                                    for size_key, cents_val in updated_sizes.items():
+                                        clear_conn.execute("""
+                                            INSERT INTO product_sizes (product_id, size_oz, price_cents)
+                                            VALUES (?, ?, ?)
+                                        """, (p['id'], int(size_key), int(cents_val)))
+                            else:
+                                with db.connection() as clean_conn:
+                                    clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
+                            
+                            audit_msg = f"Product '{p['code']}' details updated successfully (New Name: '{new_name}', New Category: '{new_cat}')."
+                            
+                            st.session_state.global_toast = {
+                                "msg": f"⚙️ UPDATE SUCCESS: Product details for '{p['code']}' have been cleanly updated!",
+                                "bg": "#1565c0",  
+                                "icon": "⚙️"
+                            }
+                            db.log_activity('Admin', 'Product Updated', f"{p['code']} · {new_name}")
+                            logging.info(f"SUCCESS [ADMIN]: {audit_msg}")
+                            success_trigger = True
+                        except Exception as e: 
+                            safe_error(e)
+
+                        if success_trigger:
+                            st.rerun()
 
             # --- DANGER ZONE SECTION ---
             st.divider()
