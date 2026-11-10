@@ -1095,12 +1095,16 @@ elif mode == 'Cashier' and page == 'New Sale':
                     size_lbl = ""
                     
                     if size_val is not None:
-                        if int(size_val) == 99:
+                        size_idx = int(size_val)
+                        if size_idx >= 99:
                             try:
-                                master_product_row = db.get_product_by_id(item['id']) if hasattr(db, 'get_product_by_id') else item
-                                master_category_str = str(master_product_row.get('category', item.get('category', '')))
-                                if " | Custom:" in master_category_str:
-                                    size_lbl = master_category_str.split(" | Custom:", 1)[1].strip()
+                                custom_labels_array = []
+                                if " | Custom:" in item.get('category', ''):
+                                    custom_labels_array = [lbl.strip() for lbl in item['category'].split(" | Custom:", 1)[1].split(",")]
+                                
+                                label_pos = size_idx - 99
+                                if label_pos < len(custom_labels_array):
+                                    size_lbl = custom_labels_array[label_pos]
                                 else:
                                     size_lbl = "Custom"
                             except Exception:
@@ -1108,7 +1112,9 @@ elif mode == 'Cashier' and page == 'New Sale':
                         else:
                             size_lbl = f"{size_val} oz"
                         
-                    display_title = f"**{item['name']} ({size_lbl})**" if size_lbl else f"**{item['name']}**"
+                    # Extract pure product base name description string, filtering trailing brackets tags safely
+                    raw_base_name = item['name'].split(" (")[0].strip()
+                    display_title = f"**{raw_base_name} ({size_lbl})**" if size_lbl else f"**{raw_base_name}**"
                     options_label = f"\n\n<small style='color:gray;'>{item['customizations']}</small>" if item.get('customizations') else ""
                     
                     c1, c2 = st.columns(2)
@@ -1133,6 +1139,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                         key=(f"remove_{item['product_id']} {item.get('size_oz') or 'std'} {abs(hash(str(item.get('customizations',''))))}")):
                         cart.remove(item['product_id'],item.get('size_oz'),item.get('customizations', ''))
                         st.rerun()
+
         st.divider()
         st.markdown(f"### Total: {money(cart.total_cents())}")
         with st.form('checkout_form'):
