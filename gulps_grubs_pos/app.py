@@ -312,22 +312,28 @@ elif mode == 'Admin' and page == 'Product Management':
 
             st.divider()
             st.markdown("##### 🥤 Other / Custom Sizing Configuration")
+
             if "custom_sizes_count" not in st.session_state:
                 st.session_state.custom_sizes_count = 1
+
             custom_size_inputs_list = []
+            
             for i in range(st.session_state.custom_sizes_count):
                 if st.session_state.custom_sizes_count > 1:
                     st.markdown(f"**Custom Size Option #{i + 1}**")
+                
                 c_size_col, c_price_col = st.columns(2)
                 with c_size_col:
                     lbl_val = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key=f'drink_lbl_custom_reactive_field_{i}').strip()
                 with c_price_col:
                     prc_val = st.text_input('Custom Size Price (₱) *', placeholder='0.00', key=f'drink_val_custom_text_reactive_{i}').strip()
+                
                 custom_size_inputs_list.append({"label": lbl_val, "price_raw": prc_val})
 
             if st.button("➕ Add another custom size", key="add_another_custom_size_btn"):
                 st.session_state.custom_sizes_count += 1
                 st.rerun()
+    
             try:    
                 if use8:
                     price8 = read_drink_price(price8_input, "8 oz")
@@ -342,7 +348,7 @@ elif mode == 'Admin' and page == 'Product Management':
                     size_prices[16] = cents_from_peso(price16)
         
                 custom_labels_compiled = []
-                custom_database_key_id = 99 
+                custom_database_key_id = 99  
                 
                 for idx, entry in enumerate(custom_size_inputs_list):
                     c_label = entry["label"]
@@ -356,8 +362,9 @@ elif mode == 'Admin' and page == 'Product Management':
                         
                         size_prices[custom_database_key_id] = cents_from_peso(parsed_c_price)
                         custom_labels_compiled.append(c_label)
+                        
                         custom_database_key_id += 1  
-
+                
                 if custom_labels_compiled:
                     drink_category_suffix = f" | Custom:{', '.join(custom_labels_compiled)}"
                     
