@@ -255,13 +255,12 @@ def add_product(code, name, category, price_cents, stock, threshold, db_path=DB_
         return product_id
         
 def _validate_size_prices(size_prices, allow_subset=False):
-    valid = isinstance(size_prices, dict) and bool(size_prices) and set(size_prices).issubset({8, 12, 16})
-    if not valid or (not allow_subset and set(size_prices) != {8, 12, 16}):
-        raise ValueError('Set valid prices for the available drink sizes (8 oz, 12 oz, and/or 16 oz).')
+    if not isinstance(size_prices, dict) or not size_prices:
+        raise ValueError('Set valid prices for the available drink sizes.')
+        
     for size, price in size_prices.items():
         if isinstance(price, bool) or not isinstance(price, int) or price < 0:
             raise ValueError(f'The {size} oz price must be a non-negative whole number of centavos.')
-
 
 def get_product_sizes(product_id, db_path=DB_PATH):
     with connection(db_path) as c:
