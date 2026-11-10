@@ -597,7 +597,7 @@ elif mode == 'Admin' and page == 'Product Management':
                 if " | Custom:" in orig_category:
                     custom_labels_array = [lbl.strip() for lbl in orig_category.split(" | Custom:", 1)[1].split(",")]
                 if f"edit_custom_count_{p['id']}" not in st.session_state:
-                    st.session_state[f"edit_custom_count_{p['id']}"] = max(1, len(custom_sizes_in_db))
+                    st.session_state[f"edit_custom_count_{p['id']}"] = max(1, len(custom_labels_array))
 
                 edit_custom_inputs = []
         
@@ -606,10 +606,15 @@ elif mode == 'Admin' and page == 'Product Management':
                     associated_db_key = 99 + i
                     default_price = float(custom_sizes_in_db.get(associated_db_key, 0.0)) / 100.0
                     
+                    # 🟢 Skip rendering if this specific custom size has been marked for deletion
+                    if st.session_state.get(f"delete_custom_{p['id']}_{i}", False):
+                        continue
+
                     if st.session_state[f"edit_custom_count_{p['id']}"] > 1:
                         st.markdown(f"**Custom Size Variant #{i + 1}**")
                         
-                    ec_col1, ec_col2 = st.columns(2)
+                    # 🟢 Adjusted columns to 3 to accommodate a dedicated remove button
+                    ec_col1, ec_col2, ec_col3 = st.columns([2, 2, 1], vertical_alignment="end")
                     with ec_col1:
                         lbl_val = ec_col1.text_input(
                             "Custom Size Description Label", 
@@ -626,6 +631,11 @@ elif mode == 'Admin' and page == 'Product Management':
                             format='%.2f', 
                             key=f"edit_val_cust_{p['id']}_{i}"
                         )
+                    with ec_col3:
+                        # 🟢 THE ROW REMOVAL BUTTON ACTION
+                        if ec_col3.button("❌ Remove", key=f"remove_custom_size_row_{p['id']}_{i}", type="secondary", use_container_width=True):
+                            st.session_state[f"delete_custom_{p['id']}_{i}"] = True
+                            st.rerun()
                     
                     if lbl_val or prc_val > 0:
                         edit_custom_inputs.append({"label": lbl_val, "price": prc_val})
@@ -661,7 +671,6 @@ elif mode == 'Admin' and page == 'Product Management':
                     new_base_price_cents = next(iter(updated_sizes.values()))
                 else:
                     new_base_price_cents = p['price_cents']
-
             else:
                 new_cat = st.text_input('Category', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
                 new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents'] / 100), step=5.0, format='%.2f', key=f"edit_price_food_{p['id']}")
