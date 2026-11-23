@@ -262,7 +262,7 @@ elif mode == 'Admin' and page == 'Product Management':
         price = 0.0
         drink_category_suffix = ""
         drink_config_error = None
-        st.markdown("#### 📝 Product Information")
+        st.markdown("#### Product Information")
         name = st.text_input('Product name *',placeholder='Enter product name',key=f'f_name_{classification}').strip()
         category = st.text_input('Category *',placeholder="Type your category name here (e.g., Waffle, Streetfood)...",key=f'f_cat_text_input_lane_{classification}').strip()
 
@@ -281,7 +281,7 @@ elif mode == 'Admin' and page == 'Product Management':
         
             return parsed_value
         if classification == 'Drinks (Gulps)':
-            st.markdown("##### 🥤 Cup Size & Base Pricing Options")
+            st.markdown("##### Cup Size & Base Pricing Options")
             st.caption('Ticking checkboxes will automatically expose size pricing input fields below:')
 
             price8 = 0.00
@@ -311,7 +311,7 @@ elif mode == 'Admin' and page == 'Product Management':
                     price16 = parse_and_format_price(price16_input) if use16 else 0.00
 
             st.divider()
-            st.markdown("##### 🥤 Other / Custom Sizing Configuration")
+            st.markdown("##### Other / Custom Sizing Configuration")
 
             if "custom_sizes_count" not in st.session_state:
                 st.session_state.custom_sizes_count = 1
@@ -379,12 +379,12 @@ elif mode == 'Admin' and page == 'Product Management':
 
         # STEP 3: FOOD AND COMBO PRICING
         if classification in ['Foods (Grubs)','Others (Combo/Meal Plan)']:
-            st.markdown("#### 💰 Product Pricing")
+            st.markdown("####  Product Pricing")
             price_input = st.text_input('Product Price (₱) *',placeholder='0.00',key=f'f_price_{classification}').strip()
             price = parse_and_format_price(price_input)
         
         # STEP 4: INVENTORY ALERT SETTINGS
-        st.markdown("#### 📦 Inventory Settings")
+        st.markdown("#### Inventory Settings")
         low_stock_threshold = st.number_input('Low-stock alert boundary count',min_value=0,value=5,step=1)
         high_stock_threshold = st.number_input('High-stock alert boundary count',min_value=0,value=50,step=1)
         st.divider()
@@ -600,7 +600,7 @@ elif mode == 'Admin' and page == 'Product Management':
                     
                 if is_a_drink:
                     st.divider()
-                    st.markdown('🥤 Other / Custom Size Configuration')
+                    st.markdown(' Other / Custom Size Configuration')
                     
                     custom_sizes_in_db = {sz: cents for sz, cents in current_sizes.items() if int(sz) >= 99}
                     custom_labels_array = []
@@ -658,7 +658,7 @@ elif mode == 'Admin' and page == 'Product Management':
                             )
                         with ec_col3:
                             st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
-                            if ec_col3.button("❌ Remove", key=f"remove_custom_size_row_dbkey_{p['id']}_{associated_db_key}", type="secondary", use_container_width=True):
+                            if ec_col3.button("Remove", key=f"remove_custom_size_row_dbkey_{p['id']}_{associated_db_key}", type="secondary", use_container_width=True):
                                 st.session_state[f"delete_custom_{p['id']}_{associated_db_key}"] = True
                                 if f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}" in st.session_state:
                                     del st.session_state[f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"]
@@ -669,7 +669,7 @@ elif mode == 'Admin' and page == 'Product Management':
                             
                         visible_variant_counter += 1 
                             
-                    if st.button("➕ Add more size", key=f"edit_add_more_sizes_btn_{p['id']}"):
+                    if st.button("Add more size", key=f"edit_add_more_sizes_btn_{p['id']}"):
                         st.session_state[f"edit_custom_count_{p['id']}"] += 1
                         st.rerun()
                         
