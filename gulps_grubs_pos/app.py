@@ -1644,7 +1644,7 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
                         except Exception as exc: safe_error(exc)
 
 elif mode == 'Inventory Manager' and page == 'Dashboard':
-    st.subheader('📦 Inventory Operations Dashboard')
+    st.subheader('Inventory Operations Dashboard')
     all_products = db.list_products(active_only=True)
     if not all_products:
         st.info("No active catalog items found.Dashboard analytics will populate once items are added.")
@@ -1661,14 +1661,14 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
         st.divider()
         left_dash, right_dash = st.columns(2)
         with left_dash:
-            st.markdown("#### 🚨 Fast Action Restock Checklist")
+            st.markdown("####  Fast Action Restock Checklist")
             urgency_list = sorted(out_of_stock + low_stock,key=lambda x: x['stock'])
             if not urgency_list:
                 st.success("🎉 Excellent! All inventory shelf counts match healthy threshold levels.")
             else:
                 checklist_data = []
                 for item in urgency_list:
-                    status = ("🔴 OUT OF STOCK" if item['stock'] == 0 else "⚠️ LOW STOCK"
+                    status = ("OUT OF STOCK" if item['stock'] == 0 else "⚠️ LOW STOCK"
                     )
                     checklist_data.append({
                         "Code": item['code'],
@@ -1683,9 +1683,9 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
                     hide_index=True
                 )
         with right_dash:
-            st.markdown("#### 📦 Excess Inventory Trackers")
+            st.markdown("#### Excess Inventory Trackers")
             if not overstocked:
-                st.success("🎉 Healthy! No catalog rows exceed maximum high-stock parameters.")
+                st.success(" Healthy! No catalog rows exceed maximum high-stock parameters.")
             else:
                 # Creates a clean dropdown drawer inside the right column summary tree
                 with st.expander("🔍 View Overstocked Product Details", expanded=True):
