@@ -962,7 +962,7 @@ elif mode == 'Admin' and page == 'Activity History':
 # CASHIER WORKSPACE MODULES
 # =========================================================================
 elif mode == 'Cashier' and page == 'Dashboard':
-    st.subheader('📊 Cashier Shift Workspace Dashboard')
+    st.subheader('Cashier Shift Workspace Dashboard')
     today = ph_today()
     start = datetime.combine(today,time.min).isoformat()
     end = datetime.combine(today + timedelta(days=1),time.min).isoformat()
@@ -975,12 +975,12 @@ elif mode == 'Cashier' and page == 'Dashboard':
     except Exception:
         pending_count = 0
     c_metric1, c_metric2, c_metric3 = st.columns(3)
-    c_metric1.metric(label="My Today's Sales 💰",value=money(shift_summary['revenue_cents']),delta=f"{shift_summary['transactions']} Receipts printed today")
-    c_metric2.metric(label="Active Kitchen Queue ⏳",value=f"{pending_count} Orders",delta=("Queue heavy - Focus on speed" if pending_count > 5 else "Queue light / clear"),
+    c_metric1.metric(label="My Today's Sales ",value=money(shift_summary['revenue_cents']),delta=f"{shift_summary['transactions']} Receipts printed today")
+    c_metric2.metric(label="Active Kitchen Queue ",value=f"{pending_count} Orders",delta=("Queue heavy - Focus on speed" if pending_count > 5 else "Queue light / clear"),
                     delta_color="inverse" if pending_count > 5 else "normal")
     c_metric3.metric(label="Current Work Station",value="Cashier Desk #1",delta="System Connected & Online")
     st.divider()
-    st.markdown("#### 📜 Recent Shift Receipts")
+    st.markdown("####  Recent Shift Receipts")
     st.caption("A quick-reference scroll log of your last few completed checkouts:")
     if not recent_sales:
         st.info("No customer transactions have been recorded during your active shift window yet.")
