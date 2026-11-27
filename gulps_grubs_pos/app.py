@@ -877,7 +877,7 @@ elif mode == 'Admin' and page == 'Sales History':
                 )
 
         with right_detail:
-            with st.container(key='bento_sales_detail'):
+            with st.container(key='bento_sales_detail', border=True):
                 st.markdown('**Inspect receipt**')
                 sale_options = {
                     f"Sale #{r['id']}  —  {r['created_at'].replace('T', ' ')[:16]}  ({money(r['total_cents'])})": r
