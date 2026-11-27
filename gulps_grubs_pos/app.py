@@ -205,31 +205,20 @@ if mode == 'Admin' and page == 'Dashboard':
                     st.success('No products at or above high-stock threshold.')
 
 elif mode == 'Admin' and page == 'Product Management':
-    # Top row: Sleek Title on the left | Wide Segmented Tab Buttons on the right
-    hdr_col, nav_col = st.columns((1.1, 2.4), vertical_alignment='center', gap='medium')
-    with hdr_col:
-        st.markdown('##### Product Catalog Management')
-    with nav_col:
-        active_pm_view = st.segmented_control(
-            'Catalog View',
-            options=('Add product', 'Edit / Delete', 'View Catalog'),
-            default='Add product',
-            selection_mode='single',
-            label_visibility='collapsed',
-            width='stretch',
-            key='pm_segmented_tabs'
-        )
-        if not active_pm_view:
-            active_pm_view = 'Add product'
+    # Sleek smaller heading + Tabs with wider padding
+    st.markdown('### Product Catalog Management')
+    tab1, tab2, tab3 = st.tabs(['   Add product   ', '   Edit / Delete   ','   View Catalog   '
+    ])
 
-    if active_pm_view == 'Add product':
-        cls_lbl, cls_radio = st.columns((0.95, 3.4), vertical_alignment='center', gap='small')
+    with tab1:
+        # Put Product Classification label & radio pills inline on a single compact row
+        cls_lbl, cls_radio = st.columns([0.85, 3.5], vertical_alignment='center', gap='small')
         with cls_lbl:
-            st.markdown('**Product Classification ***')
+            st.markdown('#### Product Classification')
         with cls_radio:
             classification = st.radio(
                 'Product Classification *',
-                ('Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'),
+                ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'],
                 horizontal=True,
                 label_visibility='collapsed'
             )
@@ -241,8 +230,8 @@ elif mode == 'Admin' and page == 'Product Management':
             food_cats, drink_cats, combo_cats = set(), set(), set()
             for p in db_products:
                 if not p['category']: continue
-                clean_cat_raw, _, custom_part = p['category'].partition(" | Custom:")
-                clean_cat = clean_cat_raw.strip()
+                _, _, custom_part = p['category'].partition(" | Custom:")
+                clean_cat = p['category'].partition(" | Custom:").strip()
                 clean_cat_lower = clean_cat.lower()
                 if any(dk in clean_cat_lower for dk in drink_keywords): drink_cats.add(clean_cat)
                 elif any(ck in clean_cat_lower for ck in ['combo', 'promo', 'bundle']): combo_cats.add(clean_cat)
@@ -255,10 +244,8 @@ elif mode == 'Admin' and page == 'Product Management':
 
         def parse_and_format_price(raw_text):
             if not raw_text: return 0.0
-            try:
-                return float(raw_text.replace('₱', '').strip())
-            except ValueError:
-                return 0.0
+            try: return float(raw_text.replace('₱', '').strip())
+            except ValueError: return 0.0
 
         # AUTOMATIC PRODUCT FORM RESET
         if "clear_product_form" not in st.session_state:
@@ -294,7 +281,7 @@ elif mode == 'Admin' and page == 'Product Management':
             return parsed_value
 
         # --- BALANCED 2-COLUMN BENTO CARDS ---
-        add_left, add_right = st.columns((1, 1.15), gap="medium")
+        add_left, add_right = st.columns([1, 1.15], gap="medium")
 
         with add_left:
             with st.container(key='bento_form_left'):
@@ -311,7 +298,7 @@ elif mode == 'Admin' and page == 'Product Management':
 
         with add_right:
             with st.container(key='bento_form_right'):
-                if classification in ('Foods (Grubs)', 'Others (Combo/Meal Plan)'):
+                if classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)']:
                     st.markdown("**3. Product Pricing**")
                     price_input = st.text_input('Product Price (₱) *', placeholder='0.00', key=f'f_price_{classification}').strip()
                     price = parse_and_format_price(price_input)
@@ -334,8 +321,8 @@ elif mode == 'Admin' and page == 'Product Management':
                         price16_input = st.text_input('16 oz (₱) *', placeholder='0.00', key='drink_val_16_text_final').strip() if use16 else ""
                         price16 = parse_and_format_price(price16_input) if use16 else 0.00
 
-                    # Inline header + "+ Add size" button on the same row
-                    cs_hdr, cs_btn = st.columns((2, 1), vertical_alignment='center', gap='small')
+                    # Inline header + "+ Add size" button on the same row to save vertical space
+                    cs_hdr, cs_btn = st.columns([2, 1], vertical_alignment='center', gap='small')
                     with cs_hdr:
                         st.markdown("**Custom Sizing (Optional)**")
                     with cs_btn:
@@ -347,11 +334,10 @@ elif mode == 'Admin' and page == 'Product Management':
                         st.session_state.custom_sizes_count = 1
 
                     custom_size_inputs_list = []
-
-                # Internal fixed-height scroll container (height=92) so adding 3+ sizes NEVER scrolls the page
+                    # Internal fixed-height scroll container (height=92) so adding 3+ sizes NEVER scrolls the page
                     with st.container(height=92, border=False):
                         for i in range(st.session_state.custom_sizes_count):
-                            c_size_col, c_price_col = st.columns((1.4, 1), gap="small")
+                            c_size_col, c_price_col = st.columns([1.4, 1], gap="small")
                             with c_size_col:
                                 lbl_val = st.text_input(f'Label #{i+1}', placeholder='e.g., 22oz, 1-Liter', key=f'drink_lbl_custom_reactive_field_{i}', label_visibility="collapsed").strip()
                             with c_price_col:
@@ -469,7 +455,7 @@ elif mode == 'Admin' and page == 'Product Management':
                 st.error("Context Validation Alert: Junk classifications (person, human, object) are strictly blocked.")
             elif not is_valid_context:
                 st.error(f"Context/Classification Mismatch: {mismatch_error} Please allocate your item correctly.")
-            elif classification in ('Foods (Grubs)', 'Others (Combo/Meal Plan)') and price <= 0.0:
+            elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0:
                 st.error("Validation Error: Price field is required and must be greater than ₱0.00.")
             elif classification == 'Drinks (Gulps)' and drink_config_error:
                 st.error(f"Validation Error: {drink_config_error}")
@@ -531,7 +517,8 @@ elif mode == 'Admin' and page == 'Product Management':
                 except Exception as e:
                     safe_error(e)
 
-elif active_pm_view == 'Edit / Delete':
+    # EDIT / DELETE TAB (2-Column Bento Layout + Collapsible Danger Zone)
+    with tab2:
         all_products = db.list_products(active_only=False)
         if not all_products:
             st.info("No active products available to edit.")
@@ -544,7 +531,7 @@ elif active_pm_view == 'Edit / Delete':
                 orig_category = p['category']
                 is_custom_drink = " | Custom:" in orig_category
                 if is_custom_drink:
-                    base_cat_name, _, custom_sz_label = orig_category.partition(" | Custom:")
+                    base_cat_name, custom_sz_label = orig_category.split(" | Custom:", 1)
                 else:
                     base_cat_name = orig_category
                     custom_sz_label = ""
@@ -552,18 +539,16 @@ elif active_pm_view == 'Edit / Delete':
                     d in base_cat_name.lower()
                     for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage', 'tea', 'gulp', 'fruit tea']
                 )
-
-                edit_left, edit_right = st.columns((1, 1.15), gap="medium")
-
-                # LEFT CARD: Product Details, Save Button & Danger Zone
+                edit_left, edit_right = st.columns([1, 1.15], gap="medium")
+                # LEFT CARD: Product Details & Threshold
                 with edit_left:
                     with st.container(key='bento_edit_left'):
                         st.markdown("**1. Product Details**")
-                        ec1, ec2 = st.columns((1, 1.6), gap="small")
+                        ec1, ec2 = st.columns([1, 1.6], gap="small")
                         ec1.text_input('Code', value=p['code'], disabled=True)
                         new_name = ec2.text_input('Product name', value=p['name'], key=f"edit_name_field_{p['id']}").strip()
 
-                        cat_col, thresh_col = st.columns((1.6, 1), gap="small")
+                        cat_col, thresh_col = st.columns([1.6, 1], gap="small")
                         with cat_col:
                             if is_a_drink:
                                 new_base_cat = st.text_input('Category Name *', value=base_cat_name, key=f"edit_base_cat_field_{p['id']}").strip()
@@ -572,9 +557,9 @@ elif active_pm_view == 'Edit / Delete':
                         with thresh_col:
                             new_threshold = st.number_input('Low-stock alert', min_value=0, max_value=1000000, value=int(p.get('low_stock_threshold', 5)), step=1, key=f"edit_thresh_{p['id']}")
 
-                        # Full width inside Left Card (outside thresh_col)
+                        # Save Button & Danger Zone moved inside Left Card
                         save_changes = st.button('Save All Product Details', type='primary', use_container_width=True, key=f"unified_save_btn_{p['id']}")
-
+                        
                         with st.expander("Danger Zone (Permanent Delete)"):
                             dz_c1, dz_c2 = st.columns(2, gap="small")
                             with dz_c1:
@@ -603,7 +588,7 @@ elif active_pm_view == 'Edit / Delete':
                         st.markdown("**2. Pricing & Sizing**")
                         size_inputs = {}
                         if is_a_drink:
-                            all_possible_sizes = (8, 12, 16)
+                            all_possible_sizes = [8, 12, 16]
                             size_cols = st.columns(len(all_possible_sizes), gap="small")
                             for size_idx, size in enumerate(all_possible_sizes):
                                 existing_price_cents = current_sizes.get(size, 0)
@@ -618,17 +603,13 @@ elif active_pm_view == 'Edit / Delete':
                                     format="%.2f",
                                     key=f"edit_price_{p['code']}_{size}"
                                 )
-
                             custom_sizes_in_db = {sz: cents for sz, cents in current_sizes.items() if int(sz) >= 99}
-                            _, _, custom_part = orig_category.partition(" | Custom:")
-                            custom_labels_array = [lbl.strip() for lbl in custom_part.split(",")] if custom_part else []
-
+                            custom_labels_array = [lbl.strip() for lbl in orig_category.split(" | Custom:", 1)[1].split(",")] if " | Custom:" in orig_category else []
                             total_slots_to_render = max(len(custom_labels_array), len(custom_sizes_in_db))
                             if f"edit_custom_count_{p['id']}" in st.session_state:
                                 total_slots_to_render = max(total_slots_to_render, st.session_state[f"edit_custom_count_{p['id']}"])
                             else:
                                 st.session_state[f"edit_custom_count_{p['id']}"] = total_slots_to_render
-
                             edit_custom_inputs = []
                             has_any_active_data = False
                             for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
@@ -638,43 +619,28 @@ elif active_pm_view == 'Edit / Delete':
                                     if saved_lbl or st.session_state.get(f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"):
                                         has_any_active_data = True
                                         break
-
                             if not has_any_active_data and len(custom_sizes_in_db) == 0:
                                 st.session_state[f"edit_custom_count_{p['id']}"] = 1
+                            for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
+                                associated_db_key = 99 + i
+                                if st.session_state.get(f"delete_custom_{p['id']}_{associated_db_key}", False):
+                                    continue
 
-                            ecs_hdr, ecs_btn = st.columns((2, 1), vertical_alignment='center', gap='small')
-                            with ecs_hdr:
-                                st.markdown("**Custom Sizing (Optional)**")
-                            with ecs_btn:
-                                if st.button("+ Add size", key=f"edit_add_more_sizes_btn_{p['id']}", use_container_width=True):
-                                    st.session_state[f"edit_custom_count_{p['id']}"] += 1
-                                    st.rerun()
-
-                            with st.container(height=105, border=False):
-                                for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
-                                    associated_db_key = 99 + i
-                                    if st.session_state.get(f"delete_custom_{p['id']}_{associated_db_key}", False):
-                                        continue
-
-                                    default_label = custom_labels_array[i] if i < len(custom_labels_array) else ""
-                                    default_price = float(custom_sizes_in_db.get(associated_db_key, 0.0)) / 100.0
-
-                                    ec_col1, ec_col2, ec_col3 = st.columns((2, 1.5, 0.8), gap="small")
-                                    with ec_col1:
-                                        lbl_val = ec_col1.text_input("Label", value=default_label, placeholder="e.g., 22oz", key=f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}", label_visibility="collapsed").strip()
-                                    with ec_col2:
-                                        prc_val = ec_col2.number_input("Price", min_value=0.0, value=default_price, step=1.0, format='%.2f', key=f"edit_val_cust_dbkey_{p['id']}_{associated_db_key}", label_visibility="collapsed")
-                                    with ec_col3:
-                                        if ec_col3.button("X", key=f"remove_custom_size_row_dbkey_{p['id']}_{associated_db_key}", use_container_width=True):
-                                            st.session_state[f"delete_custom_{p['id']}_{associated_db_key}"] = True
-                                            if f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}" in st.session_state:
-                                                del st.session_state[f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"]
-                                            st.rerun()
-
-                                    if lbl_val or prc_val > 0:
-                                        edit_custom_inputs.append({"label": lbl_val, "price": prc_val})
-
-
+                                default_label = custom_labels_array[i] if i < len(custom_labels_array) else ""
+                                default_price = float(custom_sizes_in_db.get(associated_db_key, 0.0)) / 100.0
+                                ec_col1, ec_col2, ec_col3 = st.columns([2, 1.5, 1], gap="small")
+                                with ec_col1:
+                                    lbl_val = ec_col1.text_input("Label", value=default_label, placeholder="e.g., 22oz", key=f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}", label_visibility="collapsed").strip()
+                                with ec_col2:
+                                    prc_val = ec_col2.number_input("Price", min_value=0.0, value=default_price, step=1.0, format='%.2f', key=f"edit_val_cust_dbkey_{p['id']}_{associated_db_key}", label_visibility="collapsed")
+                                with ec_col3:
+                                    if ec_col3.button("Remove", key=f"remove_custom_size_row_dbkey_{p['id']}_{associated_db_key}", use_container_width=True):
+                                        st.session_state[f"delete_custom_{p['id']}_{associated_db_key}"] = True
+                                        if f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}" in st.session_state:
+                                            del st.session_state[f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"]
+                                        st.rerun()
+                                if lbl_val or prc_val > 0:
+                                    edit_custom_inputs.append({"label": lbl_val, "price": prc_val})
                             if st.button("+ Add custom size", key=f"edit_add_more_sizes_btn_{p['id']}"):
                                 st.session_state[f"edit_custom_count_{p['id']}"] += 1
                                 st.rerun()
@@ -683,7 +649,7 @@ elif active_pm_view == 'Edit / Delete':
                             edit_db_key_id = 99
                             for entry in edit_custom_inputs:
                                 if entry["label"] and entry["price"] > 0:
-                                    updated_sizes.update({edit_db_key_id: cents_from_peso(entry["price"])})
+                                    updated_sizes[edit_db_key_id] = cents_from_peso(entry["price"])
                                     compiled_edit_labels.append(entry["label"])
                                     edit_db_key_id += 1
                             new_cat = f"{new_base_cat} | Custom:{', '.join(compiled_edit_labels)}" if compiled_edit_labels else new_base_cat
@@ -727,14 +693,15 @@ elif active_pm_view == 'Edit / Delete':
                         if success_trigger:
                             st.rerun()
 
-elif active_pm_view == 'View Catalog':
+    # VIEW CATALOG TAB
+    with tab3:
         with st.container(key='bento_catalog_card'):
             all_products = db.list_products(active_only=False)
             if not all_products:
                 st.info("No products found in the catalog.")
             else:
                 # Single clean filter toolbar row (no extra subheader or divider)
-                f_search, f_cat, f_sort = st.columns((2, 1.2, 1.2), gap="small")
+                f_search, f_cat, f_sort = st.columns([2, 1.2, 1.2], gap="small")
                 with f_search:
                     search_q = st.text_input(
                         'Search',
