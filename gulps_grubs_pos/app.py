@@ -793,9 +793,6 @@ elif mode == 'Admin' and page == 'Product Management':
 
 elif mode == 'Admin' and page == 'Sales History':
     today = ph_today()
-
-    # ROW 1: Date Card | Period Revenue Card | Icon-Only Download Button
-        # ROW 1: Equal-Height Date Card | Equal-Height Period Revenue Card | Circular Download Button
     t_dates, t_kpi, t_export = st.columns([2.1, 1.35, 0.32], vertical_alignment='center', gap='small')
 
     with t_dates:
@@ -931,7 +928,7 @@ elif mode == 'Admin' and page == 'Sales History':
                     pd.DataFrame(detail_rows),
                     use_container_width=True,
                     hide_index=True,
-                    height=225,
+                    height=242,
                     column_config={
                         "Code": st.column_config.TextColumn("Code", width="small"),
                         "Product": st.column_config.TextColumn("Product", width="medium"),
