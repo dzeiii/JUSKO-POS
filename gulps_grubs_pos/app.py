@@ -795,8 +795,9 @@ elif mode == 'Admin' and page == 'Sales History':
     today = ph_today()
 
     # ROW 1: Date Card | Period Revenue Card | Icon-Only Download Button
-    t_dates, t_kpi, t_export = st.columns([2.2, 1.3, 0.35], vertical_alignment='center', gap='small')
-    
+        # ROW 1: Equal-Height Date Card | Equal-Height Period Revenue Card | Circular Download Button
+    t_dates, t_kpi, t_export = st.columns([2.1, 1.35, 0.32], vertical_alignment='center', gap='small')
+
     with t_dates:
         with st.container(key='bento_sales_dates'):
             d1, d2 = st.columns(2, gap='small')
@@ -813,31 +814,32 @@ elif mode == 'Admin' and page == 'Sales History':
     total_rev_cents = sum(tx['total_cents'] for tx in filtered_tx)
 
     with t_kpi:
-        st.metric(f"Period Revenue ({len(filtered_tx)} sales)", money(total_rev_cents))
+        with st.container(key='bento_sales_kpi'):
+            st.metric(f"Period Revenue ({len(filtered_tx)} sales)", money(total_rev_cents))
 
     with t_export:
-        if filtered_tx:
-            csv_df = pd.DataFrame([
-                {
-                    'Sale #': r['id'],
-                    'Date/time': r['created_at'].replace('T', ' ')[:16],
-                    'Cashier': r.get('cashier', 'Cashier'),
-                    'Total (PHP)': r['total_cents'] / 100.0
-                }
-                for r in filtered_tx
-            ])
-            st.download_button(
-                "",
-                icon=":material/download:",
-                help="Download filtered sales CSV",
-                data=csv_df.to_csv(index=False).encode('utf-8'),
-                file_name=f"gulps_grubs_sales_{start_d}_to_{end_d}.csv",
-                mime='text/csv',
-                type='primary',
-                use_container_width=True
-            )
-        else:
-            st.button("", icon=":material/download:", help="No sales to export", disabled=True, use_container_width=True)
+        with st.container(key='bento_sales_dl'):
+            if filtered_tx:
+                csv_df = pd.DataFrame([
+                    {
+                        'Sale #': r['id'],
+                        'Date/time': r['created_at'].replace('T', ' ')[:16],
+                        'Cashier': r.get('cashier', 'Cashier'),
+                        'Total (PHP)': r['total_cents'] / 100.0
+                    }
+                    for r in filtered_tx
+                ])
+                st.download_button(
+                    "",
+                    icon=":material/download:",
+                    help="Download filtered sales CSV",
+                    data=csv_df.to_csv(index=False).encode('utf-8'),
+                    file_name=f"gulps_grubs_sales_{start_d}_to_{end_d}.csv",
+                    mime='text/csv',
+                    type='primary'
+                )
+            else:
+                st.button("", icon=":material/download:", help="No sales to export", disabled=True)
 
     if not filtered_tx:
         st.info('No sales recorded in this date range.')
