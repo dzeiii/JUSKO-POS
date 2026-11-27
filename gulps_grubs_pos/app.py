@@ -791,52 +791,154 @@ elif mode == 'Admin' and page == 'Product Management':
                 else:
                     st.info("No products match your current filter.")
 
-
 elif mode == 'Admin' and page == 'Sales History':
-    st.subheader(' Sales Transaction History')
-    ph_today_date = ph_today()
-    c1, c2 = st.columns(2)
-    start_date = c1.date_input('From date',value=ph_today_date - timedelta(days=30))
-    end_date = c2.date_input('To date',value=ph_today_date)
-    if start_date > end_date:
-        st.error('The start date must not be after the end date.')
-    else:
-        start = datetime.combine(start_date,time.min).isoformat()
-        end = datetime.combine(end_date + timedelta(days=1),time.min).isoformat()
-        rows = db.transaction_history(start, end)
-        st.metric('Revenue in selected period',money(sum(r['total_cents'] for r in rows)))
-        if rows:
-            st.dataframe(
-                pd.DataFrame([
-                    {'Sale #': r['id'],
+    today = ph_today()
+
+    # ROW 1: Compact Top Toolbar (From Date | To Date | Period Revenue | Export CSV)
+    t_from, t_to, t_kpi, t_export = st.columns([1.05, 1.05, 1.25, 1.15], vertical_alignment='bottom', gap='small')
+    with t_from:
+        start_d = st.date_input('From date', value=today - timedelta(days=30), key='admin_sales_from')
+    with t_to:
+        end_d = st.date_input('To date', value=today, key='admin_sales_to')
+
+    start_iso = datetime.combine(start_d, time.min).isoformat()
+    end_iso = datetime.combine(end_d + timedelta(days=1), time.min).isoformat()
+
+    all_tx = db.transaction_history()
+    filtered_tx = [tx for tx in all_tx if start_iso <= tx['created_at'] < end_iso]
+    total_rev_cents = sum(tx['total_cents'] for tx in filtered_tx)
+
+    with t_kpi:
+        st.metric(f"Period Revenue ({len(filtered_tx)} sales)", money(total_rev_cents))
+
+        with t_export:
+        if filtered_tx:
+            csv_df = pd.DataFrame([
+                {
+                    'Sale #': r['id'],
                     'Date/time': r['created_at'].replace('T', ' ')[:16],
-                    'Cashier': r['cashier_label'],
-                    'Total': money(r['total_cents'])
-                    }
-                    for r in rows
-                ]),use_container_width=True,hide_index=True)
-            chosen = st.selectbox('View sale details',[r['id'] for r in rows],format_func=lambda x: f"Sale #{x}")
-            details = db.transaction_items(chosen)
-            st.dataframe(
-                pd.DataFrame([
-                    {'Code': x['product_code'],'Product': x['product_name'],'Size': (f"{x.get('size_oz')} oz" if x.get('size_oz') else '—'),'Options': x.get('customizations', ''),
-                    'Qty': x['quantity'],'Unit price': money(x['unit_price_cents']),'Subtotal': money(x['subtotal_cents'])
-                    }
-                    for x in details]), use_container_width=True, hide_index=True
-            )
-            st.download_button('Download filtered sales CSV',
-                pd.DataFrame([
-                    {
-                        'sale_id': r['id'],
-                        'created_at': r['created_at'],
-                        'cashier': r['cashier_label'],
-                        'total_php': r['total_cents'] / 100
-                    }
-                    for r in rows
-                ]).to_csv(index=False).encode('utf-8'),'sales_history.csv','text/csv'
+                    'Cashier': r.get('cashier', 'Cashier'),
+                    'Total (PHP)': r['total_cents'] / 100.0
+                }
+                for r in filtered_tx
+            ])
+            st.download_button(
+                'Download CSV',
+                data=csv_df.to_csv(index=False).encode('utf-8'),
+                file_name=f"gulps_grubs_sales_{start_d}_to_{end_d}.csv",
+                mime='text/csv',
+                type='primary',
+                use_container_width=True
             )
         else:
-            st.info('No transactions were found for the selected dates.')
+            st.button('Download CSV', disabled=True, use_container_width=True)
+
+    if not filtered_tx:
+        st.info('No sales recorded in this date range.')
+    else:
+        # ROW 2: 2-Column Master-Detail Bento Grid (Left: Sales Transactions | Right: Inspect Receipt)
+        left_tx, right_detail = st.columns([1, 1.15], gap='medium')
+
+        with left_tx:
+            with st.container(key='bento_sales_list'):
+                st.markdown('**Sales Transactions**')
+                tx_rows = [
+                    {
+                        'Sale #': r['id'],
+                        'Date/time': r['created_at'].replace('T', ' ')[:16],
+                        'Cashier': r.get('cashier', 'Cashier'),
+                        'Total': money(r['total_cents'])
+                    }
+                    for r in filtered_tx
+                ]
+                st.dataframe(
+                    pd.DataFrame(tx_rows),
+                    use_container_width=True,
+                    hide_index=True,
+                    height=315,
+                    column_config={
+                        "Sale #": st.column_config.NumberColumn("Sale #", width="small", format="%d"),
+                        "Date/time": st.column_config.TextColumn("Date/time", width="medium"),
+                        "Cashier": st.column_config.TextColumn("Cashier", width="small"),
+                        "Total": st.column_config.TextColumn("Total", width="small"),
+                    }
+                )
+
+        with right_detail:
+            with st.container(key='bento_sales_detail'):
+                sale_options = {
+                    f"Sale #{r['id']}  —  {r['created_at'].replace('T', ' ')[:16]}  ({money(r['total_cents'])})": r
+                    for r in filtered_tx
+                }
+                selected_sale_lbl = st.selectbox(
+                    'Inspect receipt',
+                    list(sale_options.keys()),
+                    key='admin_sales_detail_select',
+                    label_visibility='collapsed'
+                )
+                chosen_tx = sale_options[selected_sale_lbl]
+
+                # Auto-detect child items table in SQLite
+                with db.connection() as conn:
+                    conn.row_factory = sqlite3.Row
+                    tables = [r['name'] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+                    items_table = next((t for t in tables if 'item' in t.lower()), 'sale_items')
+                    fk_col = 'transaction_id' if 'transaction' in items_table.lower() else 'sale_id'
+
+                    items = conn.execute(f"""
+                        SELECT si.*, p.code, p.name AS product_name, p.category
+                        FROM {items_table} si
+                        LEFT JOIN products p ON si.product_id = p.id
+                        WHERE si.{fk_col} = ?
+                    """, (chosen_tx['id'],)).fetchall()
+
+                detail_rows = []
+                for item in items:
+                    keys = item.keys()
+                    sz = item['size_oz'] if 'size_oz' in keys else None
+                    cat_str = item['category'] or ''
+                    if sz and int(sz) >= 99:
+                        _, _, custom_part = cat_str.partition(" | Custom:")
+                        custom_lbls = [l.strip() for l in custom_part.split(",")] if custom_part else []
+                        idx = int(sz) - 99
+                        size_display = next((lbl for i, lbl in enumerate(custom_lbls) if i == idx and lbl), "Custom")
+                    elif sz and int(sz) > 0:
+                        size_display = f"{sz} oz"
+                    else:
+                        size_display = "—"
+
+                    opts = item['options'] if 'options' in keys and item['options'] else ""
+                    qty_val = item['qty'] if 'qty' in keys else item.get('quantity', 1)
+                    unit_cents = item['unit_price_cents'] if 'unit_price_cents' in keys else item.get('price_cents', 0)
+                    sub_cents = item['subtotal_cents'] if 'subtotal_cents' in keys else (int(qty_val) * int(unit_cents))
+
+                    detail_rows.append({
+                        'Code': item['code'] or '—',
+                        'Product': item['product_name'] or (item['name'] if 'name' in keys else 'Item'),
+                        'Size': size_display,
+                        'Opts': opts,
+                        'Qty': int(qty_val),
+                        'Unit price': money(unit_cents),
+                        'Subtotal': money(sub_cents)
+                    })
+
+                st.dataframe(
+                    pd.DataFrame(detail_rows),
+                    use_container_width=True,
+                    hide_index=True,
+                    height=260,
+                    column_config={
+                        "Code": st.column_config.TextColumn("Code", width="small"),
+                        "Product": st.column_config.TextColumn("Product", width="medium"),
+                        "Size": st.column_config.TextColumn("Size", width="small"),
+                        "Opts": st.column_config.TextColumn("Opts", width="small"),
+                        "Qty": st.column_config.NumberColumn("Qty", width="small", format="%d"),
+                        "Unit price": st.column_config.TextColumn("Unit price", width="small"),
+                        "Subtotal": st.column_config.TextColumn("Subtotal", width="small"),
+                    }
+                )
+                st.caption(f"Receipt Total: **{money(chosen_tx['total_cents'])}**  ·  Processed by **{chosen_tx.get('cashier', 'Cashier')}**")
+
 elif mode == 'Admin' and page == 'Activity History':
     st.subheader('Admin and staff activity history')
     st.caption('Persistent audit trail for sales, queue actions, product changes, and inventory updates.')
