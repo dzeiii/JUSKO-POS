@@ -383,7 +383,8 @@ elif mode == 'Admin' and page == 'Product Management':
 
             def looks_like_gibberish(text):
                 words = [w for w in text.split() if w.isalpha()]
-                if not words: return False
+                if not words: 
+                    return False
                 vowels = set("aeiou")
                 for word in words:
                     if len(word) >= 5 and not any(char in vowels for char in word): return True
@@ -442,7 +443,7 @@ elif mode == 'Admin' and page == 'Product Management':
                     st.error(f"Validation Error: {drink_config_error}")
                 elif classification == 'Drinks (Gulps)' and not size_prices:
                     st.error("Validation Error: Enable and configure at least one drink size.")
-                            else:
+            else:
                 try:
                     price_cents = cents_from_peso(price) if classification != 'Drinks (Gulps)' else 0
                     starting_stock = 0
