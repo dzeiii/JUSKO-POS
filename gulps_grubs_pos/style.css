@@ -291,6 +291,62 @@ h2{margin-top:.4rem}
   font-size: 0.75rem !important;
   font-weight: 750 !important;
   min-height: 26px !important;
+  
 }
+
+/* =========================================================
+   EQUAL-HEIGHT TOOLBAR CARDS & CIRCULAR DOWNLOAD BUTTON
+   ========================================================= */
+
+/* Lock Date Card and Period Revenue Card to the exact same height */
+.st-key-bento_sales_dates,
+.st-key-bento_sales_kpi {
+  background: var(--paper) !important;
+  border: 1px solid var(--line) !important;
+  border-top: 4px solid var(--orange) !important;
+  border-radius: 14px !important;
+  padding: 10px 16px !important;
+  height: 92px !important;
+  min-height: 92px !important;
+  max-height: 92px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  box-shadow: 0 5px 15px rgba(75, 17, 23, 0.06) !important;
+}
+
+/* Strip duplicate inner border from st.metric inside bento_sales_kpi */
+.st-key-bento_sales_kpi [data-testid="stMetric"] {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  min-height: auto !important;
+}
+
+/* Circular Burgundy Download Icon Button */
+.st-key-bento_sales_dl {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.st-key-bento_sales_dl button {
+  width: 48px !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+  background-color: var(--burgundy, #5b1822) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(75, 17, 23, 0.18) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.st-key-bento_sales_dl button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
 
 
