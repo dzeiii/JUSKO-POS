@@ -878,19 +878,24 @@ elif mode == 'Admin' and page == 'Sales History':
                 )
                 chosen_tx = sale_options[selected_sale_lbl]
 
-                # Query sale items safely
+                                # Dynamically find the items table in your database (no hardcoded table name)
                 with db.connection() as conn:
                     conn.row_factory = sqlite3.Row
-                    items = conn.execute("""
+                    tables = [r['name'] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+                    items_table = next((t for t in tables if 'item' in t.lower()), 'sale_items')
+                    fk_col = 'transaction_id' if 'transaction' in items_table.lower() else 'sale_id'
+
+                    items = conn.execute(f"""
                         SELECT si.*, p.code, p.name AS product_name, p.category
-                        FROM sale_items si
+                        FROM {items_table} si
                         LEFT JOIN products p ON si.product_id = p.id
-                        WHERE si.sale_id = ?
+                        WHERE si.{fk_col} = ?
                     """, (chosen_tx['id'],)).fetchall()
 
                 detail_rows = []
                 for item in items:
-                    sz = item['size_oz'] if 'size_oz' in item.keys() else None
+                    keys = item.keys()
+                    sz = item['size_oz'] if 'size_oz' in keys else None
                     cat_str = item['category'] or ''
                     if sz and int(sz) >= 99:
                         custom_lbls = [l.strip() for l in cat_str.partition(" | Custom:").split(",")] if " | Custom:" in cat_str else []
@@ -901,33 +906,20 @@ elif mode == 'Admin' and page == 'Sales History':
                     else:
                         size_display = "—"
 
-                    opts = item['options'] if 'options' in item.keys() and item['options'] else ""
+                    opts = item['options'] if 'options' in keys and item['options'] else ""
+                    qty_val = item['qty'] if 'qty' in keys else item.get('quantity', 1)
+                    unit_cents = item['unit_price_cents'] if 'unit_price_cents' in keys else item.get('price_cents', 0)
+                    sub_cents = item['subtotal_cents'] if 'subtotal_cents' in keys else (int(qty_val) * int(unit_cents))
+
                     detail_rows.append({
                         'Code': item['code'] or '—',
-                        'Product': item['product_name'] or 'Item',
+                        'Product': item['product_name'] or (item['name'] if 'name' in keys else 'Item'),
                         'Size': size_display,
                         'Options': opts,
-                        'Qty': int(item['qty']),
-                        'Unit price': money(item['unit_price_cents']),
-                        'Subtotal': money(item['subtotal_cents'])
+                        'Qty': int(qty_val),
+                        'Unit price': money(unit_cents),
+                        'Subtotal': money(sub_cents)
                     })
-
-                st.dataframe(
-                    pd.DataFrame(detail_rows),
-                    use_container_width=True,
-                    hide_index=True,
-                    height=275,
-                    column_config={
-                        "Code": st.column_config.TextColumn("Code", width="small"),
-                        "Product": st.column_config.TextColumn("Product", width="medium"),
-                        "Size": st.column_config.TextColumn("Size", width="small"),
-                        "Options": st.column_config.TextColumn("Options", width="small"),
-                        "Qty": st.column_config.NumberColumn("Qty", width="small", format="%d"),
-                        "Unit price": st.column_config.TextColumn("Unit price", width="small"),
-                        "Subtotal": st.column_config.TextColumn("Subtotal", width="small"),
-                    }
-                )
-                st.caption(f"Receipt Total: **{money(chosen_tx['total_cents'])}** · Processed by **{chosen_tx.get('cashier', 'Cashier')}**")
 
 elif mode == 'Admin' and page == 'Activity History':
     st.subheader('Admin and staff activity history')
