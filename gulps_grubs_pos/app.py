@@ -1351,15 +1351,40 @@ elif mode == 'Cashier' and page == 'New Sale':
                     st.error("Customer name is required before confirming sale.")
                 else:
                     try:
-                        # Record sale using your existing db helper
-                        sale = db.record_sale(
-                            items=st.session_state.cart,
-                            cashier=cashier_name.strip() or "Cashier"
-                        )
+                        import inspect
+
+                        # Build a LinkedListCart in case db.record_sale expects it
+                        ll_cart = LinkedListCart()
+                        for item in st.session_state.cart:
+                            ll_cart.add(
+                                product_id=item['product_id'],
+                                code=item['code'],
+                                name=item['name'],
+                                unit_price_cents=int(item['unit_price_cents']),
+                                quantity=int(item['quantity']),
+                                size_oz=item.get('size_oz'),
+                                customizations=item.get('customizations', '')
+                            )
+
+                        # Match db.record_sale's exact parameter names automatically
+                        sig = inspect.signature(db.record_sale)
+                        params = list(sig.parameters.keys())
+                        c_label = cashier_name.strip() or "Cashier"
+
+                        if 'cart' in params:
+                            sale = db.record_sale(ll_cart, c_label) if len(params) >= 2 else db.record_sale(cart=ll_cart)
+                        elif 'items' in params:
+                            sale = db.record_sale(items=st.session_state.cart, cashier_label=c_label) if 'cashier_label' in params else db.record_sale(st.session_state.cart, c_label)
+                        else:
+                            sale = db.record_sale(ll_cart, c_label)
+
+                        st.session_state.last_sale = sale
+
                         order_details_list = []
                         for item in st.session_state.cart:
                             sz_suffix = f" ({item['size_label']})" if item.get('size_label') else ""
-                            order_details_list.append(f"{item['quantity']}x {item['name']}{sz_suffix}")
+                            cust_suffix = f" [{item['customizations']}]" if item.get('customizations') else ""
+                            order_details_list.append(f"{item['quantity']}x {item['name']}{sz_suffix}{cust_suffix}")
 
                         db.add_order(
                             customer_name=customer_name.strip(),
@@ -1367,7 +1392,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                             priority=int(priority_level)
                         )
 
-                        sale_ref = sale.get('id') or sale.get('sale_id') or sale.get('transaction_id') or ''
+                        sale_ref = sale.get('id') or sale.get('sale_id') or sale.get('transaction_id') or '' if isinstance(sale, dict) else ''
                         sale_label = f"Sale #{sale_ref} · " if sale_ref else ""
                         db.log_activity('Cashier', 'Sale Completed', f"{sale_label}{customer_name.strip()} · {money(total_cents)}")
 
@@ -1379,7 +1404,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                         }
                         st.rerun()
                     except Exception as e:
-                        safe_error(e)
+                        st.error(f"Checkout error: {type(e).__name__}: {e}")
 
 
 
