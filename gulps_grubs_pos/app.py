@@ -811,7 +811,7 @@ elif mode == 'Admin' and page == 'Sales History':
     with t_kpi:
         st.metric(f"Period Revenue ({len(filtered_tx)} sales)", money(total_rev_cents))
 
-        with t_export:
+    with t_export:
         if filtered_tx:
             csv_df = pd.DataFrame([
                 {
