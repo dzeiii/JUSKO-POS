@@ -127,7 +127,7 @@ with st.container(key='site_header'):
                 current_selection = 'Dashboard'
             page = st.radio('Cashier navigation', cashier_options, index=cashier_options.index(current_selection), horizontal=True, key='cashier_page', label_visibility='collapsed')
         else:
-            page = st.radio('Inventory navigation', ['Dashboard', 'Stock Overview'], horizontal=True, key='inventory_page', label_visibility='collapsed')
+            page = st.radio('Inventory navigation', ['Dashboard', 'Stock History'], horizontal=True, key='inventory_page', label_visibility='collapsed')
 st.caption('Demo mode selector only — it is not secure authentication.')
 
 try: product_tree = rebuild_tree()
@@ -1596,32 +1596,92 @@ elif mode == 'Cashier' and page == 'Sales History':
 # =========================================================================
 # INVENTORY MANAGER WORKSPACE MODULES
 # =========================================================================
-elif mode == 'Inventory Manager' and page == 'Stock Overview':
-    st.subheader('Inventory stock overview')
-    products = db.list_products()
-    search = st.text_input('Search products by name, code, or category')
-    term = search.casefold().strip()
-    shown = [p for p in products if term in (p['name'] + ' ' + p['code'] + ' ' + p['category']).casefold()]
-    if shown:
-        st.dataframe(
-            pd.DataFrame([
-                {
-                    'Code': p['code'],
-                    'Product': p['name'],
-                    'Category': p['category'],
-                    'Stock': p['stock'],
-                    'Low-stock threshold': p['low_stock_threshold'],
-                    'Status': (
-                        'Active' if p['active'] else 'Inactive'
-                    ),
-                    'Stock alert': (
-                        'LOW'
-                        if p['stock'] <= p['low_stock_threshold']
-                        else 'OK'
-                    )} for p in shown]),use_container_width=True,hide_index=True)
-    else:
-        st.info('No product records yet. Admin must add menu products first.')
-    st.caption('Inventory Manager monitors physical stock. Admin owns menu names, categories, and prices.')
+elif mode == 'Inventory Manager' and page == 'Stock History':
+    with st.container(key='bento_stock_history_card', border=True):
+        # Single clean top row: Title | Movement Type Filter | Search | Circular CSV Download
+        hdr_c, act_c, search_c, dl_c = st.columns((1.1, 1.0, 1.7, 0.3), vertical_alignment='center', gap='small')
+        with hdr_c:
+            st.markdown('##### Stock Movement History')
+        with act_c:
+            action_filter = st.selectbox(
+                'Action',
+                ('All Stock Movements', 'Stock Added', 'Stock Deducted', 'Stock Set'),
+                key='inv_hist_action_filter',
+                label_visibility='collapsed'
+            )
+        with search_c:
+            hist_search = st.text_input(
+                'Search',
+                placeholder='Search product code, units, or note...',
+                key='inv_hist_search_input',
+                label_visibility='collapsed'
+            ).strip().lower()
+
+        logs = db.activity_history() if hasattr(db, 'activity_history') else []
+        stock_actions = {'Stock Added', 'Stock Deducted', 'Stock Set', 'Stock Adjusted'}
+
+        filtered_stock_logs = []
+        for row in logs:
+            r = dict(row)
+            r_action = r.get('action') or ''
+            if r_action not in stock_actions:
+                continue
+            if action_filter != 'All Stock Movements' and r_action != action_filter:
+                continue
+
+            r_mode = next(
+                (
+                    str(v) for k, v in r.items()
+                    if k not in ('id', 'created_at', 'timestamp', 'action', 'details')
+                    and v in ('Admin', 'Cashier', 'Inventory Manager')
+                ),
+                'Inventory Manager'
+            )
+            r_details = r.get('details') or ''
+            r_time = str(r.get('created_at') or r.get('timestamp') or '').replace('T', ' ')[:16]
+
+            if hist_search and hist_search not in f"{r_action} {r_details} {r_mode}".lower():
+                continue
+
+            filtered_stock_logs.append({
+                'Date/time': r_time,
+                'Updated By': r_mode,
+                'Movement': r_action,
+                'Details': r_details
+            })
+
+        with dl_c:
+            with st.container(key='bento_sales_dl'):
+                if filtered_stock_logs:
+                    csv_data = pd.DataFrame(filtered_stock_logs).to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        "",
+                        icon=":material/download:",
+                        help="Download stock history CSV",
+                        data=csv_data,
+                        file_name="gulps_grubs_stock_history.csv",
+                        mime="text/csv",
+                        type="primary"
+                    )
+                else:
+                    st.button("", icon=":material/download:", help="No stock logs to export", disabled=True)
+
+        if filtered_stock_logs:
+            st.dataframe(
+                pd.DataFrame(filtered_stock_logs),
+                use_container_width=True,
+                hide_index=True,
+                height=365,
+                column_config={
+                    "Date/time": st.column_config.TextColumn("Date/time", width="small"),
+                    "Updated By": st.column_config.TextColumn("Updated By", width="small"),
+                    "Movement": st.column_config.TextColumn("Movement", width="small"),
+                    "Details": st.column_config.TextColumn("Details", width="large"),
+                }
+            )
+        else:
+            st.info("No stock movements recorded yet. Restock or adjust an item on the Dashboard to see it logged here.")
+
 
 elif mode == 'Inventory Manager' and page == 'Dashboard':
     all_products = [dict(p) for p in db.list_products(active_only=True)]
