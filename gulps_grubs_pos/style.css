@@ -192,4 +192,84 @@ h2{margin-top:.4rem}
     font-weight: 500 !important;
     line-height: 1.5 !important;
 }
+/* =========================================================================
+   ===== 100VH CLEAN BENTO GRID OVERRIDES (MATCHES AFTER WIREFRAME) =====
+   ========================================================================= */
+
+/* 1. Tighten main viewport padding & hide Streamlit top toolbar */
+[data-testid="stHeader"] {
+  height: 0rem !important;
+  background: transparent !important;
+}
+.block-container {
+  padding-top: 0.75rem !important;
+  padding-bottom: 0.5rem !important;
+  max-width: 1500px !important;
+}
+
+/* 2. Compact orange header bar (keeps Admin | Cashier | Inventory Manager on 1 row) */
+.st-key-site_header {
+  padding: 8px 14px 6px !important;
+  margin: 0 0 10px 0 !important;
+}
+.st-key-site_header [data-testid="stImage"] img {
+  max-width: 82px !important;
+}
+.st-key-site_header [data-testid="stRadio"] [role="radiogroup"] {
+  flex-wrap: nowrap !important;
+  gap: 4px !important;
+}
+.st-key-site_header [data-testid="stRadio"] [role="radio"] {
+  padding: 5px 8px !important;
+  min-height: 30px !important;
+  font-size: 0.78rem !important;
+}
+
+/* 3. Reduce vertical spacing between stacked rows */
+[data-testid="stVerticalBlock"] {
+  gap: 0.55rem !important;
+}
+
+/* 4. Slim down the 5 KPI metric cards (overrides the old 116px min-height) */
+[data-testid="stMetric"] {
+  min-height: 82px !important;
+  padding: 8px 12px !important;
+  border-radius: 12px !important;
+}
+[data-testid="stMetricLabel"] p {
+  font-size: 0.82rem !important;
+  margin-bottom: 0 !important;
+}
+[data-testid="stMetricValue"] {
+  font-size: clamp(1.3rem, 1.8vw, 1.65rem) !important;
+  line-height: 1.15 !important;
+}
+[data-testid="stMetricDelta"] {
+  font-size: 0.75rem !important;
+}
+
+/* 5. Style the bottom 3 Bento panels (Chart 50% | Recent 25% | Stock Watch 25%) */
+.st-key-bento_chart_card,
+.st-key-bento_recent_card,
+.st-key-bento_stock_card {
+  background: var(--paper) !important;
+  border: 1px solid var(--line) !important;
+  border-top: 4px solid var(--orange) !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  box-shadow: 0 5px 15px rgba(75, 17, 23, 0.06) !important;
+}
+
+/* 6. Compact pill tabs for Stock Watch (Low Stock / High Stock) */
+.st-key-bento_stock_card [data-testid="stTabs"] [data-baseweb="tab-list"] {
+  gap: 4px !important;
+  margin-bottom: 6px !important;
+}
+.st-key-bento_stock_card [data-testid="stTabs"] [data-baseweb="tab"] {
+  border-radius: 999px !important;
+  padding: 4px 10px !important;
+  font-size: 0.75rem !important;
+  font-weight: 750 !important;
+  min-height: 26px !important;
+}
 
