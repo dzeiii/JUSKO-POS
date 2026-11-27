@@ -177,9 +177,17 @@ if mode == 'Admin' and page == 'Dashboard':
             recent = db.transaction_history()[:6]
             if recent:
                 st.dataframe(
-                    pd.DataFrame([{'Sale #': r['id'], 'Date': r['created_at'].replace('T', ' ')[:16], 'Total': money(r['total_cents'])} for r in recent]),
-                    use_container_width=True, hide_index=True, height=245
+                    pd.DataFrame(recent_rows),
+                    use_container_width=True,
+                    hide_index=True,
+                    height=265,
+                    column_config={
+                        "Sale #": st.column_config.NumberColumn("Sale #", width="small", format="%d"),
+                        "Date": st.column_config.TextColumn("Date", width="medium"),
+                        "Total": st.column_config.TextColumn("Total", width="small"),
+                    }
                 )
+
             else:
                 st.info('Completed sales will appear here.')
 
