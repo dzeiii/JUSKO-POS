@@ -541,7 +541,7 @@ elif mode == 'Admin' and page == 'Product Management':
                 )
                 edit_left, edit_right = st.columns([1, 1.15], gap="medium")
                 # LEFT CARD: Product Details & Threshold
-                                with edit_left:
+                with edit_left:
                     with st.container(key='bento_edit_left'):
                         st.markdown("**1. Product Details**")
                         ec1, ec2 = st.columns((1, 1.6), gap="small")
