@@ -1716,36 +1716,57 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
 elif mode == 'Inventory Manager' and page == 'Dashboard':
     all_products = [dict(p) for p in db.list_products(active_only=True)]
 
-    # Compute KPI counts
+    # Compute KPI counts matching your existing Stock Urgency Indicators
     total_skus = len(all_products)
     out_of_stock = [p for p in all_products if int(p.get('stock', 0)) <= 0]
     low_stock = [
         p for p in all_products
         if 0 < int(p.get('stock', 0)) <= int(p.get('low_stock_threshold', 5))
     ]
-    healthy_stock = [
+    overstocked = [
         p for p in all_products
-        if int(p.get('stock', 0)) > int(p.get('low_stock_threshold', 5))
+        if int(p.get('high_stock_threshold', 50)) > 0
+        and int(p.get('stock', 0)) >= int(p.get('high_stock_threshold', 50))
     ]
 
-    # ROW 1: 4 Slim KPI Metric Cards
+    # ROW 1: Retained Stock Urgency Indicators (with equal-height delta alignment)
+    st.markdown("##### Stock Urgency Indicators")
     k1, k2, k3, k4 = st.columns(4, gap='small')
     with k1:
-        st.metric("Total Products", f"{total_skus} SKUs")
+        st.metric(
+            "Total Items Managed",
+            f"{total_skus}",
+            delta="Active Catalog",
+            delta_color="off"
+        )
     with k2:
-        st.metric("Healthy Stock", f"{len(healthy_stock)} Items")
+        st.metric(
+            "Out of Stock",
+            f"{len(out_of_stock)}",
+            delta="All Available" if len(out_of_stock) == 0 else "Action Needed",
+            delta_color="normal" if len(out_of_stock) == 0 else "inverse"
+        )
     with k3:
-        st.metric("Low Stock Alerts", f"{len(low_stock)} Items")
+        st.metric(
+            "Low-Stock Warning",
+            f"{len(low_stock)}",
+            delta="All Healthy" if len(low_stock) == 0 else "Needs Restock",
+            delta_color="normal" if len(low_stock) == 0 else "inverse"
+        )
     with k4:
-        st.metric("Out of Stock", f"{len(out_of_stock)} Items")
+        st.metric(
+            "Overstocked Rows",
+            f"{len(overstocked)}",
+            delta="Within Limits" if len(overstocked) == 0 else "High Volume",
+            delta_color="normal" if len(overstocked) == 0 else "off"
+        )
 
     if not all_products:
         st.info("No active products in catalog. Add products under Admin -> Product Management first.")
     else:
-        # ROW 2: 2-Column Bento Grid (Left: Live Stock Table | Right: Quick Stock Adjustment)
+        # ROW 2: 2-Column Bento Grid (Left: Live Stock Levels | Right: Quick Stock Adjustment)
         inv_left, inv_right = st.columns((1.35, 1), gap='medium')
 
-        # LEFT CARD: Live Stock Levels (Internal Scroll)
         with inv_left:
             with st.container(key='bento_inv_table', border=True):
                 hdr_l, f_search, f_status = st.columns((1.1, 1.4, 1.1), vertical_alignment='center', gap='small')
@@ -1761,12 +1782,11 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
                 with f_status:
                     status_filter = st.selectbox(
                         "Status",
-                        ("All Items", "Low Stock", "Out of Stock", "Healthy"),
+                        ("All Items", "Low Stock", "Out of Stock", "Overstocked", "Healthy"),
                         key="inv_dash_status",
                         label_visibility="collapsed"
                     )
 
-                # Sort lowest stock first so critical items are immediately visible
                 sorted_prods = sorted(all_products, key=lambda x: (int(x.get('stock', 0)), x.get('name', '').lower()))
 
                 table_rows = []
@@ -1780,7 +1800,7 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
                     elif stk <= low_t:
                         status_lbl = "Low Stock"
                     elif high_t > 0 and stk >= high_t:
-                        status_lbl = "High Stock"
+                        status_lbl = "Overstocked"
                     else:
                         status_lbl = "Healthy"
 
@@ -1788,7 +1808,9 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
                         continue
                     if status_filter == "Out of Stock" and status_lbl != "Out of Stock":
                         continue
-                    if status_filter == "Healthy" and status_lbl not in ("Healthy", "High Stock"):
+                    if status_filter == "Overstocked" and status_lbl != "Overstocked":
+                        continue
+                    if status_filter == "Healthy" and status_lbl != "Healthy":
                         continue
                     if inv_q and (inv_q not in p['name'].lower() and inv_q not in p['code'].lower()):
                         continue
@@ -1806,7 +1828,7 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
                         pd.DataFrame(table_rows),
                         use_container_width=True,
                         hide_index=True,
-                        height=300,
+                        height=265,
                         column_config={
                             "Code": st.column_config.TextColumn("Code", width="small"),
                             "Product": st.column_config.TextColumn("Product", width="medium"),
@@ -1820,7 +1842,6 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
 
                 st.caption(f"Showing {len(table_rows)} of {total_skus} active products · Sorted by lowest stock first")
 
-        # RIGHT CARD: Quick Stock Adjustment
         with inv_right:
             with st.container(key='bento_inv_adjust', border=True):
                 st.markdown("**Quick Stock Adjustment**")
@@ -1880,9 +1901,9 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
                 with prev_col:
                     st.markdown(
                         f"""
-                        <div style="background:#f8f3eb; border:1px solid #e2d4c3; border-radius:10px; padding:7px 10px; text-align:center;">
+                        <div style="background:#f8f3eb; border:1px solid #e2d4c3; border-radius:10px; padding:6px 10px; text-align:center;">
                             <div style="font-size:0.72rem; color:#6b5255; font-weight:600;">New Stock</div>
-                            <div style="font-size:1.1rem; font-weight:800; color:#4b1117;">{projected_stk} units</div>
+                            <div style="font-size:1.05rem; font-weight:800; color:#4b1117;">{projected_stk} units</div>
                         </div>
                         """,
                         unsafe_allow_html=True
