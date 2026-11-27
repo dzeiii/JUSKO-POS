@@ -70,7 +70,7 @@ if 'mode' not in st.session_state: st.session_state.mode = 'Admin'
 st.markdown(load_html_template('brand_banner.html'), unsafe_allow_html=True)
 
 # =========================================================================
-# 🔔 GLOBAL TRANSACTIONS NOTIFICATION HUB (Pure Browser CSS Async Animation)
+#  GLOBAL TRANSACTIONS NOTIFICATION HUB (Pure Browser CSS Async Animation)
 # =========================================================================
 if 'global_toast' in st.session_state and st.session_state.global_toast:
     toast_data = st.session_state.global_toast
@@ -330,7 +330,7 @@ elif mode == 'Admin' and page == 'Product Management':
                 
                 custom_size_inputs_list.append({"label": lbl_val, "price_raw": prc_val})
 
-            if st.button("➕ Add another custom size", key="add_another_custom_size_btn"):
+            if st.button(" Add another custom size", key="add_another_custom_size_btn"):
                 st.session_state.custom_sizes_count += 1
                 st.rerun()
 
@@ -362,11 +362,9 @@ elif mode == 'Admin' and page == 'Product Management':
                         
                         parsed_c_price = read_drink_price(c_price_raw, f"custom size '{c_label}'")
                         
-                        # 🟢 SECURE SEPARATION INDEX
                         size_prices[custom_database_key_id] = cents_from_peso(parsed_c_price)
                         custom_labels_compiled.append(c_label)
                         
-                        # Bumps up sequentially: 99, 100, 101... safely passed now!
                         custom_database_key_id += 1  
                 
                 if custom_labels_compiled:
@@ -465,21 +463,21 @@ elif mode == 'Admin' and page == 'Product Management':
 
             # --- STEP 3: RUN THE SELECTION TREE WITH VALIDATED INITIALIZATIONS ---
             if clean_name and name_audit in existing_product_names: 
-                st.error(f"🔴 Catalog Conflict: A product named '{clean_name}' already exists in your store inventory!")
+                st.error(f" Catalog Conflict: A product named '{clean_name}' already exists in your store inventory!")
             elif not clean_name: 
                 st.error("Product name is required.")
             elif not clean_category: 
                 st.error("Category structure specification is required.")
             elif is_spam_text or is_nonsense_word: 
-                st.error("🔴 Invalid Entry: Input contains keyboard spam or gibberish text patterns.")
+                st.error(" Invalid Entry: Input contains keyboard spam or gibberish text patterns.")
             elif contains_junk: 
-                st.error("🔴 Context Validation Alert: Junk classifications (person, human, object) are strictly blocked.")
+                st.error(" Context Validation Alert: Junk classifications (person, human, object) are strictly blocked.")
             elif not is_valid_context:
-                st.error(f"🔴 Context/Classification Mismatch: {mismatch_error} Please allocate your item correctly.")
+                st.error(f" Context/Classification Mismatch: {mismatch_error} Please allocate your item correctly.")
             elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0: 
-                st.error("🔴 Validation Error: Price field is required and must be greater than ₱0.00.")
+                st.error(" Validation Error: Price field is required and must be greater than ₱0.00.")
             elif classification == 'Drinks (Gulps)' and not size_prices:
-                st.error("🔴 Validation Error: Enable and configure at least one drink size.")
+                st.error(" Validation Error: Enable and configure at least one drink size.")
             else:
                 try:
                     price_cents = cents_from_peso(price) if classification != 'Drinks (Gulps)' else 0
@@ -527,8 +525,8 @@ elif mode == 'Admin' and page == 'Product Management':
                     audit_msg = f"Menu product item '{clean_name}' successfully added to store catalog database! Assigned code: '{generated_code}' under active category grouping: '{final_save_category}'."
                     
                     st.session_state.global_toast = {
-                        "msg": f"🟢 SUCCESS: Product '{clean_name}' successfully added to catalog as unique code '{generated_code}'!",
-                        "bg": "#2e7d32",  # Vibrant Emerald Green
+                        "msg": f"SUCCESS: Product '{clean_name}' successfully added to catalog as unique code '{generated_code}'!",
+                        "bg": "#2e7d32",  
                         "icon": "🟢"
                     }
                     
@@ -722,14 +720,11 @@ elif mode == 'Admin' and page == 'Product Management':
                                 SET name = ?, category = ?, price_cents = ?, low_stock_threshold = ?, updated_at = ?
                                 WHERE id = ?
                             """, (new_name, new_cat, int(new_base_price_cents), int(new_threshold), datetime.now().isoformat(), p['id']))
-                            
-                        # 2. Sync the individual dynamic sizing prices cleanly inside an open block
+        
                         if is_a_drink:
                             with db.connection() as clear_conn:
-                                # Wipe old sizes first to avoid composite key violations
                                 clear_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
                                     
-                                # 🟢 FIX: Moved inside the context manager block so the connection stays open!
                                 if updated_sizes:
                                     for size_key, cents_val in updated_sizes.items():
                                         clear_conn.execute("""
@@ -743,7 +738,7 @@ elif mode == 'Admin' and page == 'Product Management':
                         audit_msg = f"Product '{p['code']}' details updated successfully (New Name: '{new_name}', New Category: '{new_cat}')."
                         
                         st.session_state.global_toast = {
-                            "msg": f"⚙️ UPDATE SUCCESS: Product details for '{p['code']}' have been cleanly updated!",
+                            "msg": f" UPDATE SUCCESS: Product details for '{p['code']}' have been cleanly updated!",
                             "bg": "#1565c0",  
                             "icon": "⚙️"
                             }
@@ -757,7 +752,7 @@ elif mode == 'Admin' and page == 'Product Management':
 
             # --- DANGER ZONE SECTION ---
             st.divider()
-            st.error('### 🚨 DANGER ZONE: PERMANENT PURGE')
+            st.error('###  DANGER ZONE: PERMANENT PURGE')
             st.markdown("Clicking delete below will execute a HARD DELETE. This completely wipes the item profile row from the database catalog and cannot be undone.", 
                         unsafe_allow_html=True)
             with st.container(key=f"danger_zone_box_{p['id']}"):
@@ -769,7 +764,7 @@ elif mode == 'Admin' and page == 'Product Management':
                         if success:
                             audit_msg = f"Product '{p['code']} — {p['name']}' was permanently removed from the master database catalog files."
                             st.session_state.global_toast = {
-                                "msg": f"🚨 PURGE REMOVAL: Product '{p['code']}' has been permanently wiped from the store catalog!",
+                                "msg": f" PURGE REMOVAL: Product '{p['code']}' has been permanently wiped from the store catalog!",
                                 "bg": "#c62828", 
                                 "icon": "🚨"
                             }
@@ -782,12 +777,10 @@ elif mode == 'Admin' and page == 'Product Management':
                     except Exception as e:
                         safe_error(e)
 
-
-
     # VIEW CATALOG TAB
     with tab3:
         st.markdown("---")
-        st.markdown("#### 🔍 Filter & Sort Product Catalog")
+        st.markdown("####  Filter & Sort Product Catalog")
         search_col, category_col, sort_col = st.columns([2, 1.2, 1.2])
         
         with search_col:
@@ -831,7 +824,6 @@ elif mode == 'Admin' and page == 'Product Management':
             filtered_items.sort(key=lambda x: x['stock'], reverse=True)
             
         if filtered_items:
-            # 🟢 DYNAMIC MATRIX GENERATOR FOR TABLE DATA LAYOUTS
             formatted_table_rows = []
             for prod in filtered_items:
                 prod_sizes_dict = db.get_product_sizes(prod['id'])
@@ -879,7 +871,7 @@ elif mode == 'Admin' and page == 'Product Management':
             st.info('No catalog products match your search keyword or selected category filter.')
 
 elif mode == 'Admin' and page == 'Sales History':
-    st.subheader('📜 Sales Transaction History')
+    st.subheader(' Sales Transaction History')
     ph_today_date = ph_today()
     c1, c2 = st.columns(2)
     start_date = c1.date_input('From date',value=ph_today_date - timedelta(days=30))
@@ -1013,7 +1005,7 @@ elif mode == 'Cashier' and page == 'New Sale':
         st.markdown('#### Available products')
         selected_catalog_tab = st.radio(
             "Filter Department Menu Context",
-            ["✨ All Catalog", "🍔 Foods (Grubs)", "🥤 Drinks (Gulps)"],
+            [" All Catalog", " Foods (Grubs)", " Drinks (Gulps)"],
             horizontal=True,
             label_visibility="collapsed",
             key="cashier_department_filter_tabs"
@@ -1032,9 +1024,9 @@ elif mode == 'Cashier' and page == 'New Sale':
             base_shown = products
             
         # Added 'int(p['stock']) > 0' to hide any items with 0 stock automatically
-        if selected_catalog_tab == "🍔 Foods (Grubs)":
+        if selected_catalog_tab == " Foods (Grubs)":
             shown = [p for p in base_shown if not db.get_product_sizes(p['id']) and int(p['stock']) > 0]
-        elif selected_catalog_tab == "🥤 Drinks (Gulps)":
+        elif selected_catalog_tab == " Drinks (Gulps)":
             shown = [p for p in base_shown if bool(db.get_product_sizes(p['id'])) and int(p['stock']) > 0]
         else:
             shown = [p for p in base_shown if int(p['stock']) > 0]
@@ -1105,7 +1097,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                         
                         with st.popover(" Customize", use_container_width=True, disabled=p['stock'] < 1):
                             if is_drink:
-                                st.markdown("##### 🥤 Sizing Configuration")
+                                st.markdown("#####  Sizing Configuration")
                                 available_sizes = list(sizes.keys())
                                 
                                 # Re-parse active names array safely
@@ -1113,7 +1105,6 @@ elif mode == 'Cashier' and page == 'New Sale':
                                 if " | Custom:" in p['category']:
                                     custom_labels_array = [lbl.strip() for lbl in p['category'].split(" | Custom:", 1)[1].split(",")]
 
-                                # 🟢 FIX PART B: MATCH LABELS PERFECTLY PER KEY (99, 100, 101...)
                                 def size_label_formatter(z):
                                     size_idx = int(z)
                                     if size_idx >= 99:
@@ -1132,19 +1123,19 @@ elif mode == 'Cashier' and page == 'New Sale':
                                     st.markdown("##### Sinker Options")
                                     if is_milktea:
                                         mt_sinker = st.radio("Sinkers:", ["Pearls", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
-                                        if mt_sinker == "None": chosen_customizations.append("❌ NO PEARLS")
+                                        if mt_sinker == "None": chosen_customizations.append(" NO PEARLS")
                                     elif is_milkshake:
                                         ms_sinker = st.radio("Sinkers:", ["Pearls", "Nata", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
-                                        if ms_sinker == "None": chosen_customizations.append("❌ NO SINKERS")
+                                        if ms_sinker == "None": chosen_customizations.append(" NO SINKERS")
                                     elif is_lemonade:
                                         lem_sinker = st.radio("Sinkers:", ["Rainbow Jelly", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
-                                        if lem_sinker == "None": chosen_customizations.append("❌ NO RAINBOW JELLY")
+                                        if lem_sinker == "None": chosen_customizations.append(" NO RAINBOW JELLY")
                                     elif is_lemonade_slushie:
                                         sl_sinker = st.radio("Sinkers:", ["Nata", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
-                                        if sl_sinker == "None": chosen_customizations.append("❌ NO NATA")
+                                        if sl_sinker == "None": chosen_customizations.append(" NO NATA")
                                     elif is_coffee:
                                         cf_sinker = st.radio("Sinkers:", ["Coffee Jelly", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
-                                        if cf_sinker == "None": chosen_customizations.append("❌ NO COFFEE JELLY")
+                                        if cf_sinker == "None": chosen_customizations.append(" NO COFFEE JELLY")
 
                                 # Add-ons options inside popover window
                                 st.markdown("##### Topping Add-ons (+₱5)")
@@ -1154,10 +1145,10 @@ elif mode == 'Cashier' and page == 'New Sale':
                                 with sk_c1: add_extra_jelly = st.checkbox("Extra Jelly", key=f"add_j_{p['id']}")
                                 with sk_c2: add_extra_coffee_jelly = st.checkbox("Extra C.Jelly", key=f"add_c_{p['id']}")
                                 
-                                if add_extra_pearl: chosen_customizations.append("➕ Extra Pearls"); addon_premium += 500
-                                if add_extra_nata: chosen_customizations.append("➕ Extra Nata"); addon_premium += 500
-                                if add_extra_jelly: chosen_customizations.append("➕ Extra Jelly"); addon_premium += 500
-                                if add_extra_coffee_jelly: chosen_customizations.append("➕ Extra Coffee Jelly"); addon_premium += 500
+                                if add_extra_pearl: chosen_customizations.append(" Extra Pearls"); addon_premium += 500
+                                if add_extra_nata: chosen_customizations.append(" Extra Nata"); addon_premium += 500
+                                if add_extra_jelly: chosen_customizations.append(" Extra Jelly"); addon_premium += 500
+                                if add_extra_coffee_jelly: chosen_customizations.append(" Extra Coffee Jelly"); addon_premium += 500
                                 unit_price += addon_premium
 
                             st.markdown("##### To Note:")
@@ -1169,7 +1160,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                             qty = st.number_input('Quantity to Order', min_value=1, max_value=max(1, int(p['stock'])), value=1, step=1, key=f"qty_{p['id']}", disabled=p['stock'] < 1)
                             
                             st.write("")
-                            add = st.form_submit_button('🛒 Add to cart', use_container_width=True, disabled=p['stock'] < 1)
+                            add = st.form_submit_button(' Add to cart', use_container_width=True, disabled=p['stock'] < 1)
                     # PROCESS ADD TO CART
                     if add:
                         try:
@@ -1211,8 +1202,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                             if custom_note: 
                                 final_notes_list.append(custom_note)
                             combined_customizations = '; '.join(final_notes_list)
-                                
-                            # 🟢 FORCE CLEAN METADATA ASSIGNMENT FOR THE LINKED LIST CART
+                    
                             st.session_state.cart.add(
                                 checkout_product_payload, 
                                 int(qty), 
@@ -1224,7 +1214,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                         except Exception as e: 
                             # If an old database schema error leaks, isolate it from breaking the frontend screen layout
                             logging.exception("Cart insertion error bypassed")
-                            st.toast(f"🛒 Added {qty}x {p['name']} to cart!", icon="✨")
+                            st.toast(f" Added {qty}x {p['name']} to cart!", icon="✨")
                             st.rerun()
 
 
@@ -1280,7 +1270,6 @@ elif mode == 'Cashier' and page == 'New Sale':
                     
                     if qcol.button('Update', key=(f"update_{cart_item['product_id']} {cart_item.get('size_oz') or 'std'} {abs(hash(str(cart_item.get('customizations',''))))}")):
                         try:
-                            # 🟢 FIX: Changed variable from 'p' to 'db_product' to resolve variable leak collision
                             db_product = db.get_product(cart_item['product_id'])
                             if not db_product or not db_product['active']:
                                 raise ValueError('This product is no longer available. Remove it from the cart.')
@@ -1375,7 +1364,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                     # Clear shopping cart basket cleanly
                     st.session_state.cart.clear()
                     st.session_state.global_toast = {
-                        "msg": f"🏁 TRANSACTION SUCCESSFUL: Sale checkout processed for '{customer_name.strip()}'! Total Paid: {money(sale['total_cents'])}.",
+                        "msg": f" TRANSACTION SUCCESSFUL: Sale checkout processed for '{customer_name.strip()}'! Total Paid: {money(sale['total_cents'])}.",
                         "bg": "#2e7d32",  
                         "icon": "💰"
                     }
@@ -1389,13 +1378,13 @@ elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     heap = rebuild_heap()
     next_order = heap.peek()
     if next_order:
-        st.markdown("### 🔔 Next Priority Order in Queue")
+        st.markdown("### Next Priority Order in Queue")
         st.info(f"Order #{next_order.order_id} — {next_order.payload['customer_name']} |Priority Level: {next_order.priority} | Details: {next_order.payload['details']}")
         if st.button('Mark Next Order Completed', type='primary'):
             try:
                 db.update_order_status(next_order.order_id, 'Completed')
                 st.session_state.global_toast = {
-                    "msg": f"🔔 QUEUE ACTION: Order #{next_order.order_id} for '{next_order.payload['customer_name']}' has been marked as COMPLETED and cleared from active lane.",
+                    "msg": f" QUEUE ACTION: Order #{next_order.order_id} for '{next_order.payload['customer_name']}' has been marked as COMPLETED and cleared from active lane.",
                     "bg": "#1565c0",  # Information Blue
                     "icon": "🏁"
                 }
@@ -1420,12 +1409,12 @@ elif mode == 'Cashier' and page == 'Pickup Queue Priority':
         st.info('No pickup orders found in the database.')
 
 elif mode == 'Cashier' and page == 'Sales History':
-    st.subheader('📜 Sales Transaction History')
+    st.subheader(' Sales Transaction History')
     
-    # ⚡ PART A: DYNAMIC LAST TRANSACTION ANCHOR
+    # PART A: DYNAMIC LAST TRANSACTION ANCHOR
     sale = st.session_state.get('last_sale')
     if sale:
-        with st.expander("⚡ Just Checked Out (Last Transaction Details)", expanded=True):
+        with st.expander(" Just Checked Out (Last Transaction Details)", expanded=True):
             tx_id = sale.get('transaction_id')
             st.success(f"Receipt Reference: Sale #{tx_id} · Recorded at {sale['created_at'].replace('T', ' ')[:16]}")
             
@@ -1455,8 +1444,8 @@ elif mode == 'Cashier' and page == 'Sales History':
     
     st.divider()
 
-    # 📜 PART B: RECENT SALES & HISTORY SEARCH
-    st.markdown("#### 🔍Audit Search")
+    # PART B: RECENT SALES & HISTORY SEARCH
+    st.markdown("#### Audit Search")
     st.caption('Search completed sales and cashier actions. Records remain saved in SQLite after the app is closed.')
     h1, h2 = st.columns([1, 2])
     cashier_history_search = h1.text_input('Search sales / actions', placeholder='sale number, product, customer')
@@ -1559,7 +1548,7 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
         st.info('There are no active menu products to manage. Admin must add products first.')
     else:
         choices = {(f"{p['code']} — {p['name']} (current stock: {p['stock']})"): p for p in active_products}
-        itab1, itab2, itab3 = st.tabs(["➕ Add Stock (Restock)","➖ Deduct Stock (Waste/Spoilage)","✏️ Direct Edit (Stock Audit)"])
+        itab1, itab2, itab3 = st.tabs([" Add Stock (Restock)"," Deduct Stock (Waste/Spoilage)"," Direct Edit (Stock Audit)"])
         # ADD STOCK
         with itab1:
             st.markdown("#### Record Incoming Deliveries")
@@ -1576,7 +1565,7 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
                             db.update_product_stock_direct(item['id'], new_total, actor="Inventory Manager")
                             
                             st.session_state.global_toast = {
-                                "msg": f"📈 STOCK INCREASED: Added +{int(quantity)} units to '{item['name']}'. New Balance: {new_total} units.",
+                                "msg": f" STOCK INCREASED: Added +{int(quantity)} units to '{item['name']}'. New Balance: {new_total} units.",
                                 "bg": "#2e7d32",  
                                 "icon": "➕"
                             }
@@ -1597,9 +1586,8 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
                         st.error("Please select a valid menu product from the dropdown box first.")
                     else:
                         item = choices[selected]
-                        # 🟢 FIX: Block deductions immediately if the product is already out of stock
                         if int(item['stock']) <= 0:
-                            st.error(f"🔴 Inventory Conflict: Cannot deduct stock from '{item['name']}' because current stock is already 0 units.")
+                            st.error(f" Inventory Conflict: Cannot deduct stock from '{item['name']}' because current stock is already 0 units.")
                         elif not reason: 
                             st.error("A validation reason is required to process inventory deductions.")
                         elif int(quantity) > item['stock']: 
@@ -1610,7 +1598,7 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
                                 db.update_product_stock_direct(item['id'], new_total, actor=f"Inventory Manager ({reason})")
                                 
                                 st.session_state.global_toast = {
-                                    "msg": f"📉 STOCK DEDUCTED: Removed -{int(quantity)} units from '{item['name']}' due to '{reason}'. New Balance: {new_total} units.",
+                                    "msg": f" STOCK DEDUCTED: Removed -{int(quantity)} units from '{item['name']}' due to '{reason}'. New Balance: {new_total} units.",
                                     "bg": "#ef6c00",  
                                     "icon": "⚠️"
                                 }
@@ -1634,7 +1622,7 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
                         try:
                             db.update_product_stock_direct(item['id'], int(exact_stock), actor="Inventory Manager Audit Override")
                             st.session_state.global_toast = {
-                                "msg": f"📐 COUNTS CALIBRATED: Overwrote '{item['name']}' stock balance level to exactly {int(exact_stock)} units.",
+                                "msg": f" COUNTS CALIBRATED: Overwrote '{item['name']}' stock balance level to exactly {int(exact_stock)} units.",
                                 "bg": "#1565c0",  
                                 "icon": "✏️"
                             }
@@ -1652,19 +1640,19 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
         out_of_stock = [p for p in all_products if p['stock'] == 0]
         low_stock = [p for p in all_products if 0 < p['stock'] <= p['low_stock_threshold']]
         overstocked = [p for p in all_products if p['stock'] >= p.get('high_stock_threshold', 50) ]
-        st.markdown("##### 🚨 Stock Urgency Indicators")
+        st.markdown("#####  Stock Urgency Indicators")
         g1, g2, g3, g4 = st.columns(4)
         g1.metric("Total Items Managed",len(all_products))
-        g2.metric("Out of Stock 🛑",len(out_of_stock), delta="CRITICAL FIX" if out_of_stock else "All Available",delta_color="inverse" if out_of_stock else "normal")
-        g3.metric("Low-Stock Warning ⚠️",len(low_stock),delta="Needs Restock" if low_stock else "Levels Safe",delta_color="inverse" if low_stock else "normal")
-        g4.metric("Overstocked Rows 📦",len(overstocked),delta="Freeze Orders" if overstocked else "Within Limits",delta_color="off" if overstocked else "normal")
+        g2.metric("Out of Stock ",len(out_of_stock), delta="CRITICAL FIX" if out_of_stock else "All Available",delta_color="inverse" if out_of_stock else "normal")
+        g3.metric("Low-Stock Warning ",len(low_stock),delta="Needs Restock" if low_stock else "Levels Safe",delta_color="inverse" if low_stock else "normal")
+        g4.metric("Overstocked Rows ",len(overstocked),delta="Freeze Orders" if overstocked else "Within Limits",delta_color="off" if overstocked else "normal")
         st.divider()
         left_dash, right_dash = st.columns(2)
         with left_dash:
             st.markdown("####  Fast Action Restock Checklist")
             urgency_list = sorted(out_of_stock + low_stock,key=lambda x: x['stock'])
             if not urgency_list:
-                st.success("🎉 Excellent! All inventory shelf counts match healthy threshold levels.")
+                st.success(" Excellent! All inventory shelf counts match healthy threshold levels.")
             else:
                 checklist_data = []
                 for item in urgency_list:
@@ -1688,16 +1676,16 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
                 st.success(" Healthy! No catalog rows exceed maximum high-stock parameters.")
             else:
                 # Creates a clean dropdown drawer inside the right column summary tree
-                with st.expander("🔍 View Overstocked Product Details", expanded=True):
+                with st.expander(" View Overstocked Product Details", expanded=True):
                     st.markdown("<b style='color:#b05000; font-size:13px;'>The following menu products exceed high-stock limits:</b>", unsafe_allow_html=True)
                     st.write("")
                     for item in overstocked:
                         st.error(
-                            f"📦 **{item['code']}** · {item['name']}  \n"
+                            f" **{item['code']}** · {item['name']}  \n"
                             f"↳ *Current Stock:* `{item['stock']} units` (High threshold limit: `{item.get('high_stock_threshold', 50)}`)"
                         )
             st.divider()
-            st.markdown("#### 📉 Recent Stock Movements & Audits")
+            st.markdown("#### Recent Stock Movements & Audits")
             try:
                 with db.connection() as conn:
                     recent_movements = conn.execute('''SELECT m.quantity_change, m.reason, p.name FROM inventory_movements m JOIN products p ON m.product_id = p.id ORDER BY m.created_at DESC LIMIT 6 ''').fetchall()
