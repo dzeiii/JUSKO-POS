@@ -1205,7 +1205,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                                                 else:
                                                     st.warning(f"Only {stk} in stock.")
                                             else:
-                                                sz_tag = chosen_sz_lbl.split(" — ")
+                                                sz_tag, _, _ = chosen_sz_lbl.partition(" — ")
                                                 st.session_state.cart.append({
                                                     'product_id': prod['id'],
                                                     'code': prod['code'],
@@ -1217,6 +1217,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                                                     'quantity': 1
                                                 })
                                             st.rerun()
+
                                 else:
                                     unit_cents = int(prod.get('price_cents', 0))
                                     p_col, b_col = st.columns((1.5, 1), vertical_alignment='center', gap='small')
