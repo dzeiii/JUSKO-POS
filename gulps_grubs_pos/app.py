@@ -142,7 +142,7 @@ if mode == 'Admin' and page == 'Dashboard':
     start_time = datetime.combine(today, time.min).isoformat()
     end_time = datetime.combine(today + timedelta(days=1), time.min).isoformat()
 
-    st.markdown("##### Business overview")
+    st.markdown("### Business overview")
     summary = db.sales_summary(start_time, end_time)
     all_products = db.list_products(active_only=True)
     low = [p for p in all_products if p['stock'] <= p['low_stock_threshold']]
@@ -1120,7 +1120,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                         
                         with st.popover(" Customize", use_container_width=True, disabled=p['stock'] < 1):
                             if is_drink:
-                                st.markdown("#####  Sizing Configuration")
+                                st.markdown("#### Sizing Configuration")
                                 available_sizes = list(sizes.keys())
                                 
                                 # Re-parse active names array safely
@@ -1143,7 +1143,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                                 
                                 # Sinker logic inside popover window
                                 if not is_float_or_juice_or_tea:
-                                    st.markdown("##### Sinker Options")
+                                    st.markdown("#### Sinker Options")
                                     if is_milktea:
                                         mt_sinker = st.radio("Sinkers:", ["Pearls", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
                                         if mt_sinker == "None": chosen_customizations.append(" NO PEARLS")
@@ -1161,7 +1161,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                                         if cf_sinker == "None": chosen_customizations.append(" NO COFFEE JELLY")
 
                                 # Add-ons options inside popover window
-                                st.markdown("##### Topping Add-ons (+₱5)")
+                                st.markdown("#### Topping Add-ons (+₱5)")
                                 sk_c1, sk_c2 = st.columns(2)
                                 with sk_c1: add_extra_pearl = st.checkbox("Extra Pearls", key=f"add_p_{p['id']}")
                                 with sk_c2: add_extra_nata = st.checkbox("Extra Nata", key=f"add_n_{p['id']}")
@@ -1174,7 +1174,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                                 if add_extra_coffee_jelly: chosen_customizations.append(" Extra Coffee Jelly"); addon_premium += 500
                                 unit_price += addon_premium
 
-                            st.markdown("##### To Note:")
+                            st.markdown("#### To Note:")
                             if is_drink: note_hint = "e.g., 50% Sugar, Less Ice"
                             elif "fries" in display_cat_clean.lower() or "snack" in display_cat_clean.lower(): note_hint = "e.g., BBQ, Cheese"
                             else: note_hint = "e.g., Syrup, Whipped Cream..."
@@ -1307,7 +1307,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                         cart.remove(cart_item['product_id'], cart_item.get('size_oz'), cart_item.get('customizations', ''))
                         st.rerun()
 
-        st.markdown(f"### Total: {money(cart.total_cents())}")
+        st.markdown(f"#### Total: {money(cart.total_cents())}")
         with st.form('checkout_form'):
             customer_name = st.text_input('Customer name *',placeholder='e.g. John Doe')
             priority_level = st.select_slider('Priority level',
@@ -1399,7 +1399,7 @@ elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     heap = rebuild_heap()
     next_order = heap.peek()
     if next_order:
-        st.markdown("### Next Priority Order in Queue")
+        st.markdown("#### Next Priority Order in Queue")
         st.info(f"Order #{next_order.order_id} — {next_order.payload['customer_name']} |Priority Level: {next_order.priority} | Details: {next_order.payload['details']}")
         if st.button('Mark Next Order Completed', type='primary'):
             try:
@@ -1495,7 +1495,7 @@ elif mode == 'Cashier' and page == 'Sales History':
                     ),
                     'Total': money(r['total_cents'])
                 })
-        st.markdown('##### Completed sales')
+        st.markdown('#### Completed sales')
         if sale_rows:
             st.dataframe(pd.DataFrame(sale_rows), use_container_width=True, hide_index=True)
         else:
@@ -1505,7 +1505,7 @@ elif mode == 'Cashier' and page == 'Sales History':
         from datetime import datetime, timedelta
         
         activity = db.activity_history('Cashier', cashier_history_search, limit=500)
-        st.markdown('##### Cashier actions and queue history')
+        st.markdown('#### Cashier actions and queue history')
         if activity:
             formatted_activities = []
             for r in activity:
@@ -1659,7 +1659,7 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
         out_of_stock = [p for p in all_products if p['stock'] == 0]
         low_stock = [p for p in all_products if 0 < p['stock'] <= p['low_stock_threshold']]
         overstocked = [p for p in all_products if p['stock'] >= p.get('high_stock_threshold', 50) ]
-        st.markdown("#####  Stock Urgency Indicators")
+        st.markdown("####  Stock Urgency Indicators")
         g1, g2, g3, g4 = st.columns(4)
         g1.metric("Total Items Managed",len(all_products))
         g2.metric("Out of Stock ",len(out_of_stock), delta="CRITICAL FIX" if out_of_stock else "All Available",delta_color="inverse" if out_of_stock else "normal")
