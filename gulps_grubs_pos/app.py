@@ -543,6 +543,7 @@ elif mode == 'Admin' and page == 'Product Management':
                         ec1, ec2 = st.columns([1, 1.6], gap="small")
                         ec1.text_input('Code', value=p['code'], disabled=True)
                         new_name = ec2.text_input('Product name', value=p['name'], key=f"edit_name_field_{p['id']}").strip()
+
                         cat_col, thresh_col = st.columns([1.6, 1], gap="small")
                         with cat_col:
                             if is_a_drink:
@@ -551,6 +552,32 @@ elif mode == 'Admin' and page == 'Product Management':
                                 new_base_cat = st.text_input('Category Name *', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
                         with thresh_col:
                             new_threshold = st.number_input('Low-stock alert', min_value=0, max_value=1000000, value=int(p.get('low_stock_threshold', 5)), step=1, key=f"edit_thresh_{p['id']}")
+
+                        # Save Button & Danger Zone moved inside Left Card
+                        save_changes = st.button('Save All Product Details', type='primary', use_container_width=True, key=f"unified_save_btn_{p['id']}")
+                        
+                        with st.expander("Danger Zone (Permanent Delete)"):
+                            dz_c1, dz_c2 = st.columns(2, gap="small")
+                            with dz_c1:
+                                check_step1 = st.checkbox("Confirm delete", key=f"force_del_c1_{p['id']}")
+                            with dz_c2:
+                                check_step2 = st.checkbox("Remove from logs", key=f"force_del_c2_{p['id']}")
+                            if st.button('Permanently Delete', key=f"hard_purge_action_{p['id']}", type='primary', use_container_width=True, disabled=not (check_step1 and check_step2)):
+                                try:
+                                    success, msg = db.delete_product(p['id'])
+                                    if success:
+                                        st.session_state.global_toast = {
+                                            "msg": f"PURGE REMOVAL: Product '{p['code']}' has been permanently deleted from the catalog.",
+                                            "bg": "#c62828",
+                                            "icon": "[!]"
+                                        }
+                                        db.log_activity('Admin', 'Product Deleted', f"{p['code']} · {p['name']}")
+                                        st.rerun()
+                                    else:
+                                        st.error(msg)
+                                except Exception as e:
+                                    safe_error(e)
+
                 # RIGHT CARD: Pricing & Sizes
                 with edit_right:
                     with st.container(key='bento_edit_right'):
