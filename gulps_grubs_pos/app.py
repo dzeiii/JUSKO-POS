@@ -205,34 +205,40 @@ if mode == 'Admin' and page == 'Dashboard':
                     st.success('No products at or above high-stock threshold.')
 
 elif mode == 'Admin' and page == 'Product Management':
+    # Sleek smaller heading + Tabs with wider padding
+    st.markdown('##### Product Catalog Management')
+    tab1, tab2, tab3 = st.tabs([
+        '   Add product   ',
+        '   Edit / Delete   ',
+        '   View Catalog   '
+    ])
 
-    st.markdown('### Product Catalog Management')
-    tab1, tab2, tab3 = st.tabs(['Add product','Edit / Delete','View Catalog'])
     with tab1:
-        classification = st.radio(
-            'Product Classification *', 
-            ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], 
-            horizontal=True
-        )
+        # Put Product Classification label & radio pills inline on a single compact row
+        cls_lbl, cls_radio = st.columns([0.85, 3.5], vertical_alignment='center', gap='small')
+        with cls_lbl:
+            st.markdown("**Classification ***")
+        with cls_radio:
+            classification = st.radio(
+                'Product Classification *',
+                ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'],
+                horizontal=True,
+                label_visibility='collapsed'
+            )
 
         # Dynamically pull pre-saved category lists
         try:
             db_products = db.list_products(active_only=False)
             drink_keywords = ['milktea', 'milkshake', 'shake', 'lemonade', 'slushie', 'slush', 'coffee', 'float', 'frappe', 'drink', 'beverage', 'juice', 'tea', 'brew', 'gulp']
-            
             food_cats, drink_cats, combo_cats = set(), set(), set()
             for p in db_products:
                 if not p['category']: continue
-                clean_cat = p['category'].split(" | Custom:", 1).strip()
+                _, _, custom_part = p['category'].partition(" | Custom:")
+                clean_cat = p['category'].partition(" | Custom:").strip()
                 clean_cat_lower = clean_cat.lower()
-                
-                is_drink_cat = any(dk in clean_cat_lower for dk in drink_keywords)
-                is_combo_cat = any(ck in clean_cat_lower for ck in ['combo', 'promo', 'bundle'])
-                
-                if is_drink_cat: drink_cats.add(clean_cat)
-                elif is_combo_cat: combo_cats.add(clean_cat)
+                if any(dk in clean_cat_lower for dk in drink_keywords): drink_cats.add(clean_cat)
+                elif any(ck in clean_cat_lower for ck in ['combo', 'promo', 'bundle']): combo_cats.add(clean_cat)
                 else: food_cats.add(clean_cat)
-            
             if classification == 'Drinks (Gulps)': existing_saved_cats = sorted(list(drink_cats))
             elif classification == 'Others (Combo/Meal Plan)': existing_saved_cats = sorted(list(combo_cats))
             else: existing_saved_cats = sorted(list(food_cats))
@@ -241,12 +247,9 @@ elif mode == 'Admin' and page == 'Product Management':
 
         def parse_and_format_price(raw_text):
             if not raw_text: return 0.0
-            clean_digits = raw_text.replace('₱', '').strip()
-            try: 
-                return float(clean_digits)
-            except ValueError: 
-                return 0.0
-                
+            try: return float(raw_text.replace('₱', '').strip())
+            except ValueError: return 0.0
+
         # AUTOMATIC PRODUCT FORM RESET
         if "clear_product_form" not in st.session_state:
             st.session_state.clear_product_form = False
@@ -258,12 +261,9 @@ elif mode == 'Admin' and page == 'Product Management':
             st.session_state['drink_val_8_text_final'] = ""
             st.session_state['drink_val_12_text_final'] = ""
             st.session_state['drink_val_16_text_final'] = ""
-            st.session_state['drink_lbl_custom_reactive_field'] = ""
-            st.session_state['drink_val_custom_text_reactive'] = ""
             st.session_state['drink_use_8_final'] = False
             st.session_state['drink_use_12_final'] = True
             st.session_state['drink_use_16_final'] = True
-            st.session_state['drink_use_custom_reactive_layer'] = False
             st.session_state[f'starting_stock_{classification}'] = 0
             st.session_state.clear_product_form = False
 
@@ -283,7 +283,7 @@ elif mode == 'Admin' and page == 'Product Management':
                 raise ValueError(f"The price for {size_label} must be greater than ₱0.00.")
             return parsed_value
 
-        # --- 2-COLUMN BENTO FORM LAYOUT ---
+        # --- BALANCED 2-COLUMN BENTO CARDS ---
         add_left, add_right = st.columns([1, 1.15], gap="medium")
 
         with add_left:
@@ -310,7 +310,7 @@ elif mode == 'Admin' and page == 'Product Management':
                 elif classification == 'Drinks (Gulps)':
                     st.markdown("**3. Cup Size & Base Pricing**")
                     price8 = price12 = price16 = 0.00
-                    col8, col12, col16 = st.columns(3, gap="small")    
+                    col8, col12, col16 = st.columns(3, gap="small")
                     with col8:
                         use8 = st.checkbox('Offer 8 oz', value=False, key='drink_use_8_final')
                         price8_input = st.text_input('8 oz (₱) *', placeholder='0.00', key='drink_val_8_text_final').strip() if use8 else ""
@@ -324,13 +324,21 @@ elif mode == 'Admin' and page == 'Product Management':
                         price16_input = st.text_input('16 oz (₱) *', placeholder='0.00', key='drink_val_16_text_final').strip() if use16 else ""
                         price16 = parse_and_format_price(price16_input) if use16 else 0.00
 
-                    st.markdown("**Custom Sizing (Optional)**")
+                    # Inline header + "+ Add size" button on the same row to save vertical space
+                    cs_hdr, cs_btn = st.columns([2, 1], vertical_alignment='center', gap='small')
+                    with cs_hdr:
+                        st.markdown("**Custom Sizing (Optional)**")
+                    with cs_btn:
+                        if st.button("+ Add size", key="add_another_custom_size_btn", use_container_width=True):
+                            st.session_state.custom_sizes_count = st.session_state.get("custom_sizes_count", 1) + 1
+                            st.rerun()
+
                     if "custom_sizes_count" not in st.session_state:
                         st.session_state.custom_sizes_count = 1
 
                     custom_size_inputs_list = []
-                    # Fixed height=115 keeps the right card locked even when adding 4+ custom sizes
-                    with st.container(height=115, border=False):
+                    # Internal fixed-height scroll container (height=92) so adding 3+ sizes NEVER scrolls the page
+                    with st.container(height=92, border=False):
                         for i in range(st.session_state.custom_sizes_count):
                             c_size_col, c_price_col = st.columns([1.4, 1], gap="small")
                             with c_size_col:
@@ -339,11 +347,7 @@ elif mode == 'Admin' and page == 'Product Management':
                                 prc_val = st.text_input(f'Price #{i+1}', placeholder='Price (₱)', key=f'drink_val_custom_text_reactive_{i}', label_visibility="collapsed").strip()
                             custom_size_inputs_list.append({"label": lbl_val, "price_raw": prc_val})
 
-                    if st.button("+ Add another custom size", key="add_another_custom_size_btn"):
-                        st.session_state.custom_sizes_count += 1
-                        st.rerun()
-
-                    try:    
+                    try:
                         size_prices = {}
                         if use8:
                             price8 = read_drink_price(price8_input, "8 oz")
@@ -355,20 +359,21 @@ elif mode == 'Admin' and page == 'Product Management':
                             price16 = read_drink_price(price16_input, "16 oz")
                             size_prices.update({16: cents_from_peso(price16)})
 
-                
                         custom_labels_compiled = []
-                        custom_database_key_id = 99  
+                        custom_database_key_id = 99
                         for idx, entry in enumerate(custom_size_inputs_list):
-                            c_label, c_price_raw = entry["label"], entry["price_raw"]
+                            c_label = entry["label"]
+                            c_price_raw = entry["price_raw"]
                             if c_label or c_price_raw:
                                 if not c_label:
                                     raise ValueError(f"Please enter a description label for Custom Size #{idx + 1}.")
                                 parsed_c_price = read_drink_price(c_price_raw, f"custom size '{c_label}'")
-                                size_prices[custom_database_key_id] = cents_from_peso(parsed_c_price)
+                                size_prices.update({custom_database_key_id: cents_from_peso(parsed_c_price)})
                                 custom_labels_compiled.append(c_label)
-                                custom_database_key_id += 1  
+                                custom_database_key_id += 1
                         if custom_labels_compiled:
                             drink_category_suffix = f" | Custom:{', '.join(custom_labels_compiled)}"
+
                     except ValueError as exc:
                         drink_config_error = str(exc)
 
