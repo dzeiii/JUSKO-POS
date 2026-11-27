@@ -142,7 +142,7 @@ if mode == 'Admin' and page == 'Dashboard':
     start_time = datetime.combine(today, time.min).isoformat()
     end_time = datetime.combine(today + timedelta(days=1), time.min).isoformat()
 
-    st.markdown("### Business overview")
+    st.markdown("### Business Overview")
     summary = db.sales_summary(start_time, end_time)
     all_products = db.list_products(active_only=True)
     low = [p for p in all_products if p['stock'] <= p['low_stock_threshold']]
@@ -206,7 +206,7 @@ if mode == 'Admin' and page == 'Dashboard':
 
 elif mode == 'Admin' and page == 'Product Management':
 
-    st.markdown('#### Product Catalog Management')
+    st.markdown('### Product Catalog Management')
     tab1, tab2, tab3 = st.tabs(['Add product','Edit / Delete','View Catalog'])
     with tab1:
         classification = st.radio(
@@ -792,7 +792,7 @@ elif mode == 'Admin' and page == 'Product Management':
                     st.info("No products match your current filter.")
 
 elif mode == 'Admin' and page == 'Sales History':
-    st.markdown ('#### Sales History')
+    st.markdown ('### Sales History')
     today = ph_today()
     t_dates, t_kpi, t_export = st.columns([2.1, 1.35, 0.32], vertical_alignment='center', gap='small')
 
@@ -941,7 +941,7 @@ elif mode == 'Admin' and page == 'Sales History':
                 st.caption(f"Receipt Total: **{money(chosen_tx['total_cents'])}**  ·  Processed by **{chosen_tx.get('cashier', 'Cashier')}**")
 
 elif mode == 'Admin' and page == 'Activity History':
-    st.subheader('Admin and staff activity history')
+    st.markdown('### Admin and Staff Activity History')
     st.caption('Persistent audit trail for sales, queue actions, product changes, and inventory updates.')
     f1, f2 = st.columns([1, 2])
     role_filter = f1.selectbox('Mode',['All', 'Admin', 'Cashier', 'Inventory Manager', 'System'])
