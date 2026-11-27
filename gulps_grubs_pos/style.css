@@ -240,11 +240,15 @@ h2{margin-top:.4rem}
   gap: 0.42rem !important;
 }
 
-/* 4. Slim down the 5 KPI metric cards */
+/* 4. Slim down & equalize the 5 KPI metric cards */
 [data-testid="stMetric"] {
-  min-height: 82px !important;
+  min-height: 88px !important;
+  height: 88px !important;
   padding: 8px 12px !important;
   border-radius: 12px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
 }
 [data-testid="stMetricLabel"] p {
   font-size: 0.82rem !important;
@@ -258,7 +262,7 @@ h2{margin-top:.4rem}
   font-size: 0.75rem !important;
 }
 
-/* 5. Style ALL Bento cards (Dashboard panels + Add/Edit Product 2-column forms) */
+/* 5. Style ALL Bento cards (with missing comma fixed!) */
 .st-key-bento_chart_card,
 .st-key-bento_recent_card,
 .st-key-bento_stock_card,
@@ -269,7 +273,7 @@ h2{margin-top:.4rem}
 .st-key-bento_catalog_card,
 .st-key-bento_sales_list,
 .st-key-bento_sales_detail,
-.st-key-bento_activity_card
+.st-key-bento_activity_card,
 .st-key-bento_queue_next,
 .st-key-bento_queue_list,
 div[class*="bento_queue_next"],
@@ -279,8 +283,23 @@ div[class*="bento_queue_list"] {
   border-top: 4px solid var(--orange) !important;
   border-radius: 14px !important;
   padding: 12px 14px !important;
-  min-height: 410px !important;
   box-shadow: 0 5px 15px rgba(75, 17, 23, 0.06) !important;
+}
+
+/* Cap ONLY the 3 bottom Admin Dashboard cards so they NEVER stretch past 100vh */
+.st-key-bento_chart_card,
+.st-key-bento_recent_card,
+.st-key-bento_stock_card {
+  height: 345px !important;
+  min-height: 345px !important;
+  max-height: 345px !important;
+  overflow: hidden !important;
+}
+
+/* Keep 410px height on the tall 2-column Queue & Form cards */
+.st-key-bento_queue_next,
+.st-key-bento_queue_list {
+  min-height: 410px !important;
 }
 
 /* 6. Compact pill tabs for Stock Watch (Low Stock / High Stock) */
