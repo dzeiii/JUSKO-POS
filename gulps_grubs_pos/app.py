@@ -1714,69 +1714,214 @@ elif mode == 'Inventory Manager' and page == 'Restock Products':
                         except Exception as exc: safe_error(exc)
 
 elif mode == 'Inventory Manager' and page == 'Dashboard':
-    st.subheader('Inventory Operations Dashboard')
-    all_products = db.list_products(active_only=True)
+    all_products = [dict(p) for p in db.list_products(active_only=True)]
+
+    # Compute KPI counts
+    total_skus = len(all_products)
+    out_of_stock = [p for p in all_products if int(p.get('stock', 0)) <= 0]
+    low_stock = [
+        p for p in all_products
+        if 0 < int(p.get('stock', 0)) <= int(p.get('low_stock_threshold', 5))
+    ]
+    healthy_stock = [
+        p for p in all_products
+        if int(p.get('stock', 0)) > int(p.get('low_stock_threshold', 5))
+    ]
+
+    # ROW 1: 4 Slim KPI Metric Cards
+    k1, k2, k3, k4 = st.columns(4, gap='small')
+    with k1:
+        st.metric("Total Products", f"{total_skus} SKUs")
+    with k2:
+        st.metric("Healthy Stock", f"{len(healthy_stock)} Items")
+    with k3:
+        st.metric("Low Stock Alerts", f"{len(low_stock)} Items")
+    with k4:
+        st.metric("Out of Stock", f"{len(out_of_stock)} Items")
+
     if not all_products:
-        st.info("No active catalog items found.Dashboard analytics will populate once items are added.")
+        st.info("No active products in catalog. Add products under Admin -> Product Management first.")
     else:
-        out_of_stock = [p for p in all_products if p['stock'] == 0]
-        low_stock = [p for p in all_products if 0 < p['stock'] <= p['low_stock_threshold']]
-        overstocked = [p for p in all_products if p['stock'] >= p.get('high_stock_threshold', 50) ]
-        st.markdown("####  Stock Urgency Indicators")
-        g1, g2, g3, g4 = st.columns(4)
-        g1.metric("Total Items Managed",len(all_products))
-        g2.metric("Out of Stock ",len(out_of_stock), delta="CRITICAL FIX" if out_of_stock else "All Available",delta_color="inverse" if out_of_stock else "normal")
-        g3.metric("Low-Stock Warning ",len(low_stock),delta="Needs Restock" if low_stock else "Levels Safe",delta_color="inverse" if low_stock else "normal")
-        g4.metric("Overstocked Rows ",len(overstocked),delta="Freeze Orders" if overstocked else "Within Limits",delta_color="off" if overstocked else "normal")
-        left_dash, right_dash = st.columns(2)
-        with left_dash:
-            st.markdown("####  Fast Action Restock Checklist")
-            urgency_list = sorted(out_of_stock + low_stock,key=lambda x: x['stock'])
-            if not urgency_list:
-                st.success(" Excellent! All inventory shelf counts match healthy threshold levels.")
-            else:
-                checklist_data = []
-                for item in urgency_list:
-                    status = ("OUT OF STOCK" if item['stock'] == 0 else "⚠️ LOW STOCK"
+        # ROW 2: 2-Column Bento Grid (Left: Live Stock Table | Right: Quick Stock Adjustment)
+        inv_left, inv_right = st.columns((1.35, 1), gap='medium')
+
+        # LEFT CARD: Live Stock Levels (Internal Scroll)
+        with inv_left:
+            with st.container(key='bento_inv_table', border=True):
+                hdr_l, f_search, f_status = st.columns((1.1, 1.4, 1.1), vertical_alignment='center', gap='small')
+                with hdr_l:
+                    st.markdown("**Live Stock Levels**")
+                with f_search:
+                    inv_q = st.text_input(
+                        "Search stock",
+                        placeholder="Search code or name...",
+                        key="inv_dash_search",
+                        label_visibility="collapsed"
+                    ).strip().lower()
+                with f_status:
+                    status_filter = st.selectbox(
+                        "Status",
+                        ("All Items", "Low Stock", "Out of Stock", "Healthy"),
+                        key="inv_dash_status",
+                        label_visibility="collapsed"
                     )
-                    checklist_data.append({
-                        "Code": item['code'],
-                        "Product Name": item['name'],
-                        "Current Stock": item['stock'],
-                        "Alert Threshold": item['low_stock_threshold'],
-                        "Urgency": status
+
+                # Sort lowest stock first so critical items are immediately visible
+                sorted_prods = sorted(all_products, key=lambda x: (int(x.get('stock', 0)), x.get('name', '').lower()))
+
+                table_rows = []
+                for p in sorted_prods:
+                    stk = int(p.get('stock', 0))
+                    low_t = int(p.get('low_stock_threshold', 5))
+                    high_t = int(p.get('high_stock_threshold', 50))
+
+                    if stk <= 0:
+                        status_lbl = "Out of Stock"
+                    elif stk <= low_t:
+                        status_lbl = "Low Stock"
+                    elif high_t > 0 and stk >= high_t:
+                        status_lbl = "High Stock"
+                    else:
+                        status_lbl = "Healthy"
+
+                    if status_filter == "Low Stock" and status_lbl != "Low Stock":
+                        continue
+                    if status_filter == "Out of Stock" and status_lbl != "Out of Stock":
+                        continue
+                    if status_filter == "Healthy" and status_lbl not in ("Healthy", "High Stock"):
+                        continue
+                    if inv_q and (inv_q not in p['name'].lower() and inv_q not in p['code'].lower()):
+                        continue
+
+                    table_rows.append({
+                        "Code": p['code'],
+                        "Product": p['name'],
+                        "Stock": stk,
+                        "Min Alert": low_t,
+                        "Status": status_lbl
                     })
-                st.dataframe(
-                    pd.DataFrame(checklist_data),
-                    use_container_width=True,
-                    hide_index=True
-                )
-        with right_dash:
-            st.markdown("#### Excess Inventory Trackers")
-            if not overstocked:
-                st.success(" Healthy! No catalog rows exceed maximum high-stock parameters.")
-            else:
-                # Creates a clean dropdown drawer inside the right column summary tree
-                with st.expander(" View Overstocked Product Details", expanded=True):
-                    st.markdown("<b style='color:#b05000; font-size:13px;'>The following menu products exceed high-stock limits:</b>", unsafe_allow_html=True)
-                    st.write("")
-                    for item in overstocked:
-                        st.error(
-                            f" **{item['code']}** · {item['name']}  \n"
-                            f"↳ *Current Stock:* `{item['stock']} units` (High threshold limit: `{item.get('high_stock_threshold', 50)}`)"
-                        )
-            st.divider()
-            st.markdown("#### Recent Stock Movements & Audits")
-            try:
-                with db.connection() as conn:
-                    recent_movements = conn.execute('''SELECT m.quantity_change, m.reason, p.name FROM inventory_movements m JOIN products p ON m.product_id = p.id ORDER BY m.created_at DESC LIMIT 6 ''').fetchall()
-                if recent_movements:
-                    for move in recent_movements:
-                        qty = move['quantity_change']
-                        st.markdown(f"{'🟢' if qty > 0 else '🔴'} {'+' if qty > 0 else ''}{qty} units — {move['name']} \n"
-                            f"Reason: {move['reason']}", unsafe_allow_html=True)
+
+                if table_rows:
+                    st.dataframe(
+                        pd.DataFrame(table_rows),
+                        use_container_width=True,
+                        hide_index=True,
+                        height=300,
+                        column_config={
+                            "Code": st.column_config.TextColumn("Code", width="small"),
+                            "Product": st.column_config.TextColumn("Product", width="medium"),
+                            "Stock": st.column_config.NumberColumn("Stock", width="small", format="%d"),
+                            "Min Alert": st.column_config.NumberColumn("Min Alert", width="small", format="%d"),
+                            "Status": st.column_config.TextColumn("Status", width="small"),
+                        }
+                    )
                 else:
-                    st.info("No database movements logged yet.")
-            except Exception:
-                st.caption("Unable to stream live adjustment logs.")
+                    st.info("No products match your current filter.")
+
+                st.caption(f"Showing {len(table_rows)} of {total_skus} active products · Sorted by lowest stock first")
+
+        # RIGHT CARD: Quick Stock Adjustment
+        with inv_right:
+            with st.container(key='bento_inv_adjust', border=True):
+                st.markdown("**Quick Stock Adjustment**")
+
+                prod_map = {
+                    f"{p['code']} — {p['name']} ({int(p.get('stock', 0))} in stock)": p
+                    for p in sorted(all_products, key=lambda x: x['code'])
+                }
+                chosen_lbl = st.selectbox(
+                    "Select Product",
+                    list(prod_map.keys()),
+                    key="inv_adjust_product_select"
+                )
+                target_p = prod_map[chosen_lbl]
+                current_stk = int(target_p.get('stock', 0))
+
+                adj_mode = st.segmented_control(
+                    "Adjustment Action",
+                    options=("+ Restock", "- Deduct", "Set Exact"),
+                    default="+ Restock",
+                    selection_mode="single",
+                    width="stretch",
+                    key="inv_adj_mode_pills"
+                )
+                if not adj_mode:
+                    adj_mode = "+ Restock"
+
+                q_col, prev_col = st.columns((1.2, 1), vertical_alignment='bottom', gap='small')
+                with q_col:
+                    min_val = 0 if adj_mode == "Set Exact" else 1
+                    default_val = current_stk if adj_mode == "Set Exact" else 10
+                    qty_input = st.number_input(
+                        "Quantity",
+                        min_value=min_val,
+                        max_value=100000,
+                        value=default_val,
+                        step=1,
+                        key=f"inv_qty_val_{target_p['id']}_{adj_mode}"
+                    )
+
+                if adj_mode == "+ Restock":
+                    projected_stk = current_stk + int(qty_input)
+                    delta_units = int(qty_input)
+                    action_title = "Stock Added"
+                    detail_note = f"{target_p['code']} · +{delta_units} units"
+                elif adj_mode == "- Deduct":
+                    projected_stk = max(0, current_stk - int(qty_input))
+                    delta_units = projected_stk - current_stk
+                    action_title = "Stock Deducted"
+                    detail_note = f"{target_p['code']} · {delta_units} units"
+                else:
+                    projected_stk = int(qty_input)
+                    delta_units = projected_stk - current_stk
+                    action_title = "Stock Set"
+                    detail_note = f"{target_p['code']} · Set to {projected_stk} units"
+
+                with prev_col:
+                    st.markdown(
+                        f"""
+                        <div style="background:#f8f3eb; border:1px solid #e2d4c3; border-radius:10px; padding:7px 10px; text-align:center;">
+                            <div style="font-size:0.72rem; color:#6b5255; font-weight:600;">New Stock</div>
+                            <div style="font-size:1.1rem; font-weight:800; color:#4b1117;">{projected_stk} units</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
+                adj_reason = st.text_input(
+                    "Reason / Note (Optional)",
+                    placeholder="e.g., Morning delivery, spoilage, count correction...",
+                    key=f"inv_reason_{target_p['id']}"
+                ).strip()
+
+                update_stk_btn = st.button(
+                    "Update Stock",
+                    type="primary",
+                    use_container_width=True,
+                    key=f"inv_submit_btn_{target_p['id']}"
+                )
+
+                if update_stk_btn:
+                    if adj_mode == "- Deduct" and int(qty_input) > current_stk:
+                        st.error(f"Cannot deduct {int(qty_input)} units — only {current_stk} currently in stock.")
+                    elif projected_stk == current_stk:
+                        st.warning("Stock level is unchanged.")
+                    else:
+                        try:
+                            with db.connection() as conn:
+                                conn.execute(
+                                    "UPDATE products SET stock = ?, updated_at = ? WHERE id = ?",
+                                    (int(projected_stk), datetime.now().isoformat(), target_p['id'])
+                                )
+                            full_detail = f"{detail_note} ({adj_reason})" if adj_reason else detail_note
+                            db.log_activity('Inventory Manager', action_title, full_detail)
+                            st.session_state.global_toast = {
+                                "msg": f"STOCK UPDATED: {target_p['name']} ({target_p['code']}) is now at {projected_stk} units.",
+                                "bg": "#2e7d32",
+                                "icon": "[OK]"
+                            }
+                            st.rerun()
+                        except Exception as e:
+                            safe_error(e)
+
 
