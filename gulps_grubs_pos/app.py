@@ -688,96 +688,106 @@ elif mode == 'Admin' and page == 'Product Management':
 
     # VIEW CATALOG TAB
     with tab3:
-        st.markdown("---")
-        st.markdown("####  Filter & Sort Product Catalog")
-        search_col, category_col, sort_col = st.columns([2, 1.2, 1.2])
-        
-        with search_col:
-            search = st.text_input('Search by code or product name', key='product_search_input')
-        with category_col:
-            raw_categories = {prod['category'].split(" | Custom:", 1)[0].strip() for prod in all_products}
-            category_options = (["All Categories"] + sorted(list(raw_categories)))
-            selected_search_category = st.selectbox("Filter by Category", category_options, key='product_category_filter')
-        with sort_col:
-            sort_option = st.selectbox("Arrange Products By", [
-                    "Product Name (A-Z)",
-                    "Product Name (Z-A)",
-                    "Product Code (Ascending)",
-                    "Highest Price First",
-                    "Lowest Price First",
-                    "Lowest Stock Level First",
-                    "Highest Stock Level First"
-                ], key='catalog_sort_selector')
-                
-        filtered_items = []
-        for prod in all_products:
-            matches_keyword = search.casefold() in (prod['code'] + ' ' + prod['name']).casefold()
-            clean_item_category = prod['category'].split(" | Custom:", 1)[0].strip()
-            matches_category = (selected_search_category == "All Categories" or clean_item_category == selected_search_category)
-            if matches_keyword and matches_category:
-                filtered_items.append(prod)
-                
-        if sort_option == "Product Name (A-Z)":
-            filtered_items.sort(key=lambda x: x['name'].lower())
-        elif sort_option == "Product Name (Z-A)":
-            filtered_items.sort(key=lambda x: x['name'].lower(), reverse=True)
-        elif sort_option == "Product Code (Ascending)":
-            filtered_items.sort(key=lambda x: x['code'].lower())
-        elif sort_option == "Highest Price First":
-            filtered_items.sort(key=lambda x: x['price_cents'], reverse=True)
-        elif sort_option == "Lowest Price First":
-            filtered_items.sort(key=lambda x: x['price_cents'])
-        elif sort_option == "Lowest Stock Level First":
-            filtered_items.sort(key=lambda x: x['stock'])
-        elif sort_option == "Highest Stock Level First":
-            filtered_items.sort(key=lambda x: x['stock'], reverse=True)
-            
-        if filtered_items:
-            formatted_table_rows = []
-            for prod in filtered_items:
-                prod_sizes_dict = db.get_product_sizes(prod['id'])
-                
-                if prod_sizes_dict:
-                    price_strings_list = []
-                    
-                    # Unpack standard sizes safely if they exist
-                    if 8 in prod_sizes_dict: price_strings_list.append(f"8oz: {money(prod_sizes_dict[8])}")
-                    if 12 in prod_sizes_dict: price_strings_list.append(f"12oz: {money(prod_sizes_dict[12])}")
-                    if 16 in prod_sizes_dict: price_strings_list.append(f"16oz: {money(prod_sizes_dict[16])}")
-                    
-                    # Unpack comma-separated string descriptions array cleanly
-                    custom_labels_array = []
-                    if " | Custom:" in str(prod['category']):
-                        custom_labels_array = [lbl.strip() for lbl in str(prod['category']).split(" | Custom:", 1)[1].split(",")]
-                    
-                    # Map database indices sequentially starting from 99 onwards
-                    custom_sizes_in_db = {sz: cents for sz, cents in prod_sizes_dict.items() if int(sz) >= 99}
-                    for sz_key in sorted(custom_sizes_in_db.keys()):
-                        label_pos = int(sz_key) - 99
-                        if label_pos < len(custom_labels_array):
-                            size_name_header = custom_labels_array[label_pos]
-                        else:
-                            size_name_header = "Custom Size"
-                        price_strings_list.append(f"{size_name_header}: {money(custom_sizes_in_db[sz_key])}")
-                        
-                    compiled_price_display = " · ".join(price_strings_list)
+        with st.container(key='bento_catalog_card'):
+            all_products = db.list_products(active_only=False)
+            if not all_products:
+                st.info("No products found in the catalog.")
+            else:
+                # Single clean filter toolbar row (no extra subheader or divider)
+                f_search, f_cat, f_sort = st.columns([2, 1.2, 1.2], gap="small")
+                with f_search:
+                    search_q = st.text_input(
+                        'Search',
+                        placeholder='Search by code or product name...',
+                        key='cat_search_input',
+                        label_visibility='collapsed'
+                    ).strip().lower()
+
+                categories = sorted(list({
+                    p['category'].partition(" | Custom:")[0].strip()
+                    for p in all_products if p.get('category')
+                }))
+                with f_cat:
+                    selected_cat = st.selectbox(
+                        'Category',
+                        ['All Categories'] + categories,
+                        key='cat_filter_select',
+                        label_visibility='collapsed'
+                    )
+
+                with f_sort:
+                    sort_option = st.selectbox(
+                        'Sort By',
+                        ['Product Name (A-Z)', 'Product Name (Z-A)', 'Stock (Low to High)', 'Stock (High to Low)', 'Code'],
+                        key='cat_sort_select',
+                        label_visibility='collapsed'
+                    )
+
+                # Filter & Sort Logic
+                filtered = []
+                for p in all_products:
+                    clean_cat = p['category'].partition(" | Custom:")[0].strip() if p.get('category') else ""
+                    if selected_cat != 'All Categories' and clean_cat != selected_cat:
+                        continue
+                    if search_q and (search_q not in p['name'].lower() and search_q not in p['code'].lower()):
+                        continue
+
+                    # Format multi-size prices cleanly without truncation
+                    sizes = db.get_product_sizes(p['id'])
+                    if sizes:
+                        custom_lbls = [lbl.strip() for lbl in p['category'].partition(" | Custom:")[2].split(",")] if " | Custom:" in p['category'] else []
+                        price_parts = []
+                        for sz_key in sorted(sizes.keys()):
+                            if int(sz_key) < 99:
+                                price_parts.append(f"{sz_key}oz: {money(sizes[sz_key])}")
+                            else:
+                                idx = int(sz_key) - 99
+                                lbl = custom_lbls[idx] if idx < len(custom_lbls) and custom_lbls[idx] else "Custom"
+                                price_parts.append(f"{lbl}: {money(sizes[sz_key])}")
+                        price_display = "  |  ".join(price_parts)
+                    else:
+                        price_display = money(p['price_cents'])
+
+                    filtered.append({
+                        'Code': p['code'],
+                        'Product': p['name'],
+                        'Category': clean_cat,
+                        'Price': price_display,
+                        'Stock': int(p['stock']),
+                        'Min Alert': int(p.get('low_stock_threshold', 5)),
+                        'Status': 'Active' if p['active'] else 'Inactive'
+                    })
+
+                if sort_option == 'Product Name (A-Z)':
+                    filtered.sort(key=lambda x: x['Product'].lower())
+                elif sort_option == 'Product Name (Z-A)':
+                    filtered.sort(key=lambda x: x['Product'].lower(), reverse=True)
+                elif sort_option == 'Stock (Low to High)':
+                    filtered.sort(key=lambda x: x['Stock'])
+                elif sort_option == 'Stock (High to Low)':
+                    filtered.sort(key=lambda x: x['Stock'], reverse=True)
+                elif sort_option == 'Code':
+                    filtered.sort(key=lambda x: x['Code'])
+
+                if filtered:
+                    st.dataframe(
+                        pd.DataFrame(filtered),
+                        use_container_width=True,
+                        hide_index=True,
+                        height=340,
+                        column_config={
+                            "Code": st.column_config.TextColumn("Code", width="small"),
+                            "Product": st.column_config.TextColumn("Product", width="medium"),
+                            "Category": st.column_config.TextColumn("Category", width="small"),
+                            "Price": st.column_config.TextColumn("Price", width="large"),
+                            "Stock": st.column_config.NumberColumn("Stock", width="small", format="%d"),
+                            "Min Alert": st.column_config.NumberColumn("Min Alert", width="small", format="%d"),
+                            "Status": st.column_config.TextColumn("Status", width="small"),
+                        }
+                    )
                 else:
-                    # Fallback single flat price for grubs/food items
-                    compiled_price_display = money(prod['price_cents'])
-                    
-                formatted_table_rows.append({
-                    'Code': prod['code'],
-                    'Product': prod['name'],
-                    'Category': prod['category'].split(" | Custom:", 1)[0].strip(),
-                    'Price': compiled_price_display,
-                    'Stock': prod['stock'],
-                    'Low-stock threshold': prod['low_stock_threshold'],
-                    'Status': 'Active' if prod['active'] else 'Inactive'
-                })
-                
-            st.dataframe(pd.DataFrame(formatted_table_rows), use_container_width=True, hide_index=True)
-        else:
-            st.info('No catalog products match your search keyword or selected category filter.')
+                    st.info("No products match your current filter.")
+
 
 elif mode == 'Admin' and page == 'Sales History':
     st.subheader(' Sales Transaction History')
