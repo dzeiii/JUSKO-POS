@@ -121,7 +121,7 @@ with st.container(key='site_header'):
         if mode == 'Admin':
             page = st.radio('Admin navigation', ['Dashboard', 'Product Management', 'Sales History', 'Activity History'], horizontal=True, key='admin_page', label_visibility='collapsed')
         elif mode == 'Cashier':
-            cashier_options = ['Dashboard', 'New Sale', 'Pickup Queue Priority', 'Sales History']
+            cashier_options = ['Dashboard', 'New Sale', 'Pickup Queue Priority', 'Recent Receipts']
             current_selection = st.session_state.get('cashier_page', 'Dashboard')
             if current_selection not in cashier_options:
                 current_selection = 'Dashboard'
@@ -1509,7 +1509,7 @@ elif mode == 'Cashier' and page == 'Pickup Queue Priority':
             else:
                 st.info("No pending pickup orders right now.")
 
-elif mode == 'Cashier' and page == 'Sales History':
+elif mode == 'Cashier' and page == 'Recent Receipts':
     # Single compact top toolbar: Heading | Search Receipts
     hdr_c, search_c = st.columns((1.2, 2.2), vertical_alignment='center', gap='small')
     with hdr_c:
