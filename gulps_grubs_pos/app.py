@@ -443,56 +443,56 @@ elif mode == 'Admin' and page == 'Product Management':
                     st.error(f"Validation Error: {drink_config_error}")
                 elif classification == 'Drinks (Gulps)' and not size_prices:
                     st.error("Validation Error: Enable and configure at least one drink size.")
-            else:
-                try:
-                    price_cents = cents_from_peso(price) if classification != 'Drinks (Gulps)' else 0
-                    starting_stock = 0
-
-                    all_existing_products = db.list_products(active_only=False)
-                    prefix = "GLP" if classification == 'Drinks (Gulps)' else "GRB"
-                    existing_numbers = []
-
-                    for prod in all_existing_products:
-                        code_str = str(prod.get('code', ''))
-                        if code_str.startswith(f"{prefix}-"):
-                            try:
-                                num_part = int(code_str.split("-"))
-                                existing_numbers.append(num_part)
-                            except (IndexError, ValueError):
-                                continue
-
-                    next_code_number = max(existing_numbers) + 1 if existing_numbers else 1001
-                    while True:
-                        generated_code = f"{prefix}-{next_code_number}"
-                        with db.connection() as conn:
-                            conn.row_factory = sqlite3.Row
-                            collision_check = conn.execute("SELECT 1 FROM products WHERE UPPER(code) = UPPER(?)", (generated_code,)).fetchone()
-                        if not collision_check:
-                            break
-                        next_code_number += 1
-
-                    db.add_product(
-                        code=generated_code,
-                        name=clean_name,
-                        category=final_save_category,
-                        price_cents=price_cents,
-                        stock=starting_stock,
-                        threshold=low_stock_threshold,
-                        size_prices=size_prices if classification == 'Drinks (Gulps)' else None
-                    )
-                    audit_msg = f"Menu product item '{clean_name}' successfully added to store catalog database! Assigned code: '{generated_code}' under active category grouping: '{final_save_category}'."
-                    st.session_state.global_toast = {
-                        "msg": f"SUCCESS: Product '{clean_name}' added to catalog as code '{generated_code}'.",
-                        "bg": "#2e7d32",
-                        "icon": "[OK]"
-                    }
-                    db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
-                    logging.info(f"TRANSACTION SUCCESS [ADMIN]: {audit_msg}")
-                    st.session_state.clear_product_form = True
-                    st.session_state.custom_sizes_count = 1
-                    st.rerun()
-                except Exception as e:
-                    safe_error(e)
+                else:
+                    try:
+                        price_cents = cents_from_peso(price) if classification != 'Drinks (Gulps)' else 0
+                        starting_stock = 0
+    
+                        all_existing_products = db.list_products(active_only=False)
+                        prefix = "GLP" if classification == 'Drinks (Gulps)' else "GRB"
+                        existing_numbers = []
+    
+                        for prod in all_existing_products:
+                            code_str = str(prod.get('code', ''))
+                            if code_str.startswith(f"{prefix}-"):
+                                try:
+                                    num_part = int(code_str.split("-"))
+                                    existing_numbers.append(num_part)
+                                except (IndexError, ValueError):
+                                    continue
+    
+                        next_code_number = max(existing_numbers) + 1 if existing_numbers else 1001
+                        while True:
+                            generated_code = f"{prefix}-{next_code_number}"
+                            with db.connection() as conn:
+                                conn.row_factory = sqlite3.Row
+                                collision_check = conn.execute("SELECT 1 FROM products WHERE UPPER(code) = UPPER(?)", (generated_code,)).fetchone()
+                            if not collision_check:
+                                break
+                            next_code_number += 1
+    
+                        db.add_product(
+                            code=generated_code,
+                            name=clean_name,
+                            category=final_save_category,
+                            price_cents=price_cents,
+                            stock=starting_stock,
+                            threshold=low_stock_threshold,
+                            size_prices=size_prices if classification == 'Drinks (Gulps)' else None
+                        )
+                        audit_msg = f"Menu product item '{clean_name}' successfully added to store catalog database! Assigned code: '{generated_code}' under active category grouping: '{final_save_category}'."
+                        st.session_state.global_toast = {
+                            "msg": f"SUCCESS: Product '{clean_name}' added to catalog as code '{generated_code}'.",
+                            "bg": "#2e7d32",
+                            "icon": "[OK]"
+                        }
+                        db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
+                        logging.info(f"TRANSACTION SUCCESS [ADMIN]: {audit_msg}")
+                        st.session_state.clear_product_form = True
+                        st.session_state.custom_sizes_count = 1
+                        st.rerun()
+                    except Exception as e:
+                        safe_error(e)
 
 
                 # EDIT / DELETE TAB (2-Column Bento Layout + Collapsible Danger Zone)
