@@ -1364,6 +1364,8 @@ elif mode == 'Cashier' and page == 'New Sale':
 
         st.markdown(f"#### Total: {money(cart.total_cents())}")
         with st.form('checkout_form'):
+            if st.session_state.pop("clear_customer_name", False):
+                st.session_state["pos_customer_name"] = ""
             customer_name = st.text_input('Customer name *',placeholder='e.g. John Doe')
             priority_level = st.select_slider('Priority level',
                 options=[1, 2, 3],
@@ -1445,6 +1447,9 @@ elif mode == 'Cashier' and page == 'New Sale':
 
                     # Clear shopping cart basket cleanly
                     st.session_state.cart.clear()
+                    st.session_state["clear_customer_name"] = True
+                    st.rerun()
+
                     st.session_state.global_toast = {
                         "msg": f"TRANSACTION SUCCESSFUL: Sale checkout processed for '{customer_name.strip()}'! Total Paid: {money(sale['total_cents'])}.",
                         "bg": "#2e7d32",  
