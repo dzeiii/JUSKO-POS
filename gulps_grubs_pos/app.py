@@ -1360,32 +1360,40 @@ elif mode == 'Cashier' and page == 'New Sale':
                             p_row = dict(prod_lookup.get(item['product_id'], {}))
                             p_row['price_cents'] = int(item['unit_price_cents'])
 
-                            if add_params and add_params[0] in ('product', 'item', 'prod'):
-                                # Signature like add(product, quantity=1, size_oz=None, customizations='')
-                                kwargs = {}
-                                if 'quantity' in add_params:
-                                    kwargs['quantity'] = int(item['quantity'])
-                                elif 'qty' in add_params:
-                                    kwargs['qty'] = int(item['quantity'])
-                                if 'size_oz' in add_params:
-                                    kwargs['size_oz'] = item.get('size_oz')
-                                if 'customizations' in add_params:
-                                    kwargs['customizations'] = item.get('customizations', '')
-                                if 'unit_price_cents' in add_params:
-                                    kwargs['unit_price_cents'] = int(item['unit_price_cents'])
-                                ll_cart.add(p_row, **kwargs)
-                            else:
-                                # Positional signature like add(product_id, code, name, unit_price_cents, quantity, size_oz, customizations)
-                                args = [
-                                    item['product_id'],
-                                    item['code'],
-                                    item['name'],
-                                    int(item['unit_price_cents']),
-                                    int(item['quantity']),
-                                    item.get('size_oz'),
-                                    item.get('customizations', '')
-                                ]
-                                ll_cart.add(*args[:len(add_params)])
+                            field_values = {
+                                'product': p_row,
+                                'item': p_row,
+                                'prod': p_row,
+                                'product_id': int(item['product_id']),
+                                'pid': int(item['product_id']),
+                                'code': item['code'],
+                                'product_code': item['code'],
+                                'name': item['name'],
+                                'product_name': item['name'],
+                                'quantity': int(item['quantity']),
+                                'qty': int(item['quantity']),
+                                'unit_price_cents': int(item['unit_price_cents']),
+                                'price_cents': int(item['unit_price_cents']),
+                                'size_oz': item.get('size_oz'),
+                                'customizations': item.get('customizations', ''),
+                                'options': item.get('customizations', ''),
+                            }
+
+                            call_args = [field_values[param] for param in add_params if param in field_values]
+                            ll_cart.add(*call_args)
+
+                        # Match db.record_sale's exact parameter names automatically
+                        sig = inspect.signature(db.record_sale)
+                        params = list(sig.parameters.keys())
+                        c_label = cashier_name.strip() or "Cashier"
+
+                        if 'cart' in params:
+                            sale = db.record_sale(ll_cart, c_label) if len(params) >= 2 else db.record_sale(cart=ll_cart)
+                        elif 'items' in params:
+                            sale = db.record_sale(items=st.session_state.cart, cashier_label=c_label) if 'cashier_label' in params else db.record_sale(st.session_state.cart, c_label)
+                        else:
+                            sale = db.record_sale(ll_cart, c_label)
+
                         st.session_state.last_sale = sale
 
                         order_details_list = []
@@ -1413,6 +1421,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                         st.rerun()
                     except Exception as e:
                         st.error(f"Checkout error: {type(e).__name__}: {e}")
+
 
 
 
