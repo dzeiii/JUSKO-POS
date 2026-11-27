@@ -794,12 +794,16 @@ elif mode == 'Admin' and page == 'Product Management':
 elif mode == 'Admin' and page == 'Sales History':
     today = ph_today()
 
-    # ROW 1: Compact Top Toolbar (From Date | To Date | Period Revenue | Export CSV)
-    t_from, t_to, t_kpi, t_export = st.columns([1.05, 1.05, 1.25, 1.15], vertical_alignment='bottom', gap='small')
-    with t_from:
-        start_d = st.date_input('From date', value=today - timedelta(days=30), key='admin_sales_from')
-    with t_to:
-        end_d = st.date_input('To date', value=today, key='admin_sales_to')
+    # ROW 1: Date Card | Period Revenue Card | Icon-Only Download Button
+    t_dates, t_kpi, t_export = st.columns([2.2, 1.3, 0.35], vertical_alignment='center', gap='small')
+    
+    with t_dates:
+        with st.container(key='bento_sales_dates'):
+            d1, d2 = st.columns(2, gap='small')
+            with d1:
+                start_d = st.date_input('From date', value=today - timedelta(days=30), key='admin_sales_from')
+            with d2:
+                end_d = st.date_input('To date', value=today, key='admin_sales_to')
 
     start_iso = datetime.combine(start_d, time.min).isoformat()
     end_iso = datetime.combine(end_d + timedelta(days=1), time.min).isoformat()
@@ -823,7 +827,9 @@ elif mode == 'Admin' and page == 'Sales History':
                 for r in filtered_tx
             ])
             st.download_button(
-                'Download CSV',
+                "",
+                icon=":material/download:",
+                help="Download filtered sales CSV",
                 data=csv_df.to_csv(index=False).encode('utf-8'),
                 file_name=f"gulps_grubs_sales_{start_d}_to_{end_d}.csv",
                 mime='text/csv',
@@ -831,7 +837,7 @@ elif mode == 'Admin' and page == 'Sales History':
                 use_container_width=True
             )
         else:
-            st.button('Download CSV', disabled=True, use_container_width=True)
+            st.button("", icon=":material/download:", help="No sales to export", disabled=True, use_container_width=True)
 
     if not filtered_tx:
         st.info('No sales recorded in this date range.')
@@ -844,7 +850,7 @@ elif mode == 'Admin' and page == 'Sales History':
                 st.markdown('**Sales Transactions**')
                 tx_rows = [
                     {
-                        'Sale #': r['id'],
+                        'Sale #': f"Sale #{r['id']}",
                         'Date/time': r['created_at'].replace('T', ' ')[:16],
                         'Cashier': r.get('cashier', 'Cashier'),
                         'Total': money(r['total_cents'])
@@ -857,7 +863,7 @@ elif mode == 'Admin' and page == 'Sales History':
                     hide_index=True,
                     height=315,
                     column_config={
-                        "Sale #": st.column_config.NumberColumn("Sale #", width="small", format="%d"),
+                        "Sale #": st.column_config.TextColumn("Sale #", width="small"),
                         "Date/time": st.column_config.TextColumn("Date/time", width="medium"),
                         "Cashier": st.column_config.TextColumn("Cashier", width="small"),
                         "Total": st.column_config.TextColumn("Total", width="small"),
@@ -878,7 +884,6 @@ elif mode == 'Admin' and page == 'Sales History':
                 )
                 chosen_tx = sale_options[selected_sale_lbl]
 
-                # Auto-detect child items table in SQLite
                 with db.connection() as conn:
                     conn.row_factory = sqlite3.Row
                     tables = [r['name'] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
@@ -907,7 +912,6 @@ elif mode == 'Admin' and page == 'Sales History':
                     else:
                         size_display = "—"
 
-                    opts = item['options'] if 'options' in keys and item['options'] else ""
                     qty_val = item['qty'] if 'qty' in keys else item.get('quantity', 1)
                     unit_cents = item['unit_price_cents'] if 'unit_price_cents' in keys else item.get('price_cents', 0)
                     sub_cents = item['subtotal_cents'] if 'subtotal_cents' in keys else (int(qty_val) * int(unit_cents))
@@ -916,9 +920,7 @@ elif mode == 'Admin' and page == 'Sales History':
                         'Code': item['code'] or '—',
                         'Product': item['product_name'] or (item['name'] if 'name' in keys else 'Item'),
                         'Size': size_display,
-                        'Opts': opts,
                         'Qty': int(qty_val),
-                        'Unit price': money(unit_cents),
                         'Subtotal': money(sub_cents)
                     })
 
@@ -931,9 +933,7 @@ elif mode == 'Admin' and page == 'Sales History':
                         "Code": st.column_config.TextColumn("Code", width="small"),
                         "Product": st.column_config.TextColumn("Product", width="medium"),
                         "Size": st.column_config.TextColumn("Size", width="small"),
-                        "Opts": st.column_config.TextColumn("Opts", width="small"),
                         "Qty": st.column_config.NumberColumn("Qty", width="small", format="%d"),
-                        "Unit price": st.column_config.TextColumn("Unit price", width="small"),
                         "Subtotal": st.column_config.TextColumn("Subtotal", width="small"),
                     }
                 )
