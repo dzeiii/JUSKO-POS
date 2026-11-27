@@ -947,38 +947,85 @@ elif mode == 'Admin' and page == 'Sales History':
                 st.caption(f"Receipt Total: **{money(chosen_tx['total_cents'])}**  ·  Processed by **{chosen_tx.get('cashier', 'Cashier')}**")
 
 elif mode == 'Admin' and page == 'Activity History':
-    st.markdown('### Admin and Staff Activity History')
-    st.caption('Persistent audit trail for sales, queue actions, product changes, and inventory updates.')
-    f1, f2 = st.columns([1, 2])
-    role_filter = f1.selectbox('Mode',['All', 'Admin', 'Cashier', 'Inventory Manager', 'System'])
-    activity_search = f2.text_input('Search activity history',placeholder='Search product, order number, sale number, action...')
-    rows = db.activity_history(role_filter,activity_search,limit=1000)
-    
-    if rows:
-        from datetime import datetime, timedelta
-        formatted_rows = []
-        for r in rows:
-            raw_time = r['created_at'].replace('T', ' ')[:16]
-            
-            try:
-                dt_obj = datetime.strptime(raw_time, "%Y-%m-%d %H:%M")
-                if "15:" in raw_time:
-                    dt_obj += timedelta(hours=8)
-                display_time = dt_obj.strftime("%Y-%m-%d %H:%M")
-            except Exception:
-                display_time = raw_time
+    with st.container(key='bento_activity_card'):
+        # Single clean top row: Title | Mode Filter | Search | Circular Download Icon
+        hdr_c, mode_c, search_c, dl_c = st.columns((1.1, 0.9, 1.8, 0.3), vertical_alignment='center', gap='small')
+        with hdr_c:
+            st.markdown('##### Activity History')
+        with mode_c:
+            mode_filter = st.selectbox(
+                'Mode',
+                ('All', 'Admin', 'Cashier', 'Inventory Manager'),
+                key='act_mode_filter',
+                label_visibility='collapsed'
+            )
+        with search_c:
+            act_search = st.text_input(
+                'Search',
+                placeholder='Search product, order #, sale #, action...',
+                key='act_search_input',
+                label_visibility='collapsed'
+            ).strip().lower()
 
-            formatted_rows.append({
-                'Date/time': display_time,
-                'Mode': r['actor_mode'],
-                'Action': r['action'],
-                'Details': r['details']
+        logs = db.activity_history() if hasattr(db, 'activity_history') else []
+        filtered_logs = []
+                for row in logs:
+            r = dict(row)
+            r_mode = (
+                r.get('actor')
+                or r.get('mode')
+                or r.get('role')
+                or r.get('workspace')
+                or r.get('user')
+                or ''
+            )
+            r_action = r.get('action') or r.get('event') or ''
+            r_details = r.get('details') or r.get('description') or ''
+            r_time = str(r.get('created_at') or r.get('timestamp') or '').replace('T', ' ')[:16]
+
+            if mode_filter != 'All' and r_mode != mode_filter:
+                continue
+            if act_search and act_search not in f"{r_mode} {r_action} {r_details}".lower():
+                continue
+
+            filtered_logs.append({
+                'Date/time': r_time,
+                'Mode': r_mode,
+                'Action': r_action,
+                'Details': r_details
             })
 
-        st.dataframe(pd.DataFrame(formatted_rows), use_container_width=True, hide_index=True)
-        st.download_button('Download activity history CSV', pd.DataFrame(rows).to_csv(index=False).encode('utf-8'), 'activity_history.csv', 'text/csv')
-    else:
-        st.info('No activity matches this search yet.')
+        with dl_c:
+            with st.container(key='bento_sales_dl'):
+                if filtered_logs:
+                    csv_data = pd.DataFrame(filtered_logs).to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        "",
+                        icon=":material/download:",
+                        help="Download activity history CSV",
+                        data=csv_data,
+                        file_name="gulps_grubs_activity_history.csv",
+                        mime="text/csv",
+                        type="primary"
+                    )
+                else:
+                    st.button("", icon=":material/download:", help="No logs to export", disabled=True)
+
+        if filtered_logs:
+            st.dataframe(
+                pd.DataFrame(filtered_logs),
+                use_container_width=True,
+                hide_index=True,
+                height=365,
+                column_config={
+                    "Date/time": st.column_config.TextColumn("Date/time", width="small"),
+                    "Mode": st.column_config.TextColumn("Mode", width="small"),
+                    "Action": st.column_config.TextColumn("Action", width="small"),
+                    "Details": st.column_config.TextColumn("Details", width="large"),
+                }
+            )
+        else:
+            st.info("No activity logs match your filter.")
 
 # =========================================================================
 # CASHIER WORKSPACE MODULES
