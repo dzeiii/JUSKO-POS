@@ -1311,7 +1311,10 @@ elif mode == 'Cashier' and page == 'New Sale':
             # Compact 3-Column Customer, Priority & Cashier Strip
             in1, in2, in3 = st.columns((1.3, 1.0, 1.0), gap='small')
             with in1:
+                if st.session_state.pop("clear_pos_cust_name", False):
+                    st.session_state["pos_cust_name"] = ""
                 customer_name = st.text_input("Customer name *", placeholder="e.g. Juan", key="pos_cust_name")
+
             with in2:
                 priority_level = st.selectbox(
                     "Priority",
@@ -1346,61 +1349,30 @@ elif mode == 'Cashier' and page == 'New Sale':
                     key="pos_confirm_sale_btn"
                 )
 
-            if confirm_btn:
+                        if confirm_btn:
                 if not customer_name or not customer_name.strip():
                     st.warning("Customer name is required before confirming sale.")
                 else:
                     try:
-                        import inspect
-                        ll_cart = LinkedListCart()
-                        add_params = set(inspect.signature(ll_cart.add).parameters.keys())
-                        prod_lookup = {p['id']: p for p in all_products}
-
-                        for item in st.session_state.cart:
-                            p_row = dict(prod_lookup.get(item['product_id'], {}))
-                            p_row['price_cents'] = int(item['unit_price_cents'])
-
-                            kwargs = {}
-                            if 'quantity' in add_params:
-                                kwargs['quantity'] = int(item['quantity'])
-                            elif 'qty' in add_params:
-                                kwargs['qty'] = int(item['quantity'])
-
-                            if 'size_oz' in add_params and item.get('size_oz') is not None:
-                                kwargs['size_oz'] = int(item['size_oz'])
-
-                            if 'customizations' in add_params and item.get('customizations'):
-                                kwargs['customizations'] = str(item['customizations'])
-
-                            ll_cart.add(p_row, **kwargs)
-
-                        # Match db.record_sale's exact parameter names automatically
-                        sig = inspect.signature(db.record_sale)
-                        params = list(sig.parameters.keys())
                         c_label = cashier_name.strip() or "Cashier"
 
-                        if 'cart' in params:
-                            sale = db.record_sale(ll_cart, c_label) if len(params) >= 2 else db.record_sale(cart=ll_cart)
-                        elif 'items' in params:
-                            sale = db.record_sale(items=st.session_state.cart, cashier_label=c_label) if 'cashier_label' in params else db.record_sale(st.session_state.cart, c_label)
-                        else:
-                            sale = db.record_sale(ll_cart, c_label)
+                        # Build exact item payload expected by db.checkout()
+                        checkout_payload = []
+                        for item in st.session_state.cart:
+                            qty = int(item['quantity'])
+                            u_cents = int(item['unit_price_cents'])
+                            checkout_payload.append({
+                                'product_id': int(item['product_id']),
+                                'name': item['name'],
+                                'unit_price_cents': u_cents,
+                                'quantity': qty,
+                                'subtotal_cents': u_cents * qty,
+                                'size_oz': int(item['size_oz']) if item.get('size_oz') is not None else None,
+                                'customizations': item.get('customizations', '')
+                            })
 
-                        if isinstance(sale, int):
-                            sale_ref = sale
-                            st.session_state.last_sale = {
-                                'transaction_id': sale,
-                                'id': sale,
-                                'created_at': ph_datetime_string(),
-                                'total_cents': total_cents,
-                                'cashier_label': c_label
-                            }
-                        elif isinstance(sale, dict):
-                            sale_ref = sale.get('id') or sale.get('sale_id') or sale.get('transaction_id') or ''
-                            st.session_state.last_sale = sale
-                        else:
-                            sale_ref = ''
-                            st.session_state.last_sale = None
+                        sale = db.checkout(items=checkout_payload, cashier_label=c_label)
+                        st.session_state.last_sale = sale
 
                         order_details_list = []
                         for item in st.session_state.cart:
@@ -1414,6 +1386,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                             priority=int(priority_level)
                         )
 
+                        sale_ref = sale.get('transaction_id', '')
                         sale_label = f"Sale #{sale_ref} · " if sale_ref else ""
                         db.log_activity('Cashier', 'Sale Completed', f"{sale_label}{customer_name.strip()} · {money(total_cents)}")
 
