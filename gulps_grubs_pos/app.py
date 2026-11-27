@@ -223,9 +223,6 @@ elif mode == 'Admin' and page == 'Product Management':
             active_pm_view = 'Add product'
 
     if active_pm_view == 'Add product':
-
-        with tab1:
-            # Put Product Classification label & radio pills inline on a single compact row
             cls_lbl, cls_radio = st.columns([0.85, 3.5], vertical_alignment='center', gap='small')
             with cls_lbl:
                 st.markdown('#### Product Classification')
@@ -531,46 +528,43 @@ elif mode == 'Admin' and page == 'Product Management':
                     except Exception as e:
                         safe_error(e)
     elif active_pm_view == 'Edit / Delete':
-    # EDIT / DELETE TAB (2-Column Bento Layout + Collapsible Danger Zone)
-        with tab2:
-            all_products = db.list_products(active_only=False)
-            if not all_products:
-                st.info("No active products available to edit.")
-            else:
-                labels = {(f"{prod['code']} — {prod['name']} {'(Inactive)' if not prod['active'] else ''}"): prod for prod in all_products}
-                selected_label = st.selectbox('Select product to modify', list(labels.keys()), key='edit_select', label_visibility="collapsed")
-                p = labels[selected_label]
-                if p['active']:
-                    current_sizes = db.get_product_sizes(p['id'])
-                    orig_category = p['category']
-                    is_custom_drink = " | Custom:" in orig_category
-                    if is_custom_drink:
-                        base_cat_name, custom_sz_label = orig_category.split(" | Custom:", 1)
-                    else:
-                        base_cat_name = orig_category
-                        custom_sz_label = ""
-                    is_a_drink = is_custom_drink or any(
-                        d in base_cat_name.lower()
-                        for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage', 'tea', 'gulp', 'fruit tea']
-                    )
-                    edit_left, edit_right = st.columns([1, 1.15], gap="medium")
+        all_products = db.list_products(active_only=False)
+        if not all_products:
+            st.info("No active products available to edit.")
+        else:
+            labels = {(f"{prod['code']} — {prod['name']} {'(Inactive)' if not prod['active'] else ''}"): prod for prod in all_products}
+            selected_label = st.selectbox('Select product to modify', list(labels.keys()), key='edit_select', label_visibility="collapsed")
+            p = labels[selected_label]
+            if p['active']:
+                current_sizes = db.get_product_sizes(p['id'])
+                orig_category = p['category']
+                is_custom_drink = " | Custom:" in orig_category
+                if is_custom_drink:
+                    base_cat_name, custom_sz_label = orig_category.split(" | Custom:", 1)
+                else:
+                    base_cat_name = orig_category
+                    custom_sz_label = ""
+                is_a_drink = is_custom_drink or any(
+                    d in base_cat_name.lower()
+                    for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage', 'tea', 'gulp', 'fruit tea']
+                )
+                edit_left, edit_right = st.columns([1, 1.15], gap="medium")
                     # LEFT CARD: Product Details & Threshold
-                    with edit_left:
-                        with st.container(key='bento_edit_left'):
-                            st.markdown("**1. Product Details**")
-                            ec1, ec2 = st.columns([1, 1.6], gap="small")
-                            ec1.text_input('Code', value=p['code'], disabled=True)
-                            new_name = ec2.text_input('Product name', value=p['name'], key=f"edit_name_field_{p['id']}").strip()
-    
-                            cat_col, thresh_col = st.columns([1.6, 1], gap="small")
-                            with cat_col:
-                                if is_a_drink:
-                                    new_base_cat = st.text_input('Category Name *', value=base_cat_name, key=f"edit_base_cat_field_{p['id']}").strip()
-                                else:
-                                    new_base_cat = st.text_input('Category Name *', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
-                            with thresh_col:
-                                new_threshold = st.number_input('Low-stock alert', min_value=0, max_value=1000000, value=int(p.get('low_stock_threshold', 5)), step=1, key=f"edit_thresh_{p['id']}")
-    
+                with edit_left:
+                    with st.container(key='bento_edit_left'):
+                        st.markdown("**1. Product Details**")
+                        ec1, ec2 = st.columns([1, 1.6], gap="small")
+                        ec1.text_input('Code', value=p['code'], disabled=True)
+                        new_name = ec2.text_input('Product name', value=p['name'], key=f"edit_name_field_{p['id']}").strip()
+
+                        cat_col, thresh_col = st.columns([1.6, 1], gap="small")
+                        with cat_col:
+                            if is_a_drink:
+                                new_base_cat = st.text_input('Category Name *', value=base_cat_name, key=f"edit_base_cat_field_{p['id']}").strip()
+                            else:
+                                new_base_cat = st.text_input('Category Name *', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
+                        with thresh_col:
+                            new_threshold = st.number_input('Low-stock alert', min_value=0, max_value=1000000, value=int(p.get('low_stock_threshold', 5)), step=1, key=f"edit_thresh_{p['id']}")    
                             # Save Button & Danger Zone moved inside Left Card
                             save_changes = st.button('Save All Product Details', type='primary', use_container_width=True, key=f"unified_save_btn_{p['id']}")
                             
@@ -707,8 +701,6 @@ elif mode == 'Admin' and page == 'Product Management':
                             if success_trigger:
                                 st.rerun()
     elif active_pm_view == 'View Catalog':
-        # VIEW CATALOG TAB
-        with tab3:
             with st.container(key='bento_catalog_card'):
                 all_products = db.list_products(active_only=False)
                 if not all_products:
