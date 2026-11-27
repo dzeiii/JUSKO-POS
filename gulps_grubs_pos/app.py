@@ -870,8 +870,9 @@ elif mode == 'Admin' and page == 'Sales History':
                     }
                 )
 
-        with right_detail:
+                with right_detail:
             with st.container(key='bento_sales_detail'):
+                st.markdown('**Inspect receipt**')
                 sale_options = {
                     f"Sale #{r['id']}  —  {r['created_at'].replace('T', ' ')[:16]}  ({money(r['total_cents'])})": r
                     for r in filtered_tx
@@ -898,10 +899,10 @@ elif mode == 'Admin' and page == 'Sales History':
                     """, (chosen_tx['id'],)).fetchall()
 
                 detail_rows = []
-                for item in items:
-                    keys = item.keys()
-                    sz = item['size_oz'] if 'size_oz' in keys else None
-                    cat_str = item['category'] or ''
+                for raw_item in items:
+                    item = dict(raw_item)
+                    sz = item.get('size_oz')
+                    cat_str = item.get('category') or ''
                     if sz and int(sz) >= 99:
                         _, _, custom_part = cat_str.partition(" | Custom:")
                         custom_lbls = [l.strip() for l in custom_part.split(",")] if custom_part else []
@@ -912,13 +913,13 @@ elif mode == 'Admin' and page == 'Sales History':
                     else:
                         size_display = "—"
 
-                    qty_val = item['qty'] if 'qty' in keys else item.get('quantity', 1)
-                    unit_cents = item['unit_price_cents'] if 'unit_price_cents' in keys else item.get('price_cents', 0)
-                    sub_cents = item['subtotal_cents'] if 'subtotal_cents' in keys else (int(qty_val) * int(unit_cents))
+                    qty_val = item.get('qty') if item.get('qty') is not None else item.get('quantity', 1)
+                    unit_cents = item.get('unit_price_cents') if item.get('unit_price_cents') is not None else item.get('price_cents', 0)
+                    sub_cents = item.get('subtotal_cents') if item.get('subtotal_cents') is not None else (int(qty_val) * int(unit_cents))
 
                     detail_rows.append({
-                        'Code': item['code'] or '—',
-                        'Product': item['product_name'] or (item['name'] if 'name' in keys else 'Item'),
+                        'Code': item.get('code') or '—',
+                        'Product': item.get('product_name') or item.get('name') or 'Item',
                         'Size': size_display,
                         'Qty': int(qty_val),
                         'Subtotal': money(sub_cents)
@@ -928,7 +929,7 @@ elif mode == 'Admin' and page == 'Sales History':
                     pd.DataFrame(detail_rows),
                     use_container_width=True,
                     hide_index=True,
-                    height=260,
+                    height=225,
                     column_config={
                         "Code": st.column_config.TextColumn("Code", width="small"),
                         "Product": st.column_config.TextColumn("Product", width="medium"),
