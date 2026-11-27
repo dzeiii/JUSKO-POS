@@ -1429,7 +1429,10 @@ elif mode == 'Cashier' and page == 'New Sale':
                         }
                         st.rerun()
                     except Exception as e:
+                        import traceback
                         st.error(f"Checkout error: {type(e).__name__}: {e}")
+                        st.code(traceback.format_exc())
+                        
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     st.subheader('Cashier - Order Priority & Pickup Queue')
