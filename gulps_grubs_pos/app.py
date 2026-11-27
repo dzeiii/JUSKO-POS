@@ -209,8 +209,11 @@ elif mode == 'Admin' and page == 'Product Management':
     st.subheader('Product Catalog Management')
     tab1, tab2, tab3 = st.tabs(['Add product','Edit / Delete','View Catalog'])
     with tab1:
-        classification = st.radio('Product Classification *', ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], horizontal=True)
-        st.markdown("---")
+        classification = st.radio(
+            'Product Classification *', 
+            ['Foods (Grubs)', 'Drinks (Gulps)', 'Others (Combo/Meal Plan)'], 
+            horizontal=True
+        )
 
         # Dynamically pull pre-saved category lists
         try:
@@ -220,7 +223,7 @@ elif mode == 'Admin' and page == 'Product Management':
             food_cats, drink_cats, combo_cats = set(), set(), set()
             for p in db_products:
                 if not p['category']: continue
-                clean_cat = p['category'].split(" | Custom:", 1)[0].strip()
+                clean_cat = p['category'].split(" | Custom:", 1).strip()
                 clean_cat_lower = clean_cat.lower()
                 
                 is_drink_cat = any(dk in clean_cat_lower for dk in drink_keywords)
@@ -249,158 +252,122 @@ elif mode == 'Admin' and page == 'Product Management':
             st.session_state.clear_product_form = False
 
         if st.session_state.clear_product_form:
-
-            # Clear product information
             st.session_state[f'f_name_{classification}'] = ""
             st.session_state[f'f_cat_text_input_lane_{classification}'] = ""
-
-            # Clear food/combo pricing
             st.session_state[f'f_price_{classification}'] = ""
-
-            # Clear drink pricing
             st.session_state['drink_val_8_text_final'] = ""
             st.session_state['drink_val_12_text_final'] = ""
             st.session_state['drink_val_16_text_final'] = ""
             st.session_state['drink_lbl_custom_reactive_field'] = ""
             st.session_state['drink_val_custom_text_reactive'] = ""
-
-            # Reset drink checkboxes
             st.session_state['drink_use_8_final'] = False
             st.session_state['drink_use_12_final'] = True
             st.session_state['drink_use_16_final'] = True
             st.session_state['drink_use_custom_reactive_layer'] = False
-
-            # Reset initial stock
             st.session_state[f'starting_stock_{classification}'] = 0
-
             st.session_state.clear_product_form = False
-            left_col, right_col = st.columns([1, 1.15], gap="medium")
-    
-            # LEFT BENTO CARD: Product Information + Inventory Settings
-            with left_col:
-                with st.container(key="bento_card_left"):
-                    st.markdown("**1. Product Information**")
-                    name = st.text_input('Product name *', placeholder='Enter product name', key=f'f_name_{classification}').strip()
-                    category = st.text_input('Category *', placeholder="Type your category name here (e.g., Waffle, Streetfood)...", key=f'f_cat_text_input_lane_{classification}').strip()
 
-                    st.markdown("**2. Inventory Settings**")
-                    inv1, inv2 = st.columns(2, gap="small")
-                    with inv1:
-                        low_stock_threshold = st.number_input('Low-stock alert boundary count', min_value=0, value=5, step=1)
-                    with inv2:
-                        high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
-        # STEP 2: DRINK SIZE AND PRICING CONFIGURATION
-            with right_col:
-                with st.container(key="bento_card_right"):
-            if classification == 'Drinks (Gulps)':
-                st.markdown("##### Cup Size & Base Pricing Options")
-                st.caption('Ticking checkboxes will automatically expose size pricing input fields below:')
-    
-                price8 = 0.00
-                price12 = 0.00
-                price16 = 0.00
-                # Render options inside a clean horizontal 3-column sub-grid matrix
-                col8, col12, col16 = st.columns(3)    
-                with col8:
-                    use8 = st.checkbox('Offer 8 oz', value=False, key='drink_use_8_final')
-                    price8_input = ""
-                    if use8:
-                        price8_input = st.text_input('8 oz Price (₱) *', placeholder='0.00', key='drink_val_8_text_final', ).strip()
+        size_prices = {}
+        price = 0.0
+        drink_category_suffix = ""
+        drink_config_error = None
+
+        def read_drink_price(raw_value, size_label):
+            if not raw_value:
+                raise ValueError(f"Please enter the price for {size_label}.")
+            try:
+                parsed_value = float(raw_value.replace('₱', '').replace(',', '').strip())
+            except ValueError:
+                raise ValueError(f"Invalid price for {size_label}. Enter a valid numerical amount.")
+            if parsed_value <= 0:
+                raise ValueError(f"The price for {size_label} must be greater than ₱0.00.")
+            return parsed_value
+
+        # --- 2-COLUMN BENTO FORM LAYOUT ---
+        add_left, add_right = st.columns([1, 1.15], gap="medium")
+
+        with add_left:
+            with st.container(key='bento_form_left'):
+                st.markdown("**1. Product Information**")
+                name = st.text_input('Product name *', placeholder='Enter product name', key=f'f_name_{classification}').strip()
+                category = st.text_input('Category *', placeholder="e.g., Waffle, Streetfood, Milktea...", key=f'f_cat_text_input_lane_{classification}').strip()
+
+                st.markdown("**2. Inventory Settings**")
+                inv_c1, inv_c2 = st.columns(2, gap="small")
+                with inv_c1:
+                    low_stock_threshold = st.number_input('Low-stock alert at', min_value=0, value=5, step=1)
+                with inv_c2:
+                    high_stock_threshold = st.number_input('High-stock alert at', min_value=0, value=50, step=1)
+
+        with add_right:
+            with st.container(key='bento_form_right'):
+                if classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)']:
+                    st.markdown("**3. Product Pricing**")
+                    price_input = st.text_input('Product Price (₱) *', placeholder='0.00', key=f'f_price_{classification}').strip()
+                    price = parse_and_format_price(price_input)
+                    st.caption("Flat unit price for food items, snacks, or combo meals.")
+
+                elif classification == 'Drinks (Gulps)':
+                    st.markdown("**3. Cup Size & Base Pricing**")
+                    price8 = price12 = price16 = 0.00
+                    col8, col12, col16 = st.columns(3, gap="small")    
+                    with col8:
+                        use8 = st.checkbox('Offer 8 oz', value=False, key='drink_use_8_final')
+                        price8_input = st.text_input('8 oz (₱) *', placeholder='0.00', key='drink_val_8_text_final').strip() if use8 else ""
                         price8 = parse_and_format_price(price8_input) if use8 else 0.00
-                            
-                with col12:
-                    use12 = st.checkbox('Offer 12 oz', value=True, key='drink_use_12_final')
-                    price12_input = ""
-                    if use12:
-                        price12_input = st.text_input('12 oz Price (₱) *', placeholder='0.00', key='drink_val_12_text_final' ).strip()
+                    with col12:
+                        use12 = st.checkbox('Offer 12 oz', value=True, key='drink_use_12_final')
+                        price12_input = st.text_input('12 oz (₱) *', placeholder='0.00', key='drink_val_12_text_final').strip() if use12 else ""
                         price12 = parse_and_format_price(price12_input) if use12 else 0.00
-                            
-                with col16:
-                    use16 = st.checkbox('Offer 16 oz', value=True, key='drink_use_16_final')
-                    price16_input = ""
-                    if use16:
-                        price16_input = st.text_input('16 oz Price (₱) *', placeholder='0.00', key='drink_val_16_text_final').strip()
+                    with col16:
+                        use16 = st.checkbox('Offer 16 oz', value=True, key='drink_use_16_final')
+                        price16_input = st.text_input('16 oz (₱) *', placeholder='0.00', key='drink_val_16_text_final').strip() if use16 else ""
                         price16 = parse_and_format_price(price16_input) if use16 else 0.00
-    
-                st.divider()
-                st.markdown("##### Other / Custom Sizing Configuration")
-    
-                if "custom_sizes_count" not in st.session_state:
-                    st.session_state.custom_sizes_count = 1
-    
-                custom_size_inputs_list = []
+
+                    st.markdown("**Custom Sizing (Optional)**")
+                    if "custom_sizes_count" not in st.session_state:
+                        st.session_state.custom_sizes_count = 1
+
+                    custom_size_inputs_list = []
+                    for i in range(st.session_state.custom_sizes_count):
+                        c_size_col, c_price_col = st.columns([1.4, 1], gap="small")
+                        with c_size_col:
+                            lbl_val = st.text_input(f'Label #{i+1}', placeholder='e.g., 22oz, 1-Liter', key=f'drink_lbl_custom_reactive_field_{i}', label_visibility="collapsed").strip()
+                        with c_price_col:
+                            prc_val = st.text_input(f'Price #{i+1}', placeholder='Price (₱)', key=f'drink_val_custom_text_reactive_{i}', label_visibility="collapsed").strip()
+                        custom_size_inputs_list.append({"label": lbl_val, "price_raw": prc_val})
+
+                    if st.button("+ Add another custom size", key="add_another_custom_size_btn"):
+                        st.session_state.custom_sizes_count += 1
+                        st.rerun()
+
+                    try:    
+                        size_prices = {}
+                        if use8: size_prices = cents_from_peso(read_drink_price(price8_input, "8 oz"))
+                        if use12: size_prices = cents_from_peso(read_drink_price(price12_input, "12 oz"))
+                        if use16: size_prices = cents_from_peso(read_drink_price(price16_input, "16 oz"))
                 
-                for i in range(st.session_state.custom_sizes_count):
-                    if st.session_state.custom_sizes_count > 1:
-                        st.markdown(f"**Custom Size Option #{i + 1}**")
-                    
-                    c_size_col, c_price_col = st.columns(2)
-                    with c_size_col:
-                        lbl_val = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key=f'drink_lbl_custom_reactive_field_{i}').strip()
-                    with c_price_col:
-                        prc_val = st.text_input('Custom Size Price (₱) *', placeholder='0.00', key=f'drink_val_custom_text_reactive_{i}').strip()
-                    
-                    custom_size_inputs_list.append({"label": lbl_val, "price_raw": prc_val})
-    
-                if st.button(" Add another custom size", key="add_another_custom_size_btn"):
-                    st.session_state.custom_sizes_count += 1
-                    st.rerun()
+                        custom_labels_compiled = []
+                        custom_database_key_id = 99  
+                        for idx, entry in enumerate(custom_size_inputs_list):
+                            c_label, c_price_raw = entry["label"], entry["price_raw"]
+                            if c_label or c_price_raw:
+                                if not c_label:
+                                    raise ValueError(f"Please enter a description label for Custom Size #{idx + 1}.")
+                                parsed_c_price = read_drink_price(c_price_raw, f"custom size '{c_label}'")
+                                size_prices[custom_database_key_id] = cents_from_peso(parsed_c_price)
+                                custom_labels_compiled.append(c_label)
+                                custom_database_key_id += 1  
+                        if custom_labels_compiled:
+                            drink_category_suffix = f" | Custom:{', '.join(custom_labels_compiled)}"
+                    except ValueError as exc:
+                        drink_config_error = str(exc)
 
-                try:    
-                    size_prices = {} # 
-                    
-                    if use8:
-                        price8 = read_drink_price(price8_input, "8 oz")
-                        size_prices[8] = cents_from_peso(price8)
-            
-                    if use12:
-                        price12 = read_drink_price(price12_input, "12 oz")
-                        size_prices[12] = cents_from_peso(price12)
-            
-                    if use16:
-                        price16 = read_drink_price(price16_input, "16 oz")
-                        size_prices[16] = cents_from_peso(price16)
-            
-                    custom_labels_compiled = []
-                    custom_database_key_id = 99  
-                    
-                    for idx, entry in enumerate(custom_size_inputs_list):
-                        c_label = entry["label"]
-                        c_price_raw = entry["price_raw"]
-                        
-                        if c_label or c_price_raw:
-                            if not c_label:
-                                raise ValueError(f"Please enter a description label for Custom Size #{idx + 1}.")
-                            
-                            parsed_c_price = read_drink_price(c_price_raw, f"custom size '{c_label}'")
-                            
-                            size_prices[custom_database_key_id] = cents_from_peso(parsed_c_price)
-                            custom_labels_compiled.append(c_label)
-                            
-                            custom_database_key_id += 1  
-                    
-                    if custom_labels_compiled:
-                        drink_category_suffix = f" | Custom:{', '.join(custom_labels_compiled)}"
-                        
-                except ValueError as exc:
-                    drink_config_error = str(exc)
-    
-                st.divider()
-    
-            # STEP 3: FOOD AND COMBO PRICING
-            if classification in ['Foods (Grubs)','Others (Combo/Meal Plan)']:
-                st.markdown("####  Product Pricing")
-                price_input = st.text_input('Product Price (₱) *',placeholder='0.00',key=f'f_price_{classification}').strip()
-                price = parse_and_format_price(price_input)
-        
-           submit_form_btn = st.button('Add product to Catalog', type='primary', use_container_width=True, key=f'add_product_button_{classification}')
+        submit_form_btn = st.button('Add product to Catalog', type='primary', use_container_width=True, key=f'add_product_button_{classification}')
 
-        # --- OUTSIDE FORM CONTAINER: Form data routing checks execute safely downstream ---
         if submit_form_btn:
             def to_sentence_case(text):
-                """Automatically converts any text input into clean sentence case words."""
                 if not text: return ""
-                # Split text by spaces, capitalize each word cleanly, and join them back
                 words = [word.strip().capitalize() for word in text.split() if word.strip()]
                 return " ".join(words)
 
@@ -421,367 +388,275 @@ elif mode == 'Admin' and page == 'Product Management':
                 for word in words:
                     if len(word) >= 5 and not any(char in vowels for char in word): return True
                 return False
-
-            clean_name = to_sentence_case(name)        
-            clean_category = to_sentence_case(category) 
-            
-            final_save_category = f"{clean_category}{drink_category_suffix}" if classification == 'Drinks (Gulps)' else clean_category
-            
-            name_audit = clean_name.lower()
-            category_audit = clean_category.lower()
-            combined_audit = f"{name_audit} {category_audit}"
-            
-            food_dictionary = [
-                'food', 'snack', 'grub', 'fry', 'fries', 'potato', 'burger', 'sandwich', 'bun', 'bread', 
-                'waffle', 'donut', 'doughnut', 'cake', 'pastry', 'cookie', 'pie', 'sweet', 'dessert', 
-                'crepe', 'rice', 'meal', 'combo', 'box', 'platter', 'bucket', 'chicken', 'wings', 'pork', 
-                'beef', 'meat', 'fish', 'seafood', 'sauce', 'dip', 'bbq', 'cheese', 'street', 'grill', 
+                clean_name = to_sentence_case(name)
+                clean_category = to_sentence_case(category)
+                final_save_category = f"{clean_category}{drink_category_suffix}" if classification == 'Drinks (Gulps)' else clean_category
+                name_audit = clean_name.lower()
+                category_audit = clean_category.lower()
+                combined_audit = f"{name_audit} {category_audit}"
+                food_dictionary = [
+                'food', 'snack', 'grub', 'fry', 'fries', 'potato', 'burger', 'sandwich', 'bun', 'bread',
+                'waffle', 'donut', 'doughnut', 'cake', 'pastry', 'cookie', 'pie', 'sweet', 'dessert',
+                'crepe', 'rice', 'meal', 'combo', 'box', 'platter', 'bucket', 'chicken', 'wings', 'pork',
+                'beef', 'meat', 'fish', 'seafood', 'sauce', 'dip', 'bbq', 'cheese', 'street', 'grill',
                 'bacon', 'egg', 'noodles', 'soup', 'pasta', 'salad', 'kikiam', 'lumpia', 'siomai', 'balls'
-            ]
-            drink_dictionary = [
-                'tea', 'milk', 'coffee', 'juice', 'shake', 'smoothie', 'soda', 'cola', 'drink', 'beverage', 
-                'gulp', 'water', 'brew', 'ice', 'syrup', 'slush', 'frappe', 'float', 'latte', 'milktea', 
+                ]
+                drink_dictionary = [
+                'tea', 'milk', 'coffee', 'juice', 'shake', 'smoothie', 'soda', 'cola', 'drink', 'beverage',
+                'gulp', 'water', 'brew', 'ice', 'syrup', 'slush', 'frappe', 'float', 'latte', 'milktea',
                 'milkshake', 'slushie', 'macchiato', 'espresso', 'capuccino', 'lemonade', 'soda', 'pop', 'fruit tea',
-            ]
-            prohibited_keywords = ['person', 'human', 'people', 'teacher', 'student', 'animal', 'object', 'thing']
-
-            try:
-                existing_product_names = [str(item['name']).lower().strip() for item in db.list_products(active_only=True)]
-            except Exception:
-                existing_product_names = []
-
-            is_spam_text = has_consecutive_repetitions(combined_audit, max_allowed=3)
-            is_nonsense_word = looks_like_gibberish(combined_audit)
-            contains_junk = any(junk in combined_audit for junk in prohibited_keywords)
-
-            if classification == 'Drinks (Gulps)':
-                is_valid_context = any(word in category_audit for word in drink_dictionary)
-                mismatch_error = f"Selected 'Drinks (Gulps)' but entered a non-beverage category '{category}'."
-            elif classification == 'Foods (Grubs)':
-                has_drink_trigger_in_food = any(word in category_audit for word in drink_dictionary) or any(word in name_audit for word in drink_dictionary)
-                is_valid_context = any(word in category_audit for word in food_dictionary) and not has_drink_trigger_in_food
-                mismatch_error = f"Selected 'Foods (Grubs)' but entered a drink or non-food layout configuration."
-
-            else:
-                is_valid_context = any(word in combined_audit for word in food_dictionary + drink_dictionary)
-                mismatch_error = "Entered an invalid combo meal category context description."
-
-            # --- STEP 3: RUN THE SELECTION TREE WITH VALIDATED INITIALIZATIONS ---
-            if clean_name and name_audit in existing_product_names: 
-                st.error(f" Catalog Conflict: A product named '{clean_name}' already exists in your store inventory!")
-            elif not clean_name: 
-                st.error("Product name is required.")
-            elif not clean_category: 
-                st.error("Category structure specification is required.")
-            elif is_spam_text or is_nonsense_word: 
-                st.error(" Invalid Entry: Input contains keyboard spam or gibberish text patterns.")
-            elif contains_junk: 
-                st.error(" Context Validation Alert: Junk classifications (person, human, object) are strictly blocked.")
-            elif not is_valid_context:
-                st.error(f" Context/Classification Mismatch: {mismatch_error} Please allocate your item correctly.")
-            elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0: 
-                st.error(" Validation Error: Price field is required and must be greater than ₱0.00.")
-            elif classification == 'Drinks (Gulps)' and not size_prices:
-                st.error(" Validation Error: Enable and configure at least one drink size.")
-            else:
+                ]
+                prohibited_keywords = ['person', 'human', 'people', 'teacher', 'student', 'animal', 'object', 'thing']
                 try:
-                    price_cents = cents_from_peso(price) if classification != 'Drinks (Gulps)' else 0
-                    starting_stock = 0
-
-                    all_existing_products = db.list_products(active_only=False)
-                    prefix = "GLP" if classification == 'Drinks (Gulps)' else "GRB"
-                    existing_numbers = []
-                    
-                    for prod in all_existing_products:
-                        code_str = str(prod.get('code', ''))
-                        if code_str.startswith(f"{prefix}-"):
-                            try:
-                                num_part = int(code_str.split("-")[1])
-                                existing_numbers.append(num_part)
-                            except (IndexError, ValueError):
-                                continue
-
-                    if existing_numbers:
-                        next_code_number = max(existing_numbers) + 1
-                    else:
-                        next_code_number = 1001 
-                    while True:
-                        generated_code = f"{prefix}-{next_code_number}"
-                        
-                        with db.connection() as conn:
-                            conn.row_factory = sqlite3.Row
-                            collision_check = conn.execute("SELECT 1 FROM products WHERE UPPER(code) = UPPER(?)", (generated_code,)).fetchone()
-                        
-                        if not collision_check:
-                            break 
-                        next_code_number += 1 
-
+                    existing_product_names = [str(item['name']).lower().strip() for item in db.list_products(active_only=True)]
+                except Exception:
+                    existing_product_names = []
+                    is_spam_text = has_consecutive_repetitions(combined_audit, max_allowed=3)
+                    is_nonsense_word = looks_like_gibberish(combined_audit)
+                    contains_junk = any(junk in combined_audit for junk in prohibited_keywords)
+                if classification == 'Drinks (Gulps)':
+                    is_valid_context = any(word in category_audit for word in drink_dictionary)
+                    mismatch_error = f"Selected 'Drinks (Gulps)' but entered a non-beverage category '{category}'."
+                elif classification == 'Foods (Grubs)':
+                    has_drink_trigger_in_food = any(word in category_audit for word in drink_dictionary) or any(word in name_audit for word in drink_dictionary)
+                    is_valid_context = any(word in category_audit for word in food_dictionary) and not has_drink_trigger_in_food
+                    mismatch_error = f"Selected 'Foods (Grubs)' but entered a drink or non-food layout configuration."
+                else:
+                    is_valid_context = any(word in combined_audit for word in food_dictionary + drink_dictionary)
+                    mismatch_error = "Entered an invalid combo meal category context description."
+                if clean_name and name_audit in existing_product_names:
+                    st.error(f"Catalog Conflict: A product named '{clean_name}' already exists in your store inventory.")
+                elif not clean_name:
+                    st.error("Product name is required.")
+                elif not clean_category:
+                    st.error("Category structure specification is required.")
+                elif is_spam_text or is_nonsense_word:
+                    st.error("Invalid Entry: Input contains keyboard spam or gibberish text patterns.")
+                elif contains_junk:
+                    st.error("Context Validation Alert: Junk classifications (person, human, object) are strictly blocked.")
+                elif not is_valid_context:
+                    st.error(f"Context/Classification Mismatch: {mismatch_error} Please allocate your item correctly.")
+                elif classification in ['Foods (Grubs)', 'Others (Combo/Meal Plan)'] and price <= 0.0:
+                    st.error("Validation Error: Price field is required and must be greater than ₱0.00.")
+                elif classification == 'Drinks (Gulps)' and drink_config_error:
+                    st.error(f"Validation Error: {drink_config_error}")
+                elif classification == 'Drinks (Gulps)' and not size_prices:
+                    st.error("Validation Error: Enable and configure at least one drink size.")
+                else:
+                    try:
+                        price_cents = cents_from_peso(price) if classification != 'Drinks (Gulps)' else 0
+                        starting_stock = 0
+                        all_existing_products = db.list_products(active_only=False)
+                        prefix = "GLP" if classification == 'Drinks (Gulps)' else "GRB"
+                        existing_numbers = []
+                        for prod in all_existing_products:
+                            code_str = str(prod.get('code', ''))
+                            if code_str.startswith(f"{prefix}-"):
+                                try:
+                                    num_part = int(code_str.split("-"))
+                                    existing_numbers.append(num_part)
+                                except (IndexError, ValueError):
+                                    continue
+                            next_code_number = max(existing_numbers) + 1 if existing_numbers else 1001
+                while True:
+                    generated_code = f"{prefix}-{next_code_number}"
+                with db.connection() as conn:
+                    conn.row_factory = sqlite3.Row
+                    collision_check = conn.execute("SELECT 1 FROM products WHERE UPPER(code) = UPPER(?)", (generated_code,)).fetchone()
+                if not collision_check:
+                    break
+                    next_code_number += 1
                     db.add_product(
-                        code=generated_code, 
-                        name=clean_name, 
-                        category=final_save_category, 
-                        price_cents=price_cents, 
-                        stock=starting_stock, 
-                        threshold=low_stock_threshold,
-                        size_prices=size_prices if classification == 'Drinks (Gulps)' else None
-                    )   
-                    
-                    formatted_display_price = f"₱{price:,.2f}" if classification != 'Drinks (Gulps)' else "Configured Sizes Array"
+                    code=generated_code,
+                    name=clean_name,
+                    category=final_save_category,
+                    price_cents=price_cents,
+                    stock=starting_stock,
+                    threshold=low_stock_threshold,
+                    size_prices=size_prices if classification == 'Drinks (Gulps)' else None
+                    )
                     audit_msg = f"Menu product item '{clean_name}' successfully added to store catalog database! Assigned code: '{generated_code}' under active category grouping: '{final_save_category}'."
-                    
                     st.session_state.global_toast = {
-                        "msg": f"SUCCESS: Product '{clean_name}' successfully added to catalog as unique code '{generated_code}'!",
-                        "bg": "#2e7d32",  
-                        "icon": "🟢"
-                    }
-                    
+                    "msg": f"SUCCESS: Product '{clean_name}' added to catalog as code '{generated_code}'.",
+                    "bg": "#2e7d32",
+                    "icon": "[OK]"
+                }
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     logging.info(f"TRANSACTION SUCCESS [ADMIN]: {audit_msg}")
-
                     st.session_state.clear_product_form = True
                     st.session_state.custom_sizes_count = 1
                     st.rerun()
-                except Exception as e: 
+                except Exception as e:
                     safe_error(e)
-
-    # EDIT / DELETE TAB
+                # EDIT / DELETE TAB (2-Column Bento Layout + Collapsible Danger Zone)
     with tab2:
-        st.subheader("Edit or Delete Product")
         all_products = db.list_products(active_only=False)
         if not all_products:
             st.info("No active products available to edit.")
         else:
             labels = {(f"{prod['code']} — {prod['name']} {'(Inactive)' if not prod['active'] else ''}"): prod for prod in all_products}
-            selected_label = st.selectbox('Select product to modify', list(labels.keys()), key='edit_select')
+            selected_label = st.selectbox('Select product to modify', list(labels.keys()), key='edit_select', label_visibility="collapsed")
             p = labels[selected_label]
-            
             if p['active']:
                 current_sizes = db.get_product_sizes(p['id'])
                 orig_category = p['category']
                 is_custom_drink = " | Custom:" in orig_category
-                
                 if is_custom_drink:
-                    base_cat_name, custom_sz_label = orig_category.split(" | Custom:", 1)
+                base_cat_name, custom_sz_label = orig_category.split(" | Custom:", 1)
                 else:
-                    base_cat_name = orig_category
-                    custom_sz_label = ""
-                    
-                st.markdown("#### Product Details")
-                ec1, ec2 = st.columns(2)
-                ec1.text_input('Product code (automatically assigned)', value=p['code'], disabled=True)
-                new_name = ec2.text_input('Product name', value=p['name'], key=f"edit_name_field_{p['id']}").strip()
-                
+                base_cat_name = orig_category
+                custom_sz_label = ""
                 is_a_drink = is_custom_drink or any(
-                    d in base_cat_name.lower()
-                    for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage', 'tea', 'gulp', 'fruit tea']
+                d in base_cat_name.lower()
+                for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage', 'tea', 'gulp', 'fruit tea']
                 )
-                
+                edit_left, edit_right = st.columns([1, 1.15], gap="medium")
+                # LEFT CARD: Product Details & Threshold
+                with edit_left:
+                with st.container(key='bento_edit_left'):
+                st.markdown("1. Product Details")
+                ec1, ec2 = st.columns([1, 1.6], gap="small")
+                ec1.text_input('Code', value=p['code'], disabled=True)
+                new_name = ec2.text_input('Product name', value=p['name'], key=f"edit_name_field_{p['id']}").strip()
+                cat_col, thresh_col = st.columns([1.6, 1], gap="small")
+                with cat_col:
+                if is_a_drink:
+                new_base_cat = st.text_input('Category Name *', value=base_cat_name, key=f"edit_base_cat_field_{p['id']}").strip()
+                else:
+                new_base_cat = st.text_input('Category Name *', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
+                with thresh_col:
+                new_threshold = st.number_input('Low-stock alert', min_value=0, max_value=1000000, value=int(p.get('low_stock_threshold', 5)), step=1, key=f"edit_thresh_{p['id']}")
+                # RIGHT CARD: Pricing & Sizes
+                with edit_right:
+                with st.container(key='bento_edit_right'):
+                st.markdown("2. Pricing & Sizing")
                 size_inputs = {}
                 if is_a_drink:
-                    new_base_cat = st.text_input('Category Name *', value=base_cat_name, key=f"edit_base_cat_field_{p['id']}").strip()
-                    st.markdown('Available drink size pricing')
-                    all_possible_sizes = [8, 12, 16]
-                    size_cols = st.columns(len(all_possible_sizes))
-                    
-                    for size_idx, size in enumerate(all_possible_sizes):
-                        existing_price_cents = current_sizes.get(size, 0)
-                        if not current_sizes and size in (12, 16):
-                            existing_price_cents = p.get('price_cents', 0)  
-                        initial_value = float(existing_price_cents) / 100.0
-                        size_inputs[size] = size_cols[size_idx].number_input(
-                            f'{size} oz price (₱)',
-                            min_value=0.0,
-                            value=initial_value,
-                            step=1.0,
-                            format="%.2f",
-                            key=f"edit_price_{p['code']}_{size}"
-                        )
+                all_possible_sizes =
+                size_cols = st.columns(len(all_possible_sizes), gap="small")
+                for size_idx, size in enumerate(all_possible_sizes):
+                existing_price_cents = current_sizes.get(size, 0)
+                if not current_sizes and size in (12, 16):
+                existing_price_cents = p.get('price_cents', 0)
+                initial_value = float(existing_price_cents) / 100.0
+                size_inputs[size] = size_cols[size_idx].number_input(
+                f'{size} oz (₱)',
+                min_value=0.0,
+                value=initial_value,
+                step=1.0,
+                format="%.2f",
+                key=f"edit_price_{p['code']}_{size}"
+                )
+                custom_sizes_in_db = {sz: cents for sz, cents in current_sizes.items() if int(sz) >= 99}
+                custom_labels_array = [lbl.strip() for lbl in orig_category.split(" | Custom:", 1).split(",")] if " | Custom:" in orig_category else []
+                total_slots_to_render = max(len(custom_labels_array), len(custom_sizes_in_db))
+                if f"edit_custom_count_{p['id']}" in st.session_state:
+                total_slots_to_render = max(total_slots_to_render, st.session_state[f"edit_custom_count_{p['id']}"])
                 else:
-                    new_base_cat = st.text_input('Category Name *', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
-                    new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents'] / 100), step=5.0, format='%.2f', key=f"edit_price_food_{p['id']}")
-                    new_base_price_cents = cents_from_peso(new_price_val)
-                    
-                if is_a_drink:
-                    st.divider()
-                    st.markdown(' Other / Custom Size Configuration')
-                    
-                    custom_sizes_in_db = {sz: cents for sz, cents in current_sizes.items() if int(sz) >= 99}
-                    custom_labels_array = []
-                    if " | Custom:" in orig_category:
-                        custom_labels_array = [lbl.strip() for lbl in orig_category.split(" | Custom:", 1)[1].split(",")]
-                
-                    total_slots_to_render = max(len(custom_labels_array), len(custom_sizes_in_db))
-                    if f"edit_custom_count_{p['id']}" in st.session_state:
-                        total_slots_to_render = max(total_slots_to_render, st.session_state[f"edit_custom_count_{p['id']}"])
-                    else:
-                        st.session_state[f"edit_custom_count_{p['id']}"] = total_slots_to_render
-
-                    edit_custom_inputs = []
-                    visible_variant_counter = 1 
-                    
-                    has_any_active_data = False
-                    for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
-                        associated_db_key = 99 + i
-                        if not st.session_state.get(f"delete_custom_{p['id']}_{associated_db_key}", False):
-                            saved_lbl = custom_labels_array[i] if i < len(custom_labels_array) else ""
-                            if saved_lbl or st.session_state.get(f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"):
-                                has_any_active_data = True
-                                break
-                                
-                    if not has_any_active_data and len(custom_sizes_in_db) == 0:
-                        st.session_state[f"edit_custom_count_{p['id']}"] = 1
-            
-                    for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
-                        associated_db_key = 99 + i
-                        
-                        if st.session_state.get(f"delete_custom_{p['id']}_{associated_db_key}", False):
-                            continue
-
-                        default_label = custom_labels_array[i] if i < len(custom_labels_array) else ""
-                        default_price = float(custom_sizes_in_db.get(associated_db_key, 0.0)) / 100.0
-                        
-                        st.markdown(f"**Custom Size Variant #{visible_variant_counter}**")
-                            
-                        ec_col1, ec_col2, ec_col3 = st.columns([2, 2, 1])
-                        with ec_col1:
-                            lbl_val = ec_col1.text_input(
-                                "Custom Size Description Label", 
-                                value=default_label, 
-                                placeholder="e.g., 22oz, 1-Liter", 
-                                key=f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"
-                            ).strip()
-                        with ec_col2:
-                            prc_val = ec_col2.number_input(
-                                "Custom Size Price (₱)", 
-                                min_value=0.0, 
-                                value=default_price, 
-                                step=1.0, 
-                                format='%.2f', 
-                                key=f"edit_val_cust_dbkey_{p['id']}_{associated_db_key}"
-                            )
-                        with ec_col3:
-                            st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
-                            if ec_col3.button("Remove", key=f"remove_custom_size_row_dbkey_{p['id']}_{associated_db_key}", type="secondary", use_container_width=True):
-                                st.session_state[f"delete_custom_{p['id']}_{associated_db_key}"] = True
-                                if f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}" in st.session_state:
-                                    del st.session_state[f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"]
-                                st.rerun()
-                        
-                        if lbl_val or prc_val > 0:
-                            edit_custom_inputs.append({"label": lbl_val, "price": prc_val})
-                            
-                        visible_variant_counter += 1 
-                            
-                    if st.button("Add more size", key=f"edit_add_more_sizes_btn_{p['id']}"):
-                        st.session_state[f"edit_custom_count_{p['id']}"] += 1
-                        st.rerun()
-                        
-                    updated_sizes = {}
-                    for sz, pr_val in size_inputs.items():
-                        if float(pr_val) > 0.0:
-                            updated_sizes[int(sz)] = cents_from_peso(pr_val)
-
-                    compiled_edit_labels = []
-                    edit_db_key_id = 99
-                    
-                    for entry in edit_custom_inputs:
-                        e_lbl = entry["label"]
-                        e_prc = entry["price"]
-                        
-                        if e_lbl and e_prc > 0:
-                            updated_sizes[edit_db_key_id] = cents_from_peso(e_prc)
-                            compiled_edit_labels.append(e_lbl)
-                            edit_db_key_id += 1
-
-                    if compiled_edit_labels:
-                        new_cat = f"{new_base_cat} | Custom:{', '.join(compiled_edit_labels)}"
-                    else:
-                        new_cat = new_base_cat
-
-                    if updated_sizes:
-                        new_base_price_cents = next(iter(updated_sizes.values()))
-                    else:
-                        new_base_price_cents = p['price_cents']
-
-            else:
-                new_cat = st.text_input('Category', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
+                st.session_state[f"edit_custom_count_{p['id']}"] = total_slots_to_render
+                edit_custom_inputs = []
+                has_any_active_data = False
+                for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
+                associated_db_key = 99 + i
+                if not st.session_state.get(f"delete_custom_{p['id']}{associated_db_key}", False):
+                saved_lbl = custom_labels_array[i] if i < len(custom_labels_array) else ""
+                if saved_lbl or st.session_state.get(f"edit_lbl_cust_dbkey{p['id']}_{associated_db_key}"):
+                has_any_active_data = True
+                break
+                if not has_any_active_data and len(custom_sizes_in_db) == 0:
+                st.session_state[f"edit_custom_count_{p['id']}"] = 1
+                for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
+                associated_db_key = 99 + i
+                if st.session_state.get(f"delete_custom_{p['id']}_{associated_db_key}", False):
+                continue
+                default_label = custom_labels_array[i] if i < len(custom_labels_array) else ""
+                default_price = float(custom_sizes_in_db.get(associated_db_key, 0.0)) / 100.0
+                ec_col1, ec_col2, ec_col3 = st.columns([2, 1.5, 1], gap="small")
+                with ec_col1:
+                lbl_val = ec_col1.text_input("Label", value=default_label, placeholder="e.g., 22oz", key=f"edit_lbl_cust_dbkey_{p['id']}{associated_db_key}", label_visibility="collapsed").strip()
+                with ec_col2:
+                prc_val = ec_col2.number_input("Price", min_value=0.0, value=default_price, step=1.0, format='%.2f', key=f"edit_val_cust_dbkey{p['id']}{associated_db_key}", label_visibility="collapsed")
+                with ec_col3:
+                if ec_col3.button("Remove", key=f"remove_custom_size_row_dbkey{p['id']}{associated_db_key}", use_container_width=True):
+                st.session_state[f"delete_custom{p['id']}{associated_db_key}"] = True
+                if f"edit_lbl_cust_dbkey{p['id']}{associated_db_key}" in st.session_state:
+                del st.session_state[f"edit_lbl_cust_dbkey{p['id']}_{associated_db_key}"]
+                st.rerun()
+                if lbl_val or prc_val > 0:
+                edit_custom_inputs.append({"label": lbl_val, "price": prc_val})
+                if st.button("+ Add custom size", key=f"edit_add_more_sizes_btn_{p['id']}"):
+                st.session_state[f"edit_custom_count_{p['id']}"] += 1
+                st.rerun()
+                updated_sizes = {int(sz): cents_from_peso(pr_val) for sz, pr_val in size_inputs.items() if float(pr_val) > 0.0}
+                compiled_edit_labels = []
+                edit_db_key_id = 99
+                for entry in edit_custom_inputs:
+                if entry["label"] and entry["price"] > 0:
+                updated_sizes[edit_db_key_id] = cents_from_peso(entry["price"])
+                compiled_edit_labels.append(entry["label"])
+                edit_db_key_id += 1
+                new_cat = f"{new_base_cat} | Custom:{', '.join(compiled_edit_labels)}" if compiled_edit_labels else new_base_cat
+                new_base_price_cents = next(iter(updated_sizes.values())) if updated_sizes else p['price_cents']
+                else:
+                new_cat = new_base_cat
                 new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents'] / 100), step=5.0, format='%.2f', key=f"edit_price_food_{p['id']}")
                 new_base_price_cents = cents_from_peso(new_price_val)
                 updated_sizes = None
-                
-            st.divider()
-            new_threshold = st.number_input('Low-stock alert at', min_value=0, max_value=1000000, value=int(p.get('low_stock_threshold', 5)), step=1, key=f"edit_thresh_{p['id']}")
-            save_changes = st.button('Save All Product Details', type='primary', key=f"unified_save_btn_{p['id']}")
-        
-            if save_changes:
-                if not new_name or not new_cat: 
-                    st.error("Product name and category definitions cannot be left blank.")
+                # Action Row: Save Button + Collapsible Danger Zone side-by-side
+                act_col1, act_col2 = st.columns([1.5, 1], gap="medium")
+                with act_col1:
+                save_changes = st.button('Save All Product Details', type='primary', use_container_width=True, key=f"unified_save_btn_{p['id']}")
+                with act_col2:
+                with st.expander("Danger Zone (Permanent Delete)"):
+                check_step1 = st.checkbox("Confirm permanent deletion", key=f"force_del_c1_{p['id']}")
+                check_step2 = st.checkbox("Confirm removal from logs", key=f"force_del_c2_{p['id']}")
+                if st.button('Permanently Delete', key=f"hard_purge_action_{p['id']}", type='primary', use_container_width=True, disabled=not (check_step1 and check_step2)):
+                try:
+                success, msg = db.delete_product(p['id'])
+                if success:
+                st.session_state.global_toast = {
+                "msg": f"PURGE REMOVAL: Product '{p['code']}' has been permanently deleted from the catalog.",
+                "bg": "#c62828",
+                "icon": "[!]"
+                }
+                db.log_activity('Admin', 'Product Deleted', f"{p['code']} · {p['name']}")
+                st.rerun()
                 else:
-                    success_trigger = False
-                    try: 
-                        with db.connection() as save_conn:
-                            save_conn.execute("""
-                                UPDATE products 
-                                SET name = ?, category = ?, price_cents = ?, low_stock_threshold = ?, updated_at = ?
-                                WHERE id = ?
-                            """, (new_name, new_cat, int(new_base_price_cents), int(new_threshold), datetime.now().isoformat(), p['id']))
-        
-                        if is_a_drink:
-                            with db.connection() as clear_conn:
-                                clear_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
-                                    
-                                if updated_sizes:
-                                    for size_key, cents_val in updated_sizes.items():
-                                        clear_conn.execute("""
-                                            INSERT INTO product_sizes (product_id, size_oz, price_cents)
-                                            VALUES (?, ?, ?)
-                                        """, (p['id'], int(size_key), int(cents_val)))
-                        else:
-                            with db.connection() as clean_conn:
-                                clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
-                            
-                        audit_msg = f"Product '{p['code']}' details updated successfully (New Name: '{new_name}', New Category: '{new_cat}')."
-                        
-                        st.session_state.global_toast = {
-                            "msg": f" UPDATE SUCCESS: Product details for '{p['code']}' have been cleanly updated!",
-                            "bg": "#1565c0",  
-                            "icon": "⚙️"
-                            }
-                        db.log_activity('Admin', 'Product Updated', f"{p['code']} · {new_name}")
-                        logging.info(f"SUCCESS [ADMIN]: {audit_msg}")
-                        success_trigger = True
-                    except Exception as e: 
-                        safe_error(e)
-                    if success_trigger:
-                        st.rerun()
-
-            # --- DANGER ZONE SECTION ---
-            st.divider()
-            st.error('###  DANGER ZONE: PERMANENT PURGE')
-            st.markdown("Clicking delete below will execute a HARD DELETE. This completely wipes the item profile row from the database catalog and cannot be undone.", 
-                        unsafe_allow_html=True)
-            with st.container(key=f"danger_zone_box_{p['id']}"):
-                check_step1 = st.checkbox("Confirm: I want to permanently delete this product profile, not deactivate it.", key=f"force_del_c1_{p['id']}")
-                check_step2 = st.checkbox("Confirm: I understand this action completely removes it from all search logs.", key=f"force_del_c2_{p['id']}")
-                if st.button('Permanently Delete From Database', key=f"hard_purge_action_{p['id']}", type='primary', disabled=not (check_step1 and check_step2)):
-                    try:
-                        success, msg = db.delete_product(p['id'])
-                        if success:
-                            audit_msg = f"Product '{p['code']} — {p['name']}' was permanently removed from the master database catalog files."
-                            st.session_state.global_toast = {
-                                "msg": f" PURGE REMOVAL: Product '{p['code']}' has been permanently wiped from the store catalog!",
-                                "bg": "#c62828", 
-                                "icon": "🚨"
-                            }
-                            
-                            db.log_activity('Admin', 'Product Deleted', f"{p['code']} · {p['name']}")
-                            logging.info(f"SUCCESS [ADMIN]: {audit_msg}")
-                            st.rerun()
-                        else: 
-                            st.error(msg)
-                    except Exception as e:
-                        safe_error(e)
-
+                st.error(msg)
+                except Exception as e:
+                safe_error(e)
+                if save_changes:
+                if not new_name or not new_cat:
+                st.error("Product name and category definitions cannot be left blank.")
+                else:
+                success_trigger = False
+                try:
+                with db.connection() as save_conn:
+                save_conn.execute("""
+                UPDATE products
+                SET name = ?, category = ?, price_cents = ?, low_stock_threshold = ?, updated_at = ?
+                WHERE id = ?
+                """, (new_name, new_cat, int(new_base_price_cents), int(new_threshold), datetime.now().isoformat(), p['id']))
+                if is_a_drink:
+                with db.connection() as clear_conn:
+                clear_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
+                if updated_sizes:
+                for size_key, cents_val in updated_sizes.items():
+                clear_conn.execute("INSERT INTO product_sizes (product_id, size_oz, price_cents) VALUES (?, ?, ?)", (p['id'], int(size_key), int(cents_val)))
+                else:
+                with db.connection() as clean_conn:
+                clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
+                st.session_state.global_toast = {
+                "msg": f"UPDATE SUCCESS: Product details for '{p['code']}' have been updated.",
+                "bg": "#1565c0",
+                "icon": "[UPDATED]"
+                }
+                db.log_activity('Admin', 'Product Updated', f"{p['code']} · {new_name}")
+                success_trigger = True
+                except Exception as e:
+                safe_error(e)
+                if success_trigger:
+                st.rerun()
     # VIEW CATALOG TAB
     with tab3:
         st.markdown("---")
