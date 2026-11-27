@@ -1074,11 +1074,20 @@ elif mode == 'Cashier' and page == 'New Sale':
 
     all_products = [dict(p) for p in db.list_products(active_only=True)]
 
+    # Standard Drink Sinkers / Add-ons (₱10.00 each)
+    SINKER_OPTIONS = {
+        "Pearls (₱10)": 1000,
+        "Nata de Coco (₱10)": 1000,
+        "Coffee Jelly (₱10)": 1000,
+        "Cream Cheese (₱15)": 1500,
+        "Oreo Crumbles (₱15)": 1500,
+    }
+
     # 2-COLUMN BENTO POS WORKSPACE (Left: Available Products | Right: Shopping Cart & Checkout)
     pos_left, pos_right = st.columns((1.35, 1), gap='medium')
 
     # =========================================================
-    # LEFT BENTO CARD: AVAILABLE PRODUCTS
+    # LEFT BENTO CARD: AVAILABLE PRODUCTS + SINKERS / CUSTOMIZE
     # =========================================================
     with pos_left:
         with st.container(key='bento_pos_menu', border=True):
@@ -1105,7 +1114,6 @@ elif mode == 'Cashier' and page == 'New Sale':
                     label_visibility="collapsed"
                 ).strip().lower()
 
-            # Filter active products
             visible_products = []
             for p in all_products:
                 code_upper = str(p.get('code', '')).upper()
@@ -1131,14 +1139,14 @@ elif mode == 'Cashier' and page == 'New Sale':
                                 stk = int(prod.get('stock', 0))
                                 sizes = db.get_product_sizes(prod['id'])
                                 cat_str = prod.get('category') or ''
-                                clean_cat = cat_str.partition(" | Custom:")[0].strip()
+                                clean_cat, _, custom_part = cat_str.partition(" | Custom:")
+                                clean_cat = clean_cat.strip()
+                                is_drink_item = bool(sizes) or str(prod.get('code', '')).upper().startswith("GLP-")
 
-                                # Compact Header: Product Name + Stock Badge
                                 st.markdown(f"**{prod['name']}**")
                                 st.caption(f"{prod['code']} · {clean_cat} · Stock: {stk}")
 
-                                if sizes:
-                                    _, _, custom_part = cat_str.partition(" | Custom:")
+                                if is_drink_item and sizes:
                                     custom_lbls = [l.strip() for l in custom_part.split(",")] if custom_part else []
                                     size_options = {}
                                     for sz_key in sorted(sizes.keys()):
@@ -1158,25 +1166,54 @@ elif mode == 'Cashier' and page == 'New Sale':
                                             key=f"pos_sz_sel_{prod['id']}",
                                             label_visibility="collapsed"
                                         )
-                                    sz_id, unit_cents = size_options[chosen_sz_lbl]
+                                    sz_id, base_unit_cents = size_options[chosen_sz_lbl]
+
+                                    # Compact Customize Popover for Sinkers & Ice/Sugar Note
+                                    with st.popover("Customize (Sinkers)", use_container_width=True):
+                                        picked_sinkers = st.multiselect(
+                                            "Add Sinkers / Toppings",
+                                            options=list(SINKER_OPTIONS.keys()),
+                                            key=f"pos_sinkers_{prod['id']}"
+                                        )
+                                        drink_note = st.text_input(
+                                            "Ice / Sugar / Note",
+                                            placeholder="e.g., Less ice, 50% sugar",
+                                            key=f"pos_note_{prod['id']}"
+                                        ).strip()
+
+                                    sinkers_extra_cents = sum(SINKER_OPTIONS[s] for s in picked_sinkers)
+                                    final_unit_cents = base_unit_cents + sinkers_extra_cents
+                                    custom_parts = [s.split(" (") for s in picked_sinkers]
+                                    if drink_note:
+                                        custom_parts.append(drink_note)
+                                    custom_summary = ", ".join(custom_parts)
+
                                     with b_col:
                                         if st.button("+ Add", key=f"pos_add_btn_{prod['id']}", type="primary", use_container_width=True, disabled=(stk <= 0)):
-                                            # Check existing cart item
-                                            existing = next((c for c in st.session_state.cart if c['product_id'] == prod['id'] and c.get('size_oz') == sz_id), None)
+                                            existing = next(
+                                                (
+                                                    c for c in st.session_state.cart
+                                                    if c['product_id'] == prod['id']
+                                                    and c.get('size_oz') == sz_id
+                                                    and c.get('customizations', '') == custom_summary
+                                                ),
+                                                None
+                                            )
                                             if existing:
                                                 if existing['quantity'] < stk:
                                                     existing['quantity'] += 1
                                                 else:
                                                     st.warning(f"Only {stk} in stock.")
                                             else:
-                                                sz_tag = chosen_sz_lbl.split(" — ")[0]
+                                                sz_tag = chosen_sz_lbl.split(" — ")
                                                 st.session_state.cart.append({
                                                     'product_id': prod['id'],
                                                     'code': prod['code'],
                                                     'name': prod['name'],
                                                     'size_oz': sz_id,
                                                     'size_label': sz_tag,
-                                                    'unit_price_cents': unit_cents,
+                                                    'customizations': custom_summary,
+                                                    'unit_price_cents': final_unit_cents,
                                                     'quantity': 1
                                                 })
                                             st.rerun()
@@ -1185,9 +1222,25 @@ elif mode == 'Cashier' and page == 'New Sale':
                                     p_col, b_col = st.columns((1.5, 1), vertical_alignment='center', gap='small')
                                     with p_col:
                                         st.markdown(f"**{money(unit_cents)}**")
+
+                                    with st.popover("Customize (Note)", use_container_width=True):
+                                        food_note = st.text_input(
+                                            "Special Request / Flavor",
+                                            placeholder="e.g., Extra cheese, spicy, no mayo",
+                                            key=f"pos_food_note_{prod['id']}"
+                                        ).strip()
+
                                     with b_col:
                                         if st.button("+ Add", key=f"pos_add_btn_{prod['id']}", type="primary", use_container_width=True, disabled=(stk <= 0)):
-                                            existing = next((c for c in st.session_state.cart if c['product_id'] == prod['id'] and not c.get('size_oz')), None)
+                                            existing = next(
+                                                (
+                                                    c for c in st.session_state.cart 
+                                                    if c['product_id'] == prod['id']
+                                                    and not c.get('size_oz')
+                                                    and c.get('customizations', '') == food_note
+                                                ),
+                                                None
+                                            )
                                             if existing:
                                                 if existing['quantity'] < stk:
                                                     existing['quantity'] += 1
@@ -1200,6 +1253,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                                                     'name': prod['name'],
                                                     'size_oz': None,
                                                     'size_label': '',
+                                                    'customizations': food_note,
                                                     'unit_price_cents': unit_cents,
                                                     'quantity': 1
                                                 })
@@ -1220,19 +1274,19 @@ elif mode == 'Cashier' and page == 'New Sale':
                     st.session_state.cart.clear()
                     st.rerun()
 
-            # Fixed-height internal scroll container for single-row cart lines (height=185)
             with st.container(height=185, border=False):
                 if not st.session_state.cart:
                     st.info("Cart is empty. Click '+ Add' on a product to begin.")
                 else:
                     for idx, item in enumerate(list(st.session_state.cart)):
                         sz_txt = f" ({item['size_label']})" if item.get('size_label') else ""
+                        cust_txt = f" · _{item['customizations']}_" if item.get('customizations') else ""
                         line_sub = int(item['unit_price_cents']) * int(item['quantity'])
                         stock_limit = next((int(p['stock']) for p in all_products if p['id'] == item['product_id']), 999)
 
                         r_name, r_minus, r_qty, r_plus, r_price, r_del = st.columns((2.1, 0.45, 0.45, 0.45, 1.0, 0.45), vertical_alignment='center', gap='small')
                         with r_name:
-                            st.markdown(f"{item['name']}{sz_txt}")
+                            st.markdown(f"**{item['name']}**{sz_txt}{cust_txt}")
                         with r_minus:
                             if st.button("-", key=f"cart_dec_{idx}", use_container_width=True):
                                 if item['quantity'] > 1:
