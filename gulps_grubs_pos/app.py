@@ -1437,17 +1437,20 @@ elif mode == 'Cashier' and page == 'New Sale':
                         priority=int(priority_level)
                     )
 
+                    # Log Cashier activity using the exact keys from `sale`
+                    db.log_activity('Cashier', 'Sale Completed', f"Sale #{sale['id']} · {money(sale['total_cents'])}")
+
                     # Clear shopping cart basket cleanly
-                    db.log_activity('Cashier', 'Sale Completed', f"Sale #{sale_id} · {money(total_cents)}")
                     st.session_state.cart.clear()
                     st.session_state.global_toast = {
-                        "msg": f" TRANSACTION SUCCESSFUL: Sale checkout processed for '{customer_name.strip()}'! Total Paid: {money(sale['total_cents'])}.",
+                        "msg": f"TRANSACTION SUCCESSFUL: Sale checkout processed for '{customer_name.strip()}'! Total Paid: {money(sale['total_cents'])}.",
                         "bg": "#2e7d32",  
-                        "icon": "💰"
+                        "icon": "[OK]"
                     }
                     st.rerun()
                 except Exception as e:
-                    st.error(f"🔍 INTERNAL SYSTEM ERROR DETECTED: {str(e)}")
+                    st.error(f"INTERNAL SYSTEM ERROR DETECTED: {str(e)}")
+
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     st.subheader('Cashier - Order Priority & Pickup Queue')
