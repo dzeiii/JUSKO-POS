@@ -463,19 +463,23 @@ elif mode == 'Admin' and page == 'Product Management':
                     starting_stock = 0
 
                     all_existing_products = db.list_products(active_only=False)
-                    prefix = "GLP" if classification == 'Drinks (Gulps)' else "GRB"
-                    existing_numbers = []
+                    if classification == 'Drinks (Gulps)':
+                        prefix = "GLP"
+                    elif classification == 'Others (Combo/Meal Plan)':
+                        prefix = "CMB"
+                    else:
+                        prefix = "GRB"
 
+                    existing_numbers = []
                     for prod in all_existing_products:
                         code_str = str(prod.get('code', ''))
                         if code_str.startswith(f"{prefix}-"):
-                            try:
-                                num_part = int(code_str.split("-"))
-                                existing_numbers.append(num_part)
-                            except (IndexError, ValueError):
-                                continue
+                            suffix = code_str.removeprefix(f"{prefix}-")
+                            if suffix.isdigit():
+                                existing_numbers.append(int(suffix))
 
                     next_code_number = max(existing_numbers) + 1 if existing_numbers else 1001
+
                     while True:
                         generated_code = f"{prefix}-{next_code_number}"
                         with db.connection() as conn:
