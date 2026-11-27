@@ -1452,7 +1452,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                     }
                     st.rerun()
                 except Exception as e:
-                    st.error(f"INTERNAL SYSTEM ERROR DETECTED: {str(e)}")
+                    st.error()
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     st.subheader('Cashier - Order Priority & Pickup Queue')
