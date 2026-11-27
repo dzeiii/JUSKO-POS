@@ -1361,19 +1361,12 @@ elif mode == 'Cashier' and page == 'New Sale':
                             p_row['price_cents'] = int(item['unit_price_cents'])
 
                             field_values = {
+                                'product_payload': p_row,
                                 'product': p_row,
                                 'item': p_row,
                                 'prod': p_row,
-                                'product_id': int(item['product_id']),
-                                'pid': int(item['product_id']),
-                                'code': item['code'],
-                                'product_code': item['code'],
-                                'name': item['name'],
-                                'product_name': item['name'],
                                 'quantity': int(item['quantity']),
                                 'qty': int(item['quantity']),
-                                'unit_price_cents': int(item['unit_price_cents']),
-                                'price_cents': int(item['unit_price_cents']),
                                 'size_oz': item.get('size_oz'),
                                 'customizations': item.get('customizations', ''),
                                 'options': item.get('customizations', ''),
@@ -1381,6 +1374,7 @@ elif mode == 'Cashier' and page == 'New Sale':
 
                             call_args = [field_values[param] for param in add_params if param in field_values]
                             ll_cart.add(*call_args)
+
 
                         # Match db.record_sale's exact parameter names automatically
                         sig = inspect.signature(db.record_sale)
@@ -1431,8 +1425,6 @@ elif mode == 'Cashier' and page == 'New Sale':
                     except Exception as e:
                         import traceback
                         st.error(f"Checkout error: {type(e).__name__}: {e}")
-                        st.code(traceback.format_exc())
-                        
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     st.subheader('Cashier - Order Priority & Pickup Queue')
