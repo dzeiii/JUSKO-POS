@@ -399,7 +399,54 @@ div[class*="bento_stock_history_card"] {
   padding: 12px 14px !important;
   box-shadow: 0 5px 15px rgba(75, 17, 23, 0.06) !important;
 }
+/* =========================================================
+   CASHIER NEW SALE 2-COLUMN BENTO WORKSPACE
+   ========================================================= */
 
+.st-key-bento_pos_menu,
+.st-key-bento_pos_cart,
+div[class*="bento_pos_menu"],
+div[class*="bento_pos_cart"] {
+  background: var(--paper) !important;
+  border: 1px solid var(--line) !important;
+  border-top: 4px solid var(--orange) !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  min-height: 430px !important;
+  box-shadow: 0 5px 15px rgba(75, 17, 23, 0.06) !important;
+}
+
+div[class*="pos_item_card_"] {
+  background: #fffcf7 !important;
+  border: 1px solid var(--line) !important;
+  border-top: 3px solid var(--orange) !important;
+  border-radius: 12px !important;
+  padding: 8px 10px !important;
+  margin-bottom: 6px !important;
+}
+
+.st-key-pos_cat_pills [data-baseweb="button-group"] {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 4px !important;
+}
+
+.st-key-pos_cat_pills button {
+  width: 100% !important;
+  min-height: 32px !important;
+  padding: 2px 4px !important;
+  border-radius: 8px !important;
+  font-size: 0.78rem !important;
+  font-weight: 700 !important;
+}
+
+.st-key-pos_cat_pills button[aria-checked="true"],
+.st-key-pos_cat_pills button[kind="segmented_controlActive"] {
+  background-color: var(--orange, #f58220) !important;
+  color: #ffffff !important;
+  border-color: var(--orange, #f58220) !important;
+}
 
 
 
