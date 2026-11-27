@@ -79,7 +79,7 @@ def init_db(db_path=DB_PATH):
         );
         CREATE TABLE IF NOT EXISTS activity_history (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          actor_mode TEXT NOT NULL CHECK(actor_mode IN ('Admin','Cashier','Inventory Manager','System')),
+          actor_mode TEXT NOT NULL CHECK(actor_mode IN ('Admin','Cashier','Inventory Manager')),
           action TEXT NOT NULL,
           details TEXT NOT NULL DEFAULT '',
           created_at TEXT NOT NULL
@@ -447,7 +447,7 @@ def update_order_status(order_id, status):
 
 def log_activity(actor_mode, action, details='', db_path=DB_PATH):
     """Persist an audit entry for important Admin, Cashier, and Kitchen actions."""
-    if actor_mode not in ('Admin','Cashier','Inventory Manager','System'):
+    if actor_mode not in ('Admin','Cashier','Inventory Manager'):
         raise ValueError('Invalid activity role.')
     action = str(action).strip()[:100]
     details = str(details).strip()[:1000]
