@@ -329,13 +329,15 @@ elif mode == 'Admin' and page == 'Product Management':
                         st.session_state.custom_sizes_count = 1
 
                     custom_size_inputs_list = []
-                    for i in range(st.session_state.custom_sizes_count):
-                        c_size_col, c_price_col = st.columns([1.4, 1], gap="small")
-                        with c_size_col:
-                            lbl_val = st.text_input(f'Label #{i+1}', placeholder='e.g., 22oz, 1-Liter', key=f'drink_lbl_custom_reactive_field_{i}', label_visibility="collapsed").strip()
-                        with c_price_col:
-                            prc_val = st.text_input(f'Price #{i+1}', placeholder='Price (₱)', key=f'drink_val_custom_text_reactive_{i}', label_visibility="collapsed").strip()
-                        custom_size_inputs_list.append({"label": lbl_val, "price_raw": prc_val})
+                    # Fixed height=115 keeps the right card locked even when adding 4+ custom sizes
+                    with st.container(height=115, border=False):
+                        for i in range(st.session_state.custom_sizes_count):
+                            c_size_col, c_price_col = st.columns([1.4, 1], gap="small")
+                            with c_size_col:
+                                lbl_val = st.text_input(f'Label #{i+1}', placeholder='e.g., 22oz, 1-Liter', key=f'drink_lbl_custom_reactive_field_{i}', label_visibility="collapsed").strip()
+                            with c_price_col:
+                                prc_val = st.text_input(f'Price #{i+1}', placeholder='Price (₱)', key=f'drink_val_custom_text_reactive_{i}', label_visibility="collapsed").strip()
+                            custom_size_inputs_list.append({"label": lbl_val, "price_raw": prc_val})
 
                     if st.button("+ Add another custom size", key="add_another_custom_size_btn"):
                         st.session_state.custom_sizes_count += 1
