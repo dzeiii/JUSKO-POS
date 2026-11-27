@@ -458,28 +458,30 @@ elif mode == 'Admin' and page == 'Product Management':
                                 except (IndexError, ValueError):
                                     continue
                             next_code_number = max(existing_numbers) + 1 if existing_numbers else 1001
-                while True:
-                    generated_code = f"{prefix}-{next_code_number}"
-                    with db.connection() as conn:
-                        conn.row_factory = sqlite3.Row
-                        collision_check = conn.execute("SELECT 1 FROM products WHERE UPPER(code) = UPPER(?)", (generated_code,)).fetchone()
-                    if not collision_check:
-                        break
-                    next_code_number += 1
+                                   while True:
+                        generated_code = f"{prefix}-{next_code_number}"
+                        with db.connection() as conn:
+                            conn.row_factory = sqlite3.Row
+                            collision_check = conn.execute("SELECT 1 FROM products WHERE UPPER(code) = UPPER(?)", (generated_code,)).fetchone()
+                        if not collision_check:
+                            break
+                        next_code_number += 1
+
                     db.add_product(
-                    code=generated_code,
-                    name=clean_name,
-                    category=final_save_category,
-                    price_cents=price_cents,
-                    stock=starting_stock,
-                    threshold=low_stock_threshold,
-                    size_prices=size_prices if classification == 'Drinks (Gulps)' else None
+                        code=generated_code,
+                        name=clean_name,
+                        category=final_save_category,
+                        price_cents=price_cents,
+                        stock=starting_stock,
+                        threshold=low_stock_threshold,
+                        size_prices=size_prices if classification == 'Drinks (Gulps)' else None
                     )
                     audit_msg = f"Menu product item '{clean_name}' successfully added to store catalog database! Assigned code: '{generated_code}' under active category grouping: '{final_save_category}'."
                     st.session_state.global_toast = {
-                    "msg": f"SUCCESS: Product '{clean_name}' added to catalog as code '{generated_code}'.",
-                    "bg": "#2e7d32",
-                    "icon": "[OK]"}
+                        "msg": f"SUCCESS: Product '{clean_name}' added to catalog as code '{generated_code}'.",
+                        "bg": "#2e7d32",
+                        "icon": "[OK]"
+                    }
                     db.log_activity('Admin', 'Product Created', f"{generated_code} · {clean_name}")
                     logging.info(f"TRANSACTION SUCCESS [ADMIN]: {audit_msg}")
                     st.session_state.clear_product_form = True
@@ -487,6 +489,7 @@ elif mode == 'Admin' and page == 'Product Management':
                     st.rerun()
                 except Exception as e:
                     safe_error(e)
+
                 # EDIT / DELETE TAB (2-Column Bento Layout + Collapsible Danger Zone)
     with tab2:
         all_products = db.list_products(active_only=False)
