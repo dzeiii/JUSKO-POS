@@ -190,11 +190,12 @@ if mode == 'Admin' and page == 'Dashboard':
                     hide_index=True,
                     height=265,
                     column_config={
-                        "Sale #": st.column_config.NumberColumn("Sale #", width="small", format="%d"),
-                        "Date": st.column_config.TextColumn("Date", width="medium"),
-                        "Total": st.column_config.TextColumn("Total", width="small"),
+                        "Sale #": st.column_config.NumberColumn("Sale #", width=65, format="%d"),
+                        "Date": st.column_config.TextColumn("Date", width=135),
+                        "Total": st.column_config.TextColumn("Total", width=85),
                     }
                 )
+
             else:
                 st.info('Completed sales will appear here.')
 
