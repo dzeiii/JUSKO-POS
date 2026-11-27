@@ -1348,33 +1348,31 @@ elif mode == 'Cashier' and page == 'New Sale':
 
             if confirm_btn:
                 if not customer_name or not customer_name.strip():
-                    st.error("Customer name is required before confirming sale.")
+                    st.warning("Customer name is required before confirming sale.")
                 else:
                     try:
                         import inspect
                         ll_cart = LinkedListCart()
-                        add_params = list(inspect.signature(ll_cart.add).parameters.keys())
+                        add_params = set(inspect.signature(ll_cart.add).parameters.keys())
                         prod_lookup = {p['id']: p for p in all_products}
 
                         for item in st.session_state.cart:
                             p_row = dict(prod_lookup.get(item['product_id'], {}))
                             p_row['price_cents'] = int(item['unit_price_cents'])
 
-                            field_values = {
-                                'product_payload': p_row,
-                                'product': p_row,
-                                'item': p_row,
-                                'prod': p_row,
-                                'quantity': int(item['quantity']),
-                                'qty': int(item['quantity']),
-                                'size_oz': item.get('size_oz'),
-                                'customizations': item.get('customizations', ''),
-                                'options': item.get('customizations', ''),
-                            }
+                            kwargs = {}
+                            if 'quantity' in add_params:
+                                kwargs['quantity'] = int(item['quantity'])
+                            elif 'qty' in add_params:
+                                kwargs['qty'] = int(item['quantity'])
 
-                            call_args = [field_values[param] for param in add_params if param in field_values]
-                            ll_cart.add(*call_args)
+                            if 'size_oz' in add_params and item.get('size_oz') is not None:
+                                kwargs['size_oz'] = int(item['size_oz'])
 
+                            if 'customizations' in add_params and item.get('customizations'):
+                                kwargs['customizations'] = str(item['customizations'])
+
+                            ll_cart.add(p_row, **kwargs)
 
                         # Match db.record_sale's exact parameter names automatically
                         sig = inspect.signature(db.record_sale)
@@ -1383,7 +1381,11 @@ elif mode == 'Cashier' and page == 'New Sale':
 
                         if 'cart' in params:
                             sale = db.record_sale(ll_cart, c_label) if len(params) >= 2 else db.record_sale(cart=ll_cart)
-                                                # Handle sale whether db.record_sale returns an int ID or a dict
+                        elif 'items' in params:
+                            sale = db.record_sale(items=st.session_state.cart, cashier_label=c_label) if 'cashier_label' in params else db.record_sale(st.session_state.cart, c_label)
+                        else:
+                            sale = db.record_sale(ll_cart, c_label)
+
                         if isinstance(sale, int):
                             sale_ref = sale
                             st.session_state.last_sale = {
@@ -1416,6 +1418,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                         db.log_activity('Cashier', 'Sale Completed', f"{sale_label}{customer_name.strip()} · {money(total_cents)}")
 
                         st.session_state.cart.clear()
+                        st.session_state["clear_pos_cust_name"] = True
                         st.session_state.global_toast = {
                             "msg": f"SALE CONFIRMED: Order for '{customer_name.strip()}' recorded ({money(total_cents)}).",
                             "bg": "#2e7d32",
@@ -1423,8 +1426,8 @@ elif mode == 'Cashier' and page == 'New Sale':
                         }
                         st.rerun()
                     except Exception as e:
-                        import traceback
-                        st.error(f"Checkout error: {type(e).__name__}: {e}")
+                        st.warning(str(e))
+
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     st.subheader('Cashier - Order Priority & Pickup Queue')
