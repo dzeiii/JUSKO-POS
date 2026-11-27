@@ -1069,397 +1069,362 @@ elif mode == 'Cashier' and page == 'Dashboard':
 
 
 elif mode == 'Cashier' and page == 'New Sale':
-    st.markdown('### New Sale')
-    # LOAD ACTIVE PRODUCTS
-    all_products = db.list_products(active_only=True)
-    inventory_categories = ['powder','drinking cups','food cups','square plates','takeout boxes big','takeout boxes small','lids flat','lids dome']
+    if 'cart' not in st.session_state or not isinstance(st.session_state.cart, list):
+        st.session_state.cart = []
 
-    # Case-insensitive inventory category filtering
-    products = [p for p in all_products if str(p['category']).split(" | Custom:", 1)[0].strip().casefold() not in inventory_categories]
-    left, right = st.columns([1.5, 1], gap='small')
-    
-    # LEFT COLUMN: AVAILABLE PRODUCTS
-    with left:
-        st.markdown('#### Available products')
-        selected_catalog_tab = st.radio(
-            "Filter Department Menu Context",
-            [" All Catalog", " Foods (Grubs)", " Drinks (Gulps)"],
-            horizontal=True,
-            label_visibility="collapsed",
-            key="cashier_department_filter_tabs"
-        )
-        st.write("")
+    all_products = [dict(p) for p in db.list_products(active_only=True)]
 
-        query = st.text_input('Find a product', placeholder='Search product name or code')
-        # Apply filter modifications based on active selection loops
-        if query.strip():
-            match = product_tree.search(query.strip())
-            if match and match['category'] not in inventory_categories:
-                base_shown = [match]
-            else:
-                base_shown = [p for p in products if query.casefold() in (p['name'] + ' ' + p['code']).casefold()]
-        else:
-            base_shown = products
-            
-        # Added 'int(p['stock']) > 0' to hide any items with 0 stock automatically
-        if selected_catalog_tab == " Foods (Grubs)":
-            shown = [p for p in base_shown if not db.get_product_sizes(p['id']) and int(p['stock']) > 0]
-        elif selected_catalog_tab == " Drinks (Gulps)":
-            shown = [p for p in base_shown if bool(db.get_product_sizes(p['id'])) and int(p['stock']) > 0]
-        else:
-            shown = [p for p in base_shown if int(p['stock']) > 0]
+    # Standard Drink Sinkers / Add-ons (₱10.00 each)
+    SINKER_OPTIONS = {
+        "Pearls (₱10)": 1000,
+        "Nata de Coco (₱10)": 1000,
+        "Coffee Jelly (₱10)": 1000,
+        "Cream Cheese (₱15)": 1500,
+        "Oreo Crumbles (₱15)": 1500,
+    }
 
-        if not shown:
-            st.info('No matching active products with available stock found.')
-            
-        # PRODUCT DISPLAY
-        for start_idx in range(0, len(shown), 2):
-            cols = st.columns(2)
-            for col, p in zip(cols, shown[start_idx:start_idx + 2]):
-                with col:
-                    # LOAD PRODUCT SIZES
-                    sizes = db.get_product_sizes(p['id'])
-                    is_drink = bool(sizes)
-                    # CLEAN CATEGORY AND CUSTOM SIZE LABEL
-                    if " | Custom:" in p['category']:
-                        cat_parts = p['category'].split(" | Custom:", 1)
-                        display_cat_clean = str(cat_parts[0]).strip()
-                        custom_size_text = str(cat_parts[1]).strip()
-                    else:
-                        display_cat_clean = str(p['category']).strip()
-                        custom_size_text = ""
-                    
-                    # DISPLAY PRODUCT PRICE
-                    if is_drink:
-                        price_parts = []
-                        custom_labels_array = []
-                        if " | Custom:" in p['category']:
-                            custom_labels_array = [lbl.strip() for lbl in p['category'].split(" | Custom:", 1)[1].split(",")]
-                        
-                        for size, price in sizes.items():
-                            size_idx = int(size)
-                            if size_idx >= 99:
-                                label_pos = size_idx - 99
-                                if label_pos < len(custom_labels_array):
-                                    price_parts.append(f"{custom_labels_array[label_pos]} {money(price)}")
+    # 2-COLUMN BENTO POS WORKSPACE (Left: Available Products | Right: Shopping Cart & Checkout)
+    pos_left, pos_right = st.columns((1.35, 1), gap='medium')
+
+    # =========================================================
+    # LEFT BENTO CARD: AVAILABLE PRODUCTS + SINKERS / CUSTOMIZE
+    # =========================================================
+    with pos_left:
+        with st.container(key='bento_pos_menu', border=True):
+            hdr_m, cat_m, search_m = st.columns((1.05, 1.45, 1.3), vertical_alignment='center', gap='small')
+            with hdr_m:
+                st.markdown("**Available Products**")
+            with cat_m:
+                cat_filter = st.segmented_control(
+                    "Filter",
+                    options=("All", "Foods", "Drinks", "Combos"),
+                    default="All",
+                    selection_mode="single",
+                    label_visibility="collapsed",
+                    width="stretch",
+                    key="pos_cat_pills"
+                )
+                if not cat_filter:
+                    cat_filter = "All"
+            with search_m:
+                pos_search = st.text_input(
+                    "Search",
+                    placeholder="Search name or code...",
+                    key="pos_search_input",
+                    label_visibility="collapsed"
+                ).strip().lower()
+
+            visible_products = []
+            for p in all_products:
+                code_upper = str(p.get('code', '')).upper()
+                if cat_filter == "Foods" and not code_upper.startswith("GRB-"):
+                    continue
+                if cat_filter == "Drinks" and not code_upper.startswith("GLP-"):
+                    continue
+                if cat_filter == "Combos" and not code_upper.startswith("CMB-"):
+                    continue
+                if pos_search and (pos_search not in p['name'].lower() and pos_search not in code_upper.lower()):
+                    continue
+                visible_products.append(p)
+
+            # Fixed-height internal scroll container (height=365) so page NEVER scrolls
+            with st.container(height=365, border=False):
+                if not visible_products:
+                    st.info("No matching products found.")
+                else:
+                    cols_grid = st.columns(2, gap='small')
+                    for idx, prod in enumerate(visible_products):
+                        with cols_grid[idx % 2]:
+                            with st.container(key=f"pos_item_card_{prod['id']}", border=True):
+                                stk = int(prod.get('stock', 0))
+                                sizes = db.get_product_sizes(prod['id'])
+                                cat_str = prod.get('category') or ''
+                                clean_cat, _, custom_part = cat_str.partition(" | Custom:")
+                                clean_cat = clean_cat.strip()
+                                is_drink_item = bool(sizes) or str(prod.get('code', '')).upper().startswith("GLP-")
+
+                                st.markdown(f"**{prod['name']}**")
+                                st.caption(f"{prod['code']} · {clean_cat} · Stock: {stk}")
+
+                                if is_drink_item and sizes:
+                                    custom_lbls = [l.strip() for l in custom_part.split(",")] if custom_part else []
+                                    size_options = {}
+                                    for sz_key in sorted(sizes.keys()):
+                                        if int(sz_key) < 99:
+                                            lbl = f"{sz_key} oz — {money(sizes[sz_key])}"
+                                        else:
+                                            c_idx = int(sz_key) - 99
+                                            c_name = custom_lbls[c_idx] if c_idx < len(custom_lbls) and custom_lbls[c_idx] else "Custom"
+                                            lbl = f"{c_name} — {money(sizes[sz_key])}"
+                                        size_options[lbl] = (int(sz_key), int(sizes[sz_key]))
+
+                                    s_col, b_col = st.columns((1.5, 1), vertical_alignment='center', gap='small')
+                                    with s_col:
+                                        chosen_sz_lbl = st.selectbox(
+                                            "Size",
+                                            list(size_options.keys()),
+                                            key=f"pos_sz_sel_{prod['id']}",
+                                            label_visibility="collapsed"
+                                        )
+                                    sz_id, base_unit_cents = size_options[chosen_sz_lbl]
+
+                                    # Compact Customize Popover for Sinkers & Ice/Sugar Note
+                                    with st.popover("Customize (Sinkers)", use_container_width=True):
+                                        picked_sinkers = st.multiselect(
+                                            "Add Sinkers / Toppings",
+                                            options=list(SINKER_OPTIONS.keys()),
+                                            key=f"pos_sinkers_{prod['id']}"
+                                        )
+                                        drink_note = st.text_input(
+                                            "Ice / Sugar / Note",
+                                            placeholder="e.g., Less ice, 50% sugar",
+                                            key=f"pos_note_{prod['id']}"
+                                        ).strip()
+
+                                    sinkers_extra_cents = sum(SINKER_OPTIONS[s] for s in picked_sinkers)
+                                    final_unit_cents = base_unit_cents + sinkers_extra_cents
+                                    custom_parts = [s.split(" (") for s in picked_sinkers]
+                                    if drink_note:
+                                        custom_parts.append(drink_note)
+                                    custom_summary = ", ".join(custom_parts)
+
+                                    with b_col:
+                                        if st.button("+ Add", key=f"pos_add_btn_{prod['id']}", type="primary", use_container_width=True, disabled=(stk <= 0)):
+                                            existing = next(
+                                                (
+                                                    c for c in st.session_state.cart
+                                                    if c['product_id'] == prod['id']
+                                                    and c.get('size_oz') == sz_id
+                                                    and c.get('customizations', '') == custom_summary
+                                                ),
+                                                None
+                                            )
+                                            if existing:
+                                                if existing['quantity'] < stk:
+                                                    existing['quantity'] += 1
+                                                else:
+                                                    st.warning(f"Only {stk} in stock.")
+                                            else:
+                                                sz_tag, _, _ = chosen_sz_lbl.partition(" — ")
+                                                st.session_state.cart.append({
+                                                    'product_id': prod['id'],
+                                                    'code': prod['code'],
+                                                    'name': prod['name'],
+                                                    'size_oz': sz_id,
+                                                    'size_label': sz_tag,
+                                                    'customizations': custom_summary,
+                                                    'unit_price_cents': final_unit_cents,
+                                                    'quantity': 1
+                                                })
+                                            st.rerun()
+
                                 else:
-                                    price_parts.append(f"Custom {money(price)}")
-                            else:
-                                price_parts.append(f"{size} oz {money(price)}")
-                        price_line = ' · '.join(price_parts)
-                    else:
-                        price_line = money(p['price_cents'])
+                                    unit_cents = int(prod.get('price_cents', 0))
+                                    p_col, b_col = st.columns((1.5, 1), vertical_alignment='center', gap='small')
+                                    with p_col:
+                                        st.markdown(f"**{money(unit_cents)}**")
 
-                    
-                    # CASHIER PRODUCT CARD
-                    card_html = load_html_template('product_card.html', name=str(p['name']), product_name=str(p['name']),
-                        code=str(p['code']), category=str(display_cat_clean), price=str(price_line), price_line=str(price_line), stock=str(int(p['stock'])))
-                    st.markdown(card_html,unsafe_allow_html=True)
-                    
-                    # ADD TO CART FORM
-                    with st.form(f"add_cart_{p['id']}"):
-                        size_oz = None
-                        unit_price = p['price_cents']
-                        chosen_customizations = []
-                        addon_premium = 0
-                        
-                        # Set up the text variables safely
-                        prod_name_lower = p['name'].lower()
-                        cat_lower = display_cat_clean.lower()
-                        is_milktea = 'milktea' in cat_lower or 'milktea' in prod_name_lower
-                        is_milkshake = 'milkshake' in cat_lower or 'milkshake' in prod_name_lower
-                        is_lemonade_slushie = 'slushie' in cat_lower or 'slushie' in prod_name_lower
-                        is_lemonade = ('lemonade' in cat_lower or 'lemonade' in prod_name_lower) and not is_lemonade_slushie
-                        is_coffee = 'coffee' in cat_lower or 'coffee' in prod_name_lower
-                        is_float_or_juice_or_tea = 'float' in cat_lower or 'float' in prod_name_lower or 'juice' in cat_lower or 'juice' in prod_name_lower or 'tea' in cat_lower or 'tea' in prod_name_lower
-                        
-                        with st.popover(" Customize", use_container_width=True, disabled=p['stock'] < 1):
-                            if is_drink:
-                                st.markdown("##### Sizing Configuration")
-                                available_sizes = list(sizes.keys())
-                                
-                                # Re-parse active names array safely
-                                custom_labels_array = []
-                                if " | Custom:" in p['category']:
-                                    custom_labels_array = [lbl.strip() for lbl in p['category'].split(" | Custom:", 1)[1].split(",")]
+                                    with st.popover("Customize (Note)", use_container_width=True):
+                                        food_note = st.text_input(
+                                            "Special Request / Flavor",
+                                            placeholder="e.g., Extra cheese, spicy, no mayo",
+                                            key=f"pos_food_note_{prod['id']}"
+                                        ).strip()
 
-                                def size_label_formatter(z):
-                                    size_idx = int(z)
-                                    if size_idx >= 99:
-                                        label_pos = size_idx - 99
-                                        if label_pos < len(custom_labels_array):
-                                            return custom_labels_array[label_pos]
-                                        return "Custom Size"
-                                    return f"{z} oz"
-                                    
-                                size_oz = st.radio('Choose Size:', available_sizes, format_func=size_label_formatter, horizontal=True, key=f"size_{p['id']}")
-                                unit_price = sizes[size_oz]
-                                st.caption(f"Base Size Price: {money(unit_price)}")
-                                
-                                # Sinker logic inside popover window
-                                if not is_float_or_juice_or_tea:
-                                    st.markdown("###### Sinker Options")
-                                    if is_milktea:
-                                        mt_sinker = st.radio("Sinkers:", ["Pearls", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
-                                        if mt_sinker == "None": chosen_customizations.append(" NO PEARLS")
-                                    elif is_milkshake:
-                                        ms_sinker = st.radio("Sinkers:", ["Pearls", "Nata", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
-                                        if ms_sinker == "None": chosen_customizations.append(" NO SINKERS")
-                                    elif is_lemonade:
-                                        lem_sinker = st.radio("Sinkers:", ["Rainbow Jelly", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
-                                        if lem_sinker == "None": chosen_customizations.append(" NO RAINBOW JELLY")
-                                    elif is_lemonade_slushie:
-                                        sl_sinker = st.radio("Sinkers:", ["Nata", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
-                                        if sl_sinker == "None": chosen_customizations.append(" NO NATA")
-                                    elif is_coffee:
-                                        cf_sinker = st.radio("Sinkers:", ["Coffee Jelly", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
-                                        if cf_sinker == "None": chosen_customizations.append(" NO COFFEE JELLY")
+                                    with b_col:
+                                        if st.button("+ Add", key=f"pos_add_btn_{prod['id']}", type="primary", use_container_width=True, disabled=(stk <= 0)):
+                                            existing = next(
+                                                (
+                                                    c for c in st.session_state.cart 
+                                                    if c['product_id'] == prod['id']
+                                                    and not c.get('size_oz')
+                                                    and c.get('customizations', '') == food_note
+                                                ),
+                                                None
+                                            )
+                                            if existing:
+                                                if existing['quantity'] < stk:
+                                                    existing['quantity'] += 1
+                                                else:
+                                                    st.warning(f"Only {stk} in stock.")
+                                            else:
+                                                st.session_state.cart.append({
+                                                    'product_id': prod['id'],
+                                                    'code': prod['code'],
+                                                    'name': prod['name'],
+                                                    'size_oz': None,
+                                                    'size_label': '',
+                                                    'customizations': food_note,
+                                                    'unit_price_cents': unit_cents,
+                                                    'quantity': 1
+                                                })
+                                            st.rerun()
 
-                                # Add-ons options inside popover window
-                                st.markdown("###### Topping Add-ons (+₱5)")
-                                sk_c1, sk_c2 = st.columns(2)
-                                with sk_c1: add_extra_pearl = st.checkbox("Extra Pearls", key=f"add_p_{p['id']}")
-                                with sk_c2: add_extra_nata = st.checkbox("Extra Nata", key=f"add_n_{p['id']}")
-                                with sk_c1: add_extra_jelly = st.checkbox("Extra Jelly", key=f"add_j_{p['id']}")
-                                with sk_c2: add_extra_coffee_jelly = st.checkbox("Extra C.Jelly", key=f"add_c_{p['id']}")
-                                
-                                if add_extra_pearl: chosen_customizations.append(" Extra Pearls"); addon_premium += 500
-                                if add_extra_nata: chosen_customizations.append(" Extra Nata"); addon_premium += 500
-                                if add_extra_jelly: chosen_customizations.append(" Extra Jelly"); addon_premium += 500
-                                if add_extra_coffee_jelly: chosen_customizations.append(" Extra Coffee Jelly"); addon_premium += 500
-                                unit_price += addon_premium
-
-                            st.markdown("###### To Note:")
-                            if is_drink: note_hint = "e.g., 50% Sugar, Less Ice"
-                            elif "fries" in display_cat_clean.lower() or "snack" in display_cat_clean.lower(): note_hint = "e.g., BBQ, Cheese"
-                            else: note_hint = "e.g., Syrup, Whipped Cream..."
-
-                            custom_note = st.text_input('Special Notes', placeholder=note_hint, key=f"note_input_{p['id']}").strip()
-                            qty = st.number_input('Quantity to Order', min_value=1, max_value=max(1, int(p['stock'])), value=1, step=1, key=f"qty_{p['id']}", disabled=p['stock'] < 1)
-                            
-                            st.write("")
-                            add = st.form_submit_button(' Add to cart', use_container_width=True, disabled=p['stock'] < 1)
-                    # PROCESS ADD TO CART
-                    if add:
-                        try:
-                            if qty > p['stock']: 
-                                raise ValueError(f"Only {p['stock']} unit(s) are in stock.")
-                            
-                            custom_labels_array = []
-                            if " | Custom:" in p['category']:
-                                custom_labels_array = [lbl.strip() for lbl in p['category'].split(" | Custom:", 1)[1].split(",")]
-                                
-                            # Safe index mapping protection
-                            if size_oz is not None:
-                                try:
-                                    size_idx = int(size_oz)
-                                except (ValueError, TypeError):
-                                    size_idx = 99
-                            else:
-                                size_idx = None
-
-                            if size_idx is not None and size_idx >= 99: 
-                                label_pos = size_idx - 99
-                                if label_pos < len(custom_labels_array):
-                                    size_display_name = custom_labels_array[label_pos]
-                                else:
-                                    size_display_name = 'Custom Size'
-                            elif size_idx is not None: 
-                                size_display_name = f"{size_idx} oz"
-                            else: 
-                                size_display_name = ''
-                                
-                            checkout_product_payload = p.copy()
-                           
-                            if size_idx is not None and size_idx >= 99:
-                                checkout_product_payload['name'] = f"{p['name']} ({size_display_name})"
-                            elif size_idx is not None:
-                                checkout_product_payload['name'] = f"{p['name']} ({size_display_name})"
-                                
-                            final_notes_list = chosen_customizations.copy()
-                            if custom_note: 
-                                final_notes_list.append(custom_note)
-                            combined_customizations = '; '.join(final_notes_list)
-                    
-                            st.session_state.cart.add(
-                                checkout_product_payload, 
-                                int(qty), 
-                                size_oz=size_idx, # Pass the clean integer index 
-                                unit_price_cents=int(unit_price), 
-                                customizations=combined_customizations
-                            )
-                            st.rerun()
-                        except Exception as e: 
-                            # If an old database schema error leaks, isolate it from breaking the frontend screen layout
-                            logging.exception("Cart insertion error bypassed")
-                            st.toast(f" Added {qty}x {p['name']} to cart!", icon="✨")
-                            st.rerun()
-
-
-    # SHOPPING CART
-    with right:
-        st.markdown('#### Shopping cart')
-        cart = st.session_state.cart
-        items = cart.items()
-        if not items:
-            st.info('Your cart is empty. Add a product to begin.')
-        else:
-            for cart_item in items:
-                with st.container(border=True):
-                    size_val = cart_item.get('size_oz')
-                    size_lbl = ""
-                    
-                    if size_val is not None:
-                        size_idx = int(size_val)
-                        if size_idx >= 99:
-                            try:
-                                # Fetch clean category fallback description directly from database if memory field is blank
-                                raw_cat_string = cart_item.get('category')
-                                if not raw_cat_string:
-                                    master_prod = db.get_product(cart_item['product_id'])
-                                    raw_cat_string = master_prod.get('category', '') if master_prod else ''
-                                
-                                custom_labels_array = []
-                                if " | Custom:" in str(raw_cat_string):
-                                    custom_labels_array = [lbl.strip() for lbl in str(raw_cat_string).split(" | Custom:", 1)[1].split(",")]
-                                
-                                label_pos = size_idx - 99
-                                if label_pos < len(custom_labels_array):
-                                    size_lbl = custom_labels_array[label_pos]
-                                else:
-                                    size_lbl = "Custom Size"
-                            except Exception:
-                                size_lbl = "Custom Size"
-                        else:
-                            size_lbl = f"{size_val} oz"
-                        
-                    # Clean the displayed name string format cleanly 
-                    base_display_name = cart_item.get('name', 'Product').split(" (")[0].strip()
-                    display_title = f"**{base_display_name} ({size_lbl})**" if size_lbl else f"**{base_display_name}**"
-                    options_label = f"\n\n<small style='color:gray;'>{cart_item['customizations']}</small>" if cart_item.get('customizations') else ""
-
-                    c1, c2 = st.columns(2)
-                    c1.markdown(f"{display_title}{options_label}\n\n{money(cart_item['unit_price_cents'])} each", unsafe_allow_html=True)
-                    c2.markdown(f"**{money(cart_entry_subtotal := cart_item['unit_price_cents'] * cart_item['quantity'])}**")
-
-                    qcol, rmcol = st.columns([2, 1])
-                    new_q = qcol.number_input('Quantity', min_value=1, max_value=1000000, value=int(cart_item['quantity']), step=1,
-                        key=(f"cart_q_{cart_item['product_id']} {cart_item.get('size_oz') or 'std'} {abs(hash(str(cart_item.get('customizations', ''))))}"))
-                    
-                    if qcol.button('Update', key=(f"update_{cart_item['product_id']} {cart_item.get('size_oz') or 'std'} {abs(hash(str(cart_item.get('customizations',''))))}")):
-                        try:
-                            db_product = db.get_product(cart_item['product_id'])
-                            if not db_product or not db_product['active']:
-                                raise ValueError('This product is no longer available. Remove it from the cart.')
-                            if int(new_q) > db_product['stock']:
-                                raise ValueError(f"Only {db_product['stock']} unit(s) are in stock.")
-                            cart.set_quantity(cart_item['product_id'], int(new_q), cart_item.get('size_oz'), cart_item.get('customizations', ''))
-                            st.rerun()
-                        except Exception as e:
-                            safe_error(e)
-                            
-                    if rmcol.button('Remove', key=(f"remove_{cart_item['product_id']} {cart_item.get('size_oz') or 'std'} {abs(hash(str(cart_item.get('customizations',''))))}")):
-                        cart.remove(cart_item['product_id'], cart_item.get('size_oz'), cart_item.get('customizations', ''))
-                        st.rerun()
-
-        st.markdown(f"#### Total: {money(cart.total_cents())}")
-        with st.form('checkout_form'):
-            if st.session_state.pop("clear_customer_name", False):
-                st.session_state["pos_customer_name"] = ""
-            customer_name = st.text_input('Customer name *',placeholder='e.g. John Doe')
-            priority_level = st.select_slider('Priority level',
-                options=[1, 2, 3],
-                value=3,
-                format_func=lambda x: {
-                    1: '1 · Urgent',
-                    2: '2 · High',
-                    3: '3 · Normal'
-                }[x]
-            )
-
-            cashier_label = st.text_input('Cashier name (optional)',placeholder='Cashier')
-            confirm = st.form_submit_button('Confirm sale',type='primary',use_container_width=True)
-            if confirm:
-                try:
-                    if not customer_name.strip(): 
-                        raise ValueError("Please enter the customer name.")
-                    
-                    if hasattr(st.session_state.cart, '_items'):
-                        raw_cart_values = list(st.session_state.cart._items.values())
-                    else:
-                        raw_cart_values = list(st.session_state.cart.items())
-                    
-                    if not raw_cart_values:
-                        raise ValueError("Your checkout shopping basket is completely empty.")
-                    
-                    normalized_cart_values = []
-                    for original_item in raw_cart_values:
-                        cloned_item = original_item.copy()
-                        item_size = cloned_item.get('size_oz')
-                        if item_size is not None and int(item_size) >= 99:
-                            cloned_item['size_oz'] = 99  # Safe database value mapping
-                        normalized_cart_values.append(cloned_item)
-
-                    determined_cashier = cashier_label.strip() if cashier_label else "Cashier"
-                        
-                    # Submit the safely normalized dataset to your transaction ledger
-                    sale = db.checkout(normalized_cart_values, cashier_label=determined_cashier)
-                    st.session_state.last_sale = sale
-
-                    order_details_list = []
-                    for item in raw_cart_values:
-                        size_val = item.get('size_oz')
-                        size_suffix = ""
-                        if size_val is not None:
-                            size_idx = int(size_val)
-                            if size_idx >= 99:
-                                # Keep your pristine string display text accurate on the kitchen ticket!
-                                try:
-                                    raw_cat_string = item.get('category', '')
-                                    custom_labels_array = []
-                                    if " | Custom:" in str(raw_cat_string):
-                                        custom_labels_array = [lbl.strip() for lbl in str(raw_cat_string).split(" | Custom:", 1)[1].split(",")]
-                                    
-                                    label_pos = size_idx - 99
-                                    if label_pos < len(custom_labels_array):
-                                        size_suffix = f" ({custom_labels_array[label_pos]})"
-                                    else:
-                                        size_suffix = " (Custom Size)"
-                                except Exception:
-                                    size_suffix = " (Custom Size)"
-                            else:
-                                size_suffix = f" ({size_val} oz)"
-                                
-                        order_details_list.append(f"{item['quantity']}x {item.get('name', 'Product')}{size_suffix}")
-                    order_details_str = ", ".join(order_details_list)
-                    
-                    db.add_order(
-                        customer_name=customer_name.strip(), 
-                        details=order_details_str, 
-                        priority=int(priority_level)
-                    )
-
-                    # Log Cashier activity using the exact keys from `sale`
-                    sale_ref = sale.get('id') or sale.get('sale_id') or sale.get('transaction_id') or ''
-                    sale_label = f"Sale #{sale_ref} · " if sale_ref else ""
-                    db.log_activity('Cashier', 'Sale Completed', f"{sale_label}{customer_name.strip()} · {money(sale['total_cents'])}")
-
-
-                    # Clear shopping cart basket cleanly
+    # =========================================================
+    # RIGHT BENTO CARD: COMPACT SHOPPING CART & CHECKOUT
+    # =========================================================
+    with pos_right:
+        with st.container(key='bento_pos_cart', border=True):
+            c_hdr, c_clr = st.columns((2, 1), vertical_alignment='center', gap='small')
+            with c_hdr:
+                cart_items = st.session_state.cart if isinstance(st.session_state.cart, list) else []
+                total_items = sum(int(i.get('quantity', 1)) for i in cart_items if isinstance(i, dict))
+                st.markdown(f"**Shopping Cart ({total_items})**")
+            with c_clr:
+                if st.button("Clear", key="pos_clear_cart", use_container_width=True, disabled=(len(st.session_state.cart) == 0)):
                     st.session_state.cart.clear()
-                    st.session_state["clear_customer_name"] = True
                     st.rerun()
 
-                    st.session_state.global_toast = {
-                        "msg": f"TRANSACTION SUCCESSFUL: Sale checkout processed for '{customer_name.strip()}'! Total Paid: {money(sale['total_cents'])}.",
-                        "bg": "#2e7d32",  
-                        "icon": "[OK]"
-                    }
-                    st.rerun()
-                except Exception as e:
-                    st.warning(str(e))
+            with st.container(height=185, border=False):
+                if not st.session_state.cart:
+                    st.info("Cart is empty. Click '+ Add' on a product to begin.")
+                else:
+                    for idx, item in enumerate(list(st.session_state.cart)):
+                        sz_txt = f" ({item['size_label']})" if item.get('size_label') else ""
+                        cust_txt = f" · _{item['customizations']}_" if item.get('customizations') else ""
+                        line_sub = int(item['unit_price_cents']) * int(item['quantity'])
+                        stock_limit = next((int(p['stock']) for p in all_products if p['id'] == item['product_id']), 999)
+
+                        r_name, r_minus, r_qty, r_plus, r_price, r_del = st.columns((2.1, 0.45, 0.45, 0.45, 1.0, 0.45), vertical_alignment='center', gap='small')
+                        with r_name:
+                            st.markdown(f"**{item['name']}**{sz_txt}{cust_txt}")
+                        with r_minus:
+                            if st.button("-", key=f"cart_dec_{idx}", use_container_width=True):
+                                if item['quantity'] > 1:
+                                    item['quantity'] -= 1
+                                else:
+                                    st.session_state.cart.pop(idx)
+                                st.rerun()
+                        with r_qty:
+                            st.markdown(f"<div style='text-align:center;font-weight:700;'>{item['quantity']}</div>", unsafe_allow_html=True)
+                        with r_plus:
+                            if st.button("+", key=f"cart_inc_{idx}", use_container_width=True, disabled=(item['quantity'] >= stock_limit)):
+                                item['quantity'] += 1
+                                st.rerun()
+                        with r_price:
+                            st.markdown(f"<div style='text-align:right;font-weight:700;'>{money(line_sub)}</div>", unsafe_allow_html=True)
+                        with r_del:
+                            if st.button("x", key=f"cart_rem_{idx}", use_container_width=True):
+                                st.session_state.cart.pop(idx)
+                                st.rerun()
+
+            # Compact 3-Column Customer, Priority & Cashier Strip
+            in1, in2, in3 = st.columns((1.3, 1.0, 1.0), gap='small')
+            with in1:
+                customer_name = st.text_input("Customer name *", placeholder="e.g. Juan", key="pos_cust_name")
+            with in2:
+                priority_level = st.selectbox(
+                    "Priority",
+                    options=(3, 2, 1),
+                    format_func=lambda x: {1: "1 - Urgent", 2: "2 - High", 3: "3 - Normal"}[x],
+                    key="pos_priority_sel"
+                )
+            with in3:
+                cashier_name = st.text_input("Cashier", value="Cashier", key="pos_cashier_name")
+
+            total_cents = sum(int(i['unit_price_cents']) * int(i['quantity']) for i in st.session_state.cart)
+
+            # Total Bar + Confirm Sale Button pinned cleanly inside the card
+            tot_c, btn_c = st.columns((1.1, 1.3), vertical_alignment='center', gap='small')
+            with tot_c:
+                st.markdown(
+                    f"""
+                    <div style="background:#f8f3eb; border:1px solid #e2d4c3; border-radius:10px; padding:6px 12px;">
+                        <div style="font-size:0.72rem; color:#6b5255; font-weight:600;">Total Due</div>
+                        <div style="font-size:1.15rem; font-weight:800; color:#4b1117;">{money(total_cents)}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+            with btn_c:
+                confirm_btn = st.button(
+                    "Confirm Sale",
+                    type="primary",
+                    use_container_width=True,
+                    disabled=(len(st.session_state.cart) == 0),
+                    key="pos_confirm_sale_btn"
+                )
+
+            if confirm_btn:
+                if not customer_name or not customer_name.strip():
+                    st.error("Customer name is required before confirming sale.")
+                else:
+                    try:
+                        import inspect
+                        ll_cart = LinkedListCart()
+                        add_params = list(inspect.signature(ll_cart.add).parameters.keys())
+                        prod_lookup = {p['id']: p for p in all_products}
+
+                        for item in st.session_state.cart:
+                            p_row = dict(prod_lookup.get(item['product_id'], {}))
+                            p_row['price_cents'] = int(item['unit_price_cents'])
+
+                            field_values = {
+                                'product_payload': p_row,
+                                'product': p_row,
+                                'item': p_row,
+                                'prod': p_row,
+                                'quantity': int(item['quantity']),
+                                'qty': int(item['quantity']),
+                                'size_oz': item.get('size_oz'),
+                                'customizations': item.get('customizations', ''),
+                                'options': item.get('customizations', ''),
+                            }
+
+                            call_args = [field_values[param] for param in add_params if param in field_values]
+                            ll_cart.add(*call_args)
 
 
+                        # Match db.record_sale's exact parameter names automatically
+                        sig = inspect.signature(db.record_sale)
+                        params = list(sig.parameters.keys())
+                        c_label = cashier_name.strip() or "Cashier"
+
+                        if 'cart' in params:
+                            sale = db.record_sale(ll_cart, c_label) if len(params) >= 2 else db.record_sale(cart=ll_cart)
+                                                # Handle sale whether db.record_sale returns an int ID or a dict
+                        if isinstance(sale, int):
+                            sale_ref = sale
+                            st.session_state.last_sale = {
+                                'transaction_id': sale,
+                                'id': sale,
+                                'created_at': ph_datetime_string(),
+                                'total_cents': total_cents,
+                                'cashier_label': c_label
+                            }
+                        elif isinstance(sale, dict):
+                            sale_ref = sale.get('id') or sale.get('sale_id') or sale.get('transaction_id') or ''
+                            st.session_state.last_sale = sale
+                        else:
+                            sale_ref = ''
+                            st.session_state.last_sale = None
+
+                        order_details_list = []
+                        for item in st.session_state.cart:
+                            sz_suffix = f" ({item['size_label']})" if item.get('size_label') else ""
+                            cust_suffix = f" [{item['customizations']}]" if item.get('customizations') else ""
+                            order_details_list.append(f"{item['quantity']}x {item['name']}{sz_suffix}{cust_suffix}")
+
+                        db.add_order(
+                            customer_name=customer_name.strip(),
+                            details=", ".join(order_details_list),
+                            priority=int(priority_level)
+                        )
+
+                        sale_label = f"Sale #{sale_ref} · " if sale_ref else ""
+                        db.log_activity('Cashier', 'Sale Completed', f"{sale_label}{customer_name.strip()} · {money(total_cents)}")
+
+                        st.session_state.cart.clear()
+                        st.session_state.global_toast = {
+                            "msg": f"SALE CONFIRMED: Order for '{customer_name.strip()}' recorded ({money(total_cents)}).",
+                            "bg": "#2e7d32",
+                            "icon": "[OK]"
+                        }
+                        st.rerun()
+                    except Exception as e:
+                        import traceback
+                        st.error(f"Checkout error: {type(e).__name__}: {e}")
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     st.subheader('Cashier - Order Priority & Pickup Queue')
