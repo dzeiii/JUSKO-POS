@@ -509,161 +509,165 @@ elif mode == 'Admin' and page == 'Product Management':
                 orig_category = p['category']
                 is_custom_drink = " | Custom:" in orig_category
                 if is_custom_drink:
-                base_cat_name, custom_sz_label = orig_category.split(" | Custom:", 1)
+                    base_cat_name, custom_sz_label = orig_category.split(" | Custom:", 1)
                 else:
-                base_cat_name = orig_category
-                custom_sz_label = ""
+                    base_cat_name = orig_category
+                    custom_sz_label = ""
                 is_a_drink = is_custom_drink or any(
-                d in base_cat_name.lower()
-                for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage', 'tea', 'gulp', 'fruit tea']
+                    d in base_cat_name.lower()
+                    for d in ['milkshake', 'float', 'milktea', 'drink', 'coffee', 'juice', 'beverage', 'tea', 'gulp', 'fruit tea']
                 )
                 edit_left, edit_right = st.columns([1, 1.15], gap="medium")
                 # LEFT CARD: Product Details & Threshold
                 with edit_left:
-                with st.container(key='bento_edit_left'):
-                st.markdown("1. Product Details")
-                ec1, ec2 = st.columns([1, 1.6], gap="small")
-                ec1.text_input('Code', value=p['code'], disabled=True)
-                new_name = ec2.text_input('Product name', value=p['name'], key=f"edit_name_field_{p['id']}").strip()
-                cat_col, thresh_col = st.columns([1.6, 1], gap="small")
-                with cat_col:
-                if is_a_drink:
-                new_base_cat = st.text_input('Category Name *', value=base_cat_name, key=f"edit_base_cat_field_{p['id']}").strip()
-                else:
-                new_base_cat = st.text_input('Category Name *', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
-                with thresh_col:
-                new_threshold = st.number_input('Low-stock alert', min_value=0, max_value=1000000, value=int(p.get('low_stock_threshold', 5)), step=1, key=f"edit_thresh_{p['id']}")
+                    with st.container(key='bento_edit_left'):
+                        st.markdown("**1. Product Details**")
+                        ec1, ec2 = st.columns([1, 1.6], gap="small")
+                        ec1.text_input('Code', value=p['code'], disabled=True)
+                        new_name = ec2.text_input('Product name', value=p['name'], key=f"edit_name_field_{p['id']}").strip()
+                        cat_col, thresh_col = st.columns([1.6, 1], gap="small")
+                        with cat_col:
+                            if is_a_drink:
+                                new_base_cat = st.text_input('Category Name *', value=base_cat_name, key=f"edit_base_cat_field_{p['id']}").strip()
+                            else:
+                                new_base_cat = st.text_input('Category Name *', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
+                        with thresh_col:
+                            new_threshold = st.number_input('Low-stock alert', min_value=0, max_value=1000000, value=int(p.get('low_stock_threshold', 5)), step=1, key=f"edit_thresh_{p['id']}")
                 # RIGHT CARD: Pricing & Sizes
                 with edit_right:
-                with st.container(key='bento_edit_right'):
-                st.markdown("2. Pricing & Sizing")
-                size_inputs = {}
-                if is_a_drink:
-                all_possible_sizes =
-                size_cols = st.columns(len(all_possible_sizes), gap="small")
-                for size_idx, size in enumerate(all_possible_sizes):
-                existing_price_cents = current_sizes.get(size, 0)
-                if not current_sizes and size in (12, 16):
-                existing_price_cents = p.get('price_cents', 0)
-                initial_value = float(existing_price_cents) / 100.0
-                size_inputs[size] = size_cols[size_idx].number_input(
-                f'{size} oz (₱)',
-                min_value=0.0,
-                value=initial_value,
-                step=1.0,
-                format="%.2f",
-                key=f"edit_price_{p['code']}_{size}"
-                )
-                custom_sizes_in_db = {sz: cents for sz, cents in current_sizes.items() if int(sz) >= 99}
-                custom_labels_array = [lbl.strip() for lbl in orig_category.split(" | Custom:", 1).split(",")] if " | Custom:" in orig_category else []
-                total_slots_to_render = max(len(custom_labels_array), len(custom_sizes_in_db))
-                if f"edit_custom_count_{p['id']}" in st.session_state:
-                total_slots_to_render = max(total_slots_to_render, st.session_state[f"edit_custom_count_{p['id']}"])
-                else:
-                st.session_state[f"edit_custom_count_{p['id']}"] = total_slots_to_render
-                edit_custom_inputs = []
-                has_any_active_data = False
-                for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
-                associated_db_key = 99 + i
-                if not st.session_state.get(f"delete_custom_{p['id']}{associated_db_key}", False):
-                saved_lbl = custom_labels_array[i] if i < len(custom_labels_array) else ""
-                if saved_lbl or st.session_state.get(f"edit_lbl_cust_dbkey{p['id']}_{associated_db_key}"):
-                has_any_active_data = True
-                break
-                if not has_any_active_data and len(custom_sizes_in_db) == 0:
-                st.session_state[f"edit_custom_count_{p['id']}"] = 1
-                for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
-                associated_db_key = 99 + i
-                if st.session_state.get(f"delete_custom_{p['id']}_{associated_db_key}", False):
-                continue
-                default_label = custom_labels_array[i] if i < len(custom_labels_array) else ""
-                default_price = float(custom_sizes_in_db.get(associated_db_key, 0.0)) / 100.0
-                ec_col1, ec_col2, ec_col3 = st.columns([2, 1.5, 1], gap="small")
-                with ec_col1:
-                lbl_val = ec_col1.text_input("Label", value=default_label, placeholder="e.g., 22oz", key=f"edit_lbl_cust_dbkey_{p['id']}{associated_db_key}", label_visibility="collapsed").strip()
-                with ec_col2:
-                prc_val = ec_col2.number_input("Price", min_value=0.0, value=default_price, step=1.0, format='%.2f', key=f"edit_val_cust_dbkey{p['id']}{associated_db_key}", label_visibility="collapsed")
-                with ec_col3:
-                if ec_col3.button("Remove", key=f"remove_custom_size_row_dbkey{p['id']}{associated_db_key}", use_container_width=True):
-                st.session_state[f"delete_custom{p['id']}{associated_db_key}"] = True
-                if f"edit_lbl_cust_dbkey{p['id']}{associated_db_key}" in st.session_state:
-                del st.session_state[f"edit_lbl_cust_dbkey{p['id']}_{associated_db_key}"]
-                st.rerun()
-                if lbl_val or prc_val > 0:
-                edit_custom_inputs.append({"label": lbl_val, "price": prc_val})
-                if st.button("+ Add custom size", key=f"edit_add_more_sizes_btn_{p['id']}"):
-                st.session_state[f"edit_custom_count_{p['id']}"] += 1
-                st.rerun()
-                updated_sizes = {int(sz): cents_from_peso(pr_val) for sz, pr_val in size_inputs.items() if float(pr_val) > 0.0}
-                compiled_edit_labels = []
-                edit_db_key_id = 99
-                for entry in edit_custom_inputs:
-                if entry["label"] and entry["price"] > 0:
-                updated_sizes[edit_db_key_id] = cents_from_peso(entry["price"])
-                compiled_edit_labels.append(entry["label"])
-                edit_db_key_id += 1
-                new_cat = f"{new_base_cat} | Custom:{', '.join(compiled_edit_labels)}" if compiled_edit_labels else new_base_cat
-                new_base_price_cents = next(iter(updated_sizes.values())) if updated_sizes else p['price_cents']
-                else:
-                new_cat = new_base_cat
-                new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents'] / 100), step=5.0, format='%.2f', key=f"edit_price_food_{p['id']}")
-                new_base_price_cents = cents_from_peso(new_price_val)
-                updated_sizes = None
+                    with st.container(key='bento_edit_right'):
+                        st.markdown("**2. Pricing & Sizing**")
+                        size_inputs = {}
+                        if is_a_drink:
+                            all_possible_sizes = [8, 12, 16]
+                            size_cols = st.columns(len(all_possible_sizes), gap="small")
+                            for size_idx, size in enumerate(all_possible_sizes):
+                                existing_price_cents = current_sizes.get(size, 0)
+                                if not current_sizes and size in (12, 16):
+                                    existing_price_cents = p.get('price_cents', 0)
+                                initial_value = float(existing_price_cents) / 100.0
+                                size_inputs[size] = size_cols[size_idx].number_input(
+                                    f'{size} oz (₱)',
+                                    min_value=0.0,
+                                    value=initial_value,
+                                    step=1.0,
+                                    format="%.2f",
+                                    key=f"edit_price_{p['code']}_{size}"
+                                )
+                            custom_sizes_in_db = {sz: cents for sz, cents in current_sizes.items() if int(sz) >= 99}
+                            custom_labels_array = [lbl.strip() for lbl in orig_category.split(" | Custom:", 1)[1].split(",")] if " | Custom:" in orig_category else []
+                            total_slots_to_render = max(len(custom_labels_array), len(custom_sizes_in_db))
+                            if f"edit_custom_count_{p['id']}" in st.session_state:
+                                total_slots_to_render = max(total_slots_to_render, st.session_state[f"edit_custom_count_{p['id']}"])
+                            else:
+                                st.session_state[f"edit_custom_count_{p['id']}"] = total_slots_to_render
+                            edit_custom_inputs = []
+                            has_any_active_data = False
+                            for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
+                                associated_db_key = 99 + i
+                                if not st.session_state.get(f"delete_custom_{p['id']}_{associated_db_key}", False):
+                                    saved_lbl = custom_labels_array[i] if i < len(custom_labels_array) else ""
+                                    if saved_lbl or st.session_state.get(f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"):
+                                        has_any_active_data = True
+                                        break
+                            if not has_any_active_data and len(custom_sizes_in_db) == 0:
+                                st.session_state[f"edit_custom_count_{p['id']}"] = 1
+                            for i in range(st.session_state[f"edit_custom_count_{p['id']}"]):
+                                associated_db_key = 99 + i
+                                if st.session_state.get(f"delete_custom_{p['id']}_{associated_db_key}", False):
+                                    continue
+
+                                default_label = custom_labels_array[i] if i < len(custom_labels_array) else ""
+                                default_price = float(custom_sizes_in_db.get(associated_db_key, 0.0)) / 100.0
+                                ec_col1, ec_col2, ec_col3 = st.columns([2, 1.5, 1], gap="small")
+                                with ec_col1:
+                                    lbl_val = ec_col1.text_input("Label", value=default_label, placeholder="e.g., 22oz", key=f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}", label_visibility="collapsed").strip()
+                                with ec_col2:
+                                    prc_val = ec_col2.number_input("Price", min_value=0.0, value=default_price, step=1.0, format='%.2f', key=f"edit_val_cust_dbkey_{p['id']}_{associated_db_key}", label_visibility="collapsed")
+                                with ec_col3:
+                                    if ec_col3.button("Remove", key=f"remove_custom_size_row_dbkey_{p['id']}_{associated_db_key}", use_container_width=True):
+                                        st.session_state[f"delete_custom_{p['id']}_{associated_db_key}"] = True
+                                        if f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}" in st.session_state:
+                                            del st.session_state[f"edit_lbl_cust_dbkey_{p['id']}_{associated_db_key}"]
+                                        st.rerun()
+                                if lbl_val or prc_val > 0:
+                                    edit_custom_inputs.append({"label": lbl_val, "price": prc_val})
+                            if st.button("+ Add custom size", key=f"edit_add_more_sizes_btn_{p['id']}"):
+                                st.session_state[f"edit_custom_count_{p['id']}"] += 1
+                                st.rerun()
+                            updated_sizes = {int(sz): cents_from_peso(pr_val) for sz, pr_val in size_inputs.items() if float(pr_val) > 0.0}
+                            compiled_edit_labels = []
+                            edit_db_key_id = 99
+                            for entry in edit_custom_inputs:
+                                if entry["label"] and entry["price"] > 0:
+                                    updated_sizes[edit_db_key_id] = cents_from_peso(entry["price"])
+                                    compiled_edit_labels.append(entry["label"])
+                                    edit_db_key_id += 1
+                            new_cat = f"{new_base_cat} | Custom:{', '.join(compiled_edit_labels)}" if compiled_edit_labels else new_base_cat
+                            new_base_price_cents = next(iter(updated_sizes.values())) if updated_sizes else p['price_cents']
+                        else:
+                            new_cat = new_base_cat
+                            new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents'] / 100), step=5.0, format='%.2f', key=f"edit_price_food_{p['id']}")
+                            new_base_price_cents = cents_from_peso(new_price_val)
+                            updated_sizes = None
+
                 # Action Row: Save Button + Collapsible Danger Zone side-by-side
                 act_col1, act_col2 = st.columns([1.5, 1], gap="medium")
                 with act_col1:
-                save_changes = st.button('Save All Product Details', type='primary', use_container_width=True, key=f"unified_save_btn_{p['id']}")
+                    save_changes = st.button('Save All Product Details', type='primary', use_container_width=True, key=f"unified_save_btn_{p['id']}")
                 with act_col2:
-                with st.expander("Danger Zone (Permanent Delete)"):
-                check_step1 = st.checkbox("Confirm permanent deletion", key=f"force_del_c1_{p['id']}")
-                check_step2 = st.checkbox("Confirm removal from logs", key=f"force_del_c2_{p['id']}")
-                if st.button('Permanently Delete', key=f"hard_purge_action_{p['id']}", type='primary', use_container_width=True, disabled=not (check_step1 and check_step2)):
-                try:
-                success, msg = db.delete_product(p['id'])
-                if success:
-                st.session_state.global_toast = {
-                "msg": f"PURGE REMOVAL: Product '{p['code']}' has been permanently deleted from the catalog.",
-                "bg": "#c62828",
-                "icon": "[!]"
-                }
-                db.log_activity('Admin', 'Product Deleted', f"{p['code']} · {p['name']}")
-                st.rerun()
-                else:
-                st.error(msg)
-                except Exception as e:
-                safe_error(e)
+                    with st.expander("Danger Zone (Permanent Delete)"):
+                        check_step1 = st.checkbox("Confirm permanent deletion", key=f"force_del_c1_{p['id']}")
+                        check_step2 = st.checkbox("Confirm removal from logs", key=f"force_del_c2_{p['id']}")
+                        if st.button('Permanently Delete', key=f"hard_purge_action_{p['id']}", type='primary', use_container_width=True, disabled=not (check_step1 and check_step2)):
+                            try:
+                                success, msg = db.delete_product(p['id'])
+                                if success:
+                                    st.session_state.global_toast = {
+                                        "msg": f"PURGE REMOVAL: Product '{p['code']}' has been permanently deleted from the catalog.",
+                                        "bg": "#c62828",
+                                        "icon": "[!]"
+                                    }
+                                    db.log_activity('Admin', 'Product Deleted', f"{p['code']} · {p['name']}")
+                                    st.rerun()
+                                else:
+                                    st.error(msg)
+                            except Exception as e:
+                                safe_error(e)
+
                 if save_changes:
-                if not new_name or not new_cat:
-                st.error("Product name and category definitions cannot be left blank.")
-                else:
-                success_trigger = False
-                try:
-                with db.connection() as save_conn:
-                save_conn.execute("""
-                UPDATE products
-                SET name = ?, category = ?, price_cents = ?, low_stock_threshold = ?, updated_at = ?
-                WHERE id = ?
-                """, (new_name, new_cat, int(new_base_price_cents), int(new_threshold), datetime.now().isoformat(), p['id']))
-                if is_a_drink:
-                with db.connection() as clear_conn:
-                clear_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
-                if updated_sizes:
-                for size_key, cents_val in updated_sizes.items():
-                clear_conn.execute("INSERT INTO product_sizes (product_id, size_oz, price_cents) VALUES (?, ?, ?)", (p['id'], int(size_key), int(cents_val)))
-                else:
-                with db.connection() as clean_conn:
-                clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
-                st.session_state.global_toast = {
-                "msg": f"UPDATE SUCCESS: Product details for '{p['code']}' have been updated.",
-                "bg": "#1565c0",
-                "icon": "[UPDATED]"
-                }
-                db.log_activity('Admin', 'Product Updated', f"{p['code']} · {new_name}")
-                success_trigger = True
-                except Exception as e:
-                safe_error(e)
-                if success_trigger:
-                st.rerun()
+                    if not new_name or not new_cat:
+                        st.error("Product name and category definitions cannot be left blank.")
+                    else:
+                        success_trigger = False
+                        try:
+                            with db.connection() as save_conn:
+                                save_conn.execute("""
+                                    UPDATE products
+                                    SET name = ?, category = ?, price_cents = ?, low_stock_threshold = ?, updated_at = ?
+                                    WHERE id = ?
+                                """, (new_name, new_cat, int(new_base_price_cents), int(new_threshold), datetime.now().isoformat(), p['id']))
+                            if is_a_drink:
+                                with db.connection() as clear_conn:
+                                    clear_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
+                                    if updated_sizes:
+                                        for size_key, cents_val in updated_sizes.items():
+                                            clear_conn.execute("INSERT INTO product_sizes (product_id, size_oz, price_cents) VALUES (?, ?, ?)", (p['id'], int(size_key), int(cents_val)))
+                            else:
+                                with db.connection() as clean_conn:
+                                    clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
+                            st.session_state.global_toast = {
+                                "msg": f"UPDATE SUCCESS: Product details for '{p['code']}' have been updated.",
+                                "bg": "#1565c0",
+                                "icon": "[UPDATED]"
+                            }
+                            db.log_activity('Admin', 'Product Updated', f"{p['code']} · {new_name}")
+                            success_trigger = True
+                        except Exception as e:
+                            safe_error(e)
+                        if success_trigger:
+                            st.rerun()
+
     # VIEW CATALOG TAB
     with tab3:
         st.markdown("---")
