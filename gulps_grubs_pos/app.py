@@ -1349,7 +1349,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                     key="pos_confirm_sale_btn"
                 )
 
-                        if confirm_btn:
+            if confirm_btn:
                 if not customer_name or not customer_name.strip():
                     st.warning("Customer name is required before confirming sale.")
                 else:
