@@ -1069,8 +1069,8 @@ elif mode == 'Cashier' and page == 'Dashboard':
 
 
 elif mode == 'Cashier' and page == 'New Sale':
-  if 'cart' not in st.session_state or not isinstance(st.session_state.cart, list):
-    st.session_state.cart = []
+      if 'cart' not in st.session_state or not isinstance(st.session_state.cart, list):
+        st.session_state.cart = []
 
 
     all_products = [dict(p) for p in db.list_products(active_only=True)]
