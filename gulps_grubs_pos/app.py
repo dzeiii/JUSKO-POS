@@ -1069,8 +1069,9 @@ elif mode == 'Cashier' and page == 'Dashboard':
 
 
 elif mode == 'Cashier' and page == 'New Sale':
-    if 'cart' not in st.session_state:
-        st.session_state.cart = []
+  if 'cart' not in st.session_state or not isinstance(st.session_state.cart, list):
+    st.session_state.cart = []
+
 
     all_products = [dict(p) for p in db.list_products(active_only=True)]
 
@@ -1212,7 +1213,8 @@ elif mode == 'Cashier' and page == 'New Sale':
         with st.container(key='bento_pos_cart', border=True):
             c_hdr, c_clr = st.columns((2, 1), vertical_alignment='center', gap='small')
             with c_hdr:
-                total_items = sum(int(i['quantity']) for i in st.session_state.cart)
+                cart_items = st.session_state.cart if isinstance(st.session_state.cart, list) else []
+                total_items = sum(int(i.get('quantity', 1)) for i in cart_items if isinstance(i, dict))
                 st.markdown(f"**Shopping Cart ({total_items})**")
             with c_clr:
                 if st.button("Clear", key="pos_clear_cart", use_container_width=True, disabled=(len(st.session_state.cart) == 0)):
