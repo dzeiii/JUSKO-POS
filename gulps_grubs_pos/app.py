@@ -727,7 +727,7 @@ elif active_pm_view == 'Edit / Delete':
                         if success_trigger:
                             st.rerun()
 
-    elif active_pm_view == 'View Catalog':
+elif active_pm_view == 'View Catalog':
         with st.container(key='bento_catalog_card'):
             all_products = db.list_products(active_only=False)
             if not all_products:
