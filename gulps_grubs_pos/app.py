@@ -656,30 +656,6 @@ elif mode == 'Admin' and page == 'Product Management':
                             new_base_price_cents = cents_from_peso(new_price_val)
                             updated_sizes = None
 
-                # Action Row: Save Button + Collapsible Danger Zone side-by-side
-                act_col1, act_col2 = st.columns([1.5, 1], gap="medium")
-                with act_col1:
-                    save_changes = st.button('Save All Product Details', type='primary', use_container_width=True, key=f"unified_save_btn_{p['id']}")
-                with act_col2:
-                    with st.expander("Danger Zone (Permanent Delete)"):
-                        check_step1 = st.checkbox("Confirm permanent deletion", key=f"force_del_c1_{p['id']}")
-                        check_step2 = st.checkbox("Confirm removal from logs", key=f"force_del_c2_{p['id']}")
-                        if st.button('Permanently Delete', key=f"hard_purge_action_{p['id']}", type='primary', use_container_width=True, disabled=not (check_step1 and check_step2)):
-                            try:
-                                success, msg = db.delete_product(p['id'])
-                                if success:
-                                    st.session_state.global_toast = {
-                                        "msg": f"PURGE REMOVAL: Product '{p['code']}' has been permanently deleted from the catalog.",
-                                        "bg": "#c62828",
-                                        "icon": "[!]"
-                                    }
-                                    db.log_activity('Admin', 'Product Deleted', f"{p['code']} · {p['name']}")
-                                    st.rerun()
-                                else:
-                                    st.error(msg)
-                            except Exception as e:
-                                safe_error(e)
-
                 if save_changes:
                     if not new_name or not new_cat:
                         st.error("Product name and category definitions cannot be left blank.")
