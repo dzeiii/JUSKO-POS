@@ -206,18 +206,15 @@ if mode == 'Admin' and page == 'Dashboard':
 
 elif mode == 'Admin' and page == 'Product Management':
     # Sleek smaller heading + Tabs with wider padding
-    st.markdown('##### Product Catalog Management')
-    tab1, tab2, tab3 = st.tabs([
-        '   Add product   ',
-        '   Edit / Delete   ',
-        '   View Catalog   '
+    st.markdown('### Product Catalog Management')
+    tab1, tab2, tab3 = st.tabs(['   Add product   ', '   Edit / Delete   ','   View Catalog   '
     ])
 
     with tab1:
         # Put Product Classification label & radio pills inline on a single compact row
         cls_lbl, cls_radio = st.columns([0.85, 3.5], vertical_alignment='center', gap='small')
         with cls_lbl:
-            st.markdown("**Classification ***")
+            st.markdown('#### Product Classification')
         with cls_radio:
             classification = st.radio(
                 'Product Classification *',
