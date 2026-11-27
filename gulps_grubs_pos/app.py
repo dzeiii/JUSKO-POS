@@ -458,7 +458,7 @@ elif mode == 'Admin' and page == 'Product Management':
                                 except (IndexError, ValueError):
                                     continue
                             next_code_number = max(existing_numbers) + 1 if existing_numbers else 1001
-                while True:
+                    while True:
                         generated_code = f"{prefix}-{next_code_number}"
                         with db.connection() as conn:
                             conn.row_factory = sqlite3.Row
