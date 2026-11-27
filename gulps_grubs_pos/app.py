@@ -127,7 +127,7 @@ with st.container(key='site_header'):
                 current_selection = 'Dashboard'
             page = st.radio('Cashier navigation', cashier_options, index=cashier_options.index(current_selection), horizontal=True, key='cashier_page', label_visibility='collapsed')
         else:
-            page = st.radio('Inventory navigation', ['Dashboard', 'Stock Overview', 'Restock Products'], horizontal=True, key='inventory_page', label_visibility='collapsed')
+            page = st.radio('Inventory navigation', ['Dashboard', 'Stock Overview'], horizontal=True, key='inventory_page', label_visibility='collapsed')
 st.caption('Demo mode selector only — it is not secure authentication.')
 
 try: product_tree = rebuild_tree()
