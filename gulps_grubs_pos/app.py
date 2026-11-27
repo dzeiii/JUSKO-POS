@@ -442,22 +442,25 @@ elif mode == 'Admin' and page == 'Product Management':
                     st.error(f"Validation Error: {drink_config_error}")
                 elif classification == 'Drinks (Gulps)' and not size_prices:
                     st.error("Validation Error: Enable and configure at least one drink size.")
-                else:
-                    try:
-                        price_cents = cents_from_peso(price) if classification != 'Drinks (Gulps)' else 0
-                        starting_stock = 0
-                        all_existing_products = db.list_products(active_only=False)
-                        prefix = "GLP" if classification == 'Drinks (Gulps)' else "GRB"
-                        existing_numbers = []
-                        for prod in all_existing_products:
-                            code_str = str(prod.get('code', ''))
-                            if code_str.startswith(f"{prefix}-"):
-                                try:
-                                    num_part = int(code_str.split("-"))
-                                    existing_numbers.append(num_part)
-                                except (IndexError, ValueError):
-                                    continue
-                            next_code_number = max(existing_numbers) + 1 if existing_numbers else 1001
+                            else:
+                try:
+                    price_cents = cents_from_peso(price) if classification != 'Drinks (Gulps)' else 0
+                    starting_stock = 0
+
+                    all_existing_products = db.list_products(active_only=False)
+                    prefix = "GLP" if classification == 'Drinks (Gulps)' else "GRB"
+                    existing_numbers = []
+
+                    for prod in all_existing_products:
+                        code_str = str(prod.get('code', ''))
+                        if code_str.startswith(f"{prefix}-"):
+                            try:
+                                num_part = int(code_str.split("-"))
+                                existing_numbers.append(num_part)
+                            except (IndexError, ValueError):
+                                continue
+
+                    next_code_number = max(existing_numbers) + 1 if existing_numbers else 1001
                     while True:
                         generated_code = f"{prefix}-{next_code_number}"
                         with db.connection() as conn:
@@ -489,6 +492,7 @@ elif mode == 'Admin' and page == 'Product Management':
                     st.rerun()
                 except Exception as e:
                     safe_error(e)
+
 
                 # EDIT / DELETE TAB (2-Column Bento Layout + Collapsible Danger Zone)
     with tab2:
