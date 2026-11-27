@@ -1462,23 +1462,21 @@ elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     next_order = heap.peek()
     if next_order:
         st.markdown("#### Next Priority Order in Queue")
-        st.info(f"Order #{next_order.order_id} — {next_order.payload['customer_name']} |Priority Level: {next_order.priority} | Details: {next_order.payload['details']}")
+        st.info(f"Order #{next_order.order_id} — {next_order.payload['customer_name']} | Priority Level: {next_order.priority} | Details: {next_order.payload['details']}")
         if st.button('Mark Next Order Completed', type='primary'):
             try:
                 db.update_order_status(next_order.order_id, 'Completed')
                 st.session_state.global_toast = {
-                    "msg": f" QUEUE ACTION: Order #{next_order.order_id} for '{next_order.payload['customer_name']}' has been marked as COMPLETED and cleared from active lane.",
-                    "bg": "#1565c0",  # Information Blue
-                    "icon": "🏁"
+                    "msg": f"QUEUE ACTION: Order #{next_order.order_id} for '{next_order.payload['customer_name']}' has been marked as COMPLETED and cleared from active lane.",
+                    "bg": "#1565c0",
+                    "icon": "[OK]"
                 }
                 
-                db.log_activity('Cashier', 'Queue Cleared', f"Order #{next_order.order_id} marked complete")
-                db.log_activity('Cashier', 'Order Picked Up', f"Order #{order_id}")
+                db.log_activity('Cashier', 'Order Picked Up', f"Order #{next_order.order_id} · {next_order.payload['customer_name']}")
                 logging.info(f"Order #{next_order.order_id} marked complete.")
                 st.rerun()
             except Exception as e: 
                 st.exception(e)
-
 
     else:
         st.success('No pending pickup orders in queue.')
