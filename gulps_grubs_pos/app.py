@@ -1076,7 +1076,7 @@ elif mode == 'Cashier' and page == 'New Sale':
 
     # Case-insensitive inventory category filtering
     products = [p for p in all_products if str(p['category']).split(" | Custom:", 1)[0].strip().casefold() not in inventory_categories]
-    left, right = st.columns([1, 1], gap='small')
+    left, right = st.columns([1.5, 1], gap='small')
     
     # LEFT COLUMN: AVAILABLE PRODUCTS
     with left:
