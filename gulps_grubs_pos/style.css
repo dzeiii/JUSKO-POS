@@ -348,5 +348,32 @@ h2{margin-top:.4rem}
   filter: brightness(1.1);
 }
 
+/* Wide Segmented Tab Buttons for Product Management */
+.st-key-pm_segmented_tabs [data-baseweb="button-group"] {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 8px !important;
+}
+
+.st-key-pm_segmented_tabs button {
+  width: 100% !important;
+  min-height: 40px !important;
+  border-radius: 12px !important;
+  border: 1.5px solid var(--line, #e2d4c3) !important;
+  background-color: var(--paper, #fffdf9) !important;
+  color: var(--burgundy, #4b1117) !important;
+  font-weight: 700 !important;
+  font-size: 0.95rem !important;
+  transition: all 0.15s ease !important;
+}
+
+.st-key-pm_segmented_tabs button[aria-checked="true"],
+.st-key-pm_segmented_tabs button[kind="segmented_controlActive"] {
+  background-color: var(--orange, #f58220) !important;
+  color: #ffffff !important;
+  border-color: var(--orange, #f58220) !important;
+  box-shadow: 0 3px 10px rgba(245, 130, 32, 0.25) !important;
+}
 
 
