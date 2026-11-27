@@ -1452,7 +1452,9 @@ elif mode == 'Cashier' and page == 'New Sale':
                     }
                     st.rerun()
                 except Exception as e:
-                    st.error()
+                    st.warning(str(e))
+
+
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     st.subheader('Cashier - Order Priority & Pickup Queue')
