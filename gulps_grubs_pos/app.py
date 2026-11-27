@@ -154,7 +154,8 @@ if mode == 'Admin' and page == 'Dashboard':
     b.metric('Completed sales', summary['transactions'])
     c.metric('Active products', len(all_products))
     d.metric('Low-stock alerts', len(low), delta='Needs attention' if low else 'Stock looks good', delta_color='inverse' if low else 'normal')
-    e.metric('High-stock alerts', len(high), delta='Overstocked' if high else 'Stock looks good', delta_color='off' if high else 'normal', help='Products at or above their high-stock threshold.')
+    e.metric('High-stock alerts', len(high), delta='Overstocked' if high else 'Stock looks good', delta_color='inverse' if high else 'normal', help='Products at or above their high-stock threshold.')
+
 
     # ROW 2: 3-Column Bento Grid (50% | 25% | 25%)
     col_chart, col_recent, col_stock = st.columns([2, 1, 1], gap="small")
@@ -1749,7 +1750,7 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
     k1, k2, k3, k4 = st.columns(4, gap='small')
     with k1:
         st.metric(
-            "Total Items Managed",
+            "Active Items in Catalog",
             f"{total_skus}",
             delta="Active Catalog",
             delta_color="off"
@@ -1770,10 +1771,10 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
         )
     with k4:
         st.metric(
-            "Overstocked Rows",
+            "High-Stock Warning",
             f"{len(overstocked)}",
-            delta="Within Limits" if len(overstocked) == 0 else "High Volume",
-            delta_color="normal" if len(overstocked) == 0 else "off"
+            delta="Within Limits" if len(overstocked) == 0 else "Overstocked",
+            delta_color="normal" if len(overstocked) == 0 else "inverse"
         )
 
     if not all_products:
