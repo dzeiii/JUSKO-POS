@@ -1069,7 +1069,7 @@ elif mode == 'Cashier' and page == 'Dashboard':
 
 
 elif mode == 'Cashier' and page == 'New Sale':
-    st.subheader('New Sale')
+    st.markdown('### New Sale')
     # LOAD ACTIVE PRODUCTS
     all_products = db.list_products(active_only=True)
     inventory_categories = ['powder','drinking cups','food cups','square plates','takeout boxes big','takeout boxes small','lids flat','lids dome']
@@ -1198,7 +1198,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                                 
                                 # Sinker logic inside popover window
                                 if not is_float_or_juice_or_tea:
-                                    st.markdown("#### Sinker Options")
+                                    st.markdown("###### Sinker Options")
                                     if is_milktea:
                                         mt_sinker = st.radio("Sinkers:", ["Pearls", "None"], horizontal=True, key=f"radio_sink_{p['id']}")
                                         if mt_sinker == "None": chosen_customizations.append(" NO PEARLS")
@@ -1216,7 +1216,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                                         if cf_sinker == "None": chosen_customizations.append(" NO COFFEE JELLY")
 
                                 # Add-ons options inside popover window
-                                st.markdown("#### Topping Add-ons (+₱5)")
+                                st.markdown("###### Topping Add-ons (+₱5)")
                                 sk_c1, sk_c2 = st.columns(2)
                                 with sk_c1: add_extra_pearl = st.checkbox("Extra Pearls", key=f"add_p_{p['id']}")
                                 with sk_c2: add_extra_nata = st.checkbox("Extra Nata", key=f"add_n_{p['id']}")
@@ -1229,7 +1229,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                                 if add_extra_coffee_jelly: chosen_customizations.append(" Extra Coffee Jelly"); addon_premium += 500
                                 unit_price += addon_premium
 
-                            st.markdown("#### To Note:")
+                            st.markdown("###### To Note:")
                             if is_drink: note_hint = "e.g., 50% Sugar, Less Ice"
                             elif "fries" in display_cat_clean.lower() or "snack" in display_cat_clean.lower(): note_hint = "e.g., BBQ, Cheese"
                             else: note_hint = "e.g., Syrup, Whipped Cream..."
