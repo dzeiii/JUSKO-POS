@@ -1438,7 +1438,10 @@ elif mode == 'Cashier' and page == 'New Sale':
                     )
 
                     # Log Cashier activity using the exact keys from `sale`
-                    db.log_activity('Cashier', 'Sale Completed', f"Sale #{sale['id']} · {money(sale['total_cents'])}")
+                    sale_ref = sale.get('id') or sale.get('sale_id') or sale.get('transaction_id') or ''
+                    sale_label = f"Sale #{sale_ref} · " if sale_ref else ""
+                    db.log_activity('Cashier', 'Sale Completed', f"{sale_label}{customer_name.strip()} · {money(sale['total_cents'])}")
+
 
                     # Clear shopping cart basket cleanly
                     st.session_state.cart.clear()
