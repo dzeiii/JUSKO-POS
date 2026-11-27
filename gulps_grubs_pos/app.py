@@ -1076,7 +1076,7 @@ elif mode == 'Cashier' and page == 'New Sale':
 
     # Case-insensitive inventory category filtering
     products = [p for p in all_products if str(p['category']).split(" | Custom:", 1)[0].strip().casefold() not in inventory_categories]
-    left, right = st.columns([1.35, 1], gap='large')
+    left, right = st.columns([1, 1], gap='small')
     
     # LEFT COLUMN: AVAILABLE PRODUCTS
     with left:
@@ -1175,7 +1175,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                         
                         with st.popover(" Customize", use_container_width=True, disabled=p['stock'] < 1):
                             if is_drink:
-                                st.markdown("#### Sizing Configuration")
+                                st.markdown("##### Sizing Configuration")
                                 available_sizes = list(sizes.keys())
                                 
                                 # Re-parse active names array safely
