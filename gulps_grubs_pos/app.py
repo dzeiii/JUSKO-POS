@@ -485,8 +485,8 @@ elif mode == 'Admin' and page == 'Product Management':
                                                         st.session_state.clear_product_form = True
                                                         st.session_state.custom_sizes_count = 1
                                                         st.rerun()
-                                        except Exception as e:
-                                            safe_error(e)
+                            except Exception as e:
+                                safe_error(e)
             # EDIT / DELETE TAB (2-Column Bento Layout + Collapsible Danger Zone)
     with tab2:
         all_products = db.list_products(active_only=False)
