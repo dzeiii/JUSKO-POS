@@ -876,7 +876,6 @@ elif mode == 'Cashier' and page == 'Dashboard':
     c_metric2.metric(label="Active Kitchen Queue ",value=f"{pending_count} Orders",delta=("Queue heavy - Focus on speed" if pending_count > 5 else "Queue light / clear"),
                     delta_color="inverse" if pending_count > 5 else "normal")
     c_metric3.metric(label="Current Work Station",value="Cashier Desk #1",delta="System Connected & Online")
-    st.divider()
     st.markdown("####  Recent Shift Receipts")
     st.caption("A quick-reference scroll log of your last few completed checkouts:")
     if not recent_sales:
@@ -1189,8 +1188,6 @@ elif mode == 'Cashier' and page == 'New Sale':
                         cart.remove(cart_item['product_id'], cart_item.get('size_oz'), cart_item.get('customizations', ''))
                         st.rerun()
 
-        st.divider()
-
         st.markdown(f"### Total: {money(cart.total_cents())}")
         with st.form('checkout_form'):
             customer_name = st.text_input('Customer name *',placeholder='e.g. John Doe')
@@ -1346,8 +1343,6 @@ elif mode == 'Cashier' and page == 'Sales History':
                     )
             except Exception as e:
                 st.caption(f"Could not render layout items: {str(e)}")
-    
-    st.divider()
 
     # PART B: RECENT SALES & HISTORY SEARCH
     st.markdown("#### Audit Search")
@@ -1551,7 +1546,6 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
         g2.metric("Out of Stock ",len(out_of_stock), delta="CRITICAL FIX" if out_of_stock else "All Available",delta_color="inverse" if out_of_stock else "normal")
         g3.metric("Low-Stock Warning ",len(low_stock),delta="Needs Restock" if low_stock else "Levels Safe",delta_color="inverse" if low_stock else "normal")
         g4.metric("Overstocked Rows ",len(overstocked),delta="Freeze Orders" if overstocked else "Within Limits",delta_color="off" if overstocked else "normal")
-        st.divider()
         left_dash, right_dash = st.columns(2)
         with left_dash:
             st.markdown("####  Fast Action Restock Checklist")
