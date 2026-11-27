@@ -174,8 +174,16 @@ if mode == 'Admin' and page == 'Dashboard':
     with col_recent:
         with st.container(key='bento_recent_card'):
             st.markdown('**Recent transactions**')
-            recent = db.transaction_history()[:6]
+            recent = db.transaction_history()[:15]
             if recent:
+                recent_rows = [
+                    {
+                        "Sale #": int(r['id']),
+                        "Date": str(r['created_at']).replace('T', ' ')[:16],
+                        "Total": money(int(r['total_cents']))
+                    }
+                    for r in recent
+                ]
                 st.dataframe(
                     pd.DataFrame(recent_rows),
                     use_container_width=True,
@@ -187,9 +195,9 @@ if mode == 'Admin' and page == 'Dashboard':
                         "Total": st.column_config.TextColumn("Total", width="small"),
                     }
                 )
-
             else:
                 st.info('Completed sales will appear here.')
+
 
     with col_stock:
         with st.container(key='bento_stock_card'):
