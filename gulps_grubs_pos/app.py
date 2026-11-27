@@ -1602,5 +1602,3 @@ elif mode == 'Inventory Manager' and page == 'Dashboard':
             except Exception:
                 st.caption("Unable to stream live adjustment logs.")
 
-st.divider()
-st.caption('Gulps & Grubs POS · SQLite is the persistent source of truth. Prices stored as integer centavos')
