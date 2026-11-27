@@ -266,7 +266,9 @@ h2{margin-top:.4rem}
 .st-key-bento_form_right,
 .st-key-bento_edit_left,
 .st-key-bento_edit_right,
-.st-key-bento_catalog_card {
+.st-key-bento_catalog_card 
+.st-key-bento_sales_list,
+.st-key-bento_sales_detail{
   background: var(--paper) !important;
   border: 1px solid var(--line) !important;
   border-top: 4px solid var(--orange) !important;
