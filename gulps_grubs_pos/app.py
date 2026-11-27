@@ -971,16 +971,17 @@ elif mode == 'Admin' and page == 'Activity History':
         filtered_logs = []
         for row in logs:
             r = dict(row)
-            r_mode = (
-                r.get('actor')
-                or r.get('mode')
-                or r.get('role')
-                or r.get('workspace')
-                or r.get('user')
-                or ''
+            # Automatically find whichever column holds the role/mode ('Admin', 'Cashier', 'Inventory Manager')
+            r_mode = next(
+                (
+                    str(v) for k, v in r.items()
+                    if k not in ('id', 'created_at', 'timestamp', 'action', 'details')
+                    and v in ('Admin', 'Cashier', 'Inventory Manager')
+                ),
+                next((str(v) for k, v in r.items() if k not in ('id', 'created_at', 'timestamp', 'action', 'details') and v), '')
             )
-            r_action = r.get('action') or r.get('event') or ''
-            r_details = r.get('details') or r.get('description') or ''
+            r_action = r.get('action') or ''
+            r_details = r.get('details') or ''
             r_time = str(r.get('created_at') or r.get('timestamp') or '').replace('T', ' ')[:16]
 
             if mode_filter != 'All' and r_mode != mode_filter:
@@ -994,6 +995,7 @@ elif mode == 'Admin' and page == 'Activity History':
                 'Action': r_action,
                 'Details': r_details
             })
+
 
         with dl_c:
             with st.container(key='bento_sales_dl'):
@@ -1436,6 +1438,7 @@ elif mode == 'Cashier' and page == 'New Sale':
                     )
 
                     # Clear shopping cart basket cleanly
+                    db.log_activity('Cashier', 'Sale Completed', f"Sale #{sale_id} · {money(total_cents)}")
                     st.session_state.cart.clear()
                     st.session_state.global_toast = {
                         "msg": f" TRANSACTION SUCCESSFUL: Sale checkout processed for '{customer_name.strip()}'! Total Paid: {money(sale['total_cents'])}.",
@@ -1464,6 +1467,7 @@ elif mode == 'Cashier' and page == 'Pickup Queue Priority':
                 }
                 
                 db.log_activity('Cashier', 'Queue Cleared', f"Order #{next_order.order_id} marked complete")
+                db.log_activity('Cashier', 'Order Picked Up', f"Order #{order_id}")
                 logging.info(f"Order #{next_order.order_id} marked complete.")
                 st.rerun()
             except Exception as e: 
