@@ -275,138 +275,126 @@ elif mode == 'Admin' and page == 'Product Management':
             st.session_state[f'starting_stock_{classification}'] = 0
 
             st.session_state.clear_product_form = False
-        # STEP 1: PRODUCT INFORMATION
-        size_prices = {}
-        price = 0.0
-        drink_category_suffix = ""
-        drink_config_error = None
-        st.markdown("#### Product Information")
-        name = st.text_input('Product name *',placeholder='Enter product name',key=f'f_name_{classification}').strip()
-        category = st.text_input('Category *',placeholder="Type your category name here (e.g., Waffle, Streetfood)...",key=f'f_cat_text_input_lane_{classification}').strip()
+            left_col, right_col = st.columns([1, 1.15], gap="medium")
+    
+            # LEFT BENTO CARD: Product Information + Inventory Settings
+            with left_col:
+                with st.container(key="bento_card_left"):
+                    st.markdown("**1. Product Information**")
+                    name = st.text_input('Product name *', placeholder='Enter product name', key=f'f_name_{classification}').strip()
+                    category = st.text_input('Category *', placeholder="Type your category name here (e.g., Waffle, Streetfood)...", key=f'f_cat_text_input_lane_{classification}').strip()
 
-        st.divider()
-        
+                    st.markdown("**2. Inventory Settings**")
+                    inv1, inv2 = st.columns(2, gap="small")
+                    with inv1:
+                        low_stock_threshold = st.number_input('Low-stock alert boundary count', min_value=0, value=5, step=1)
+                    with inv2:
+                        high_stock_threshold = st.number_input('High-stock alert boundary count', min_value=0, value=50, step=1)
         # STEP 2: DRINK SIZE AND PRICING CONFIGURATION
-        def read_drink_price(raw_value, size_label):
-            if not raw_value:
-                raise ValueError(f"Please enter the price for {size_label}.")
-            try:
-                parsed_value = float(raw_value.replace('₱', '').replace(',', '').strip())
-            except ValueError:
-                raise ValueError(f"Invalid price for {size_label}. Enter a valid numerical amount.")
-            if parsed_value <= 0:
-                raise ValueError(f"The price for {size_label} must be greater than ₱0.00.")
-        
-            return parsed_value
-        if classification == 'Drinks (Gulps)':
-            st.markdown("##### Cup Size & Base Pricing Options")
-            st.caption('Ticking checkboxes will automatically expose size pricing input fields below:')
+            with right_col:
+                with st.container(key="bento_card_right"):
+            if classification == 'Drinks (Gulps)':
+                st.markdown("##### Cup Size & Base Pricing Options")
+                st.caption('Ticking checkboxes will automatically expose size pricing input fields below:')
+    
+                price8 = 0.00
+                price12 = 0.00
+                price16 = 0.00
+                # Render options inside a clean horizontal 3-column sub-grid matrix
+                col8, col12, col16 = st.columns(3)    
+                with col8:
+                    use8 = st.checkbox('Offer 8 oz', value=False, key='drink_use_8_final')
+                    price8_input = ""
+                    if use8:
+                        price8_input = st.text_input('8 oz Price (₱) *', placeholder='0.00', key='drink_val_8_text_final', ).strip()
+                        price8 = parse_and_format_price(price8_input) if use8 else 0.00
+                            
+                with col12:
+                    use12 = st.checkbox('Offer 12 oz', value=True, key='drink_use_12_final')
+                    price12_input = ""
+                    if use12:
+                        price12_input = st.text_input('12 oz Price (₱) *', placeholder='0.00', key='drink_val_12_text_final' ).strip()
+                        price12 = parse_and_format_price(price12_input) if use12 else 0.00
+                            
+                with col16:
+                    use16 = st.checkbox('Offer 16 oz', value=True, key='drink_use_16_final')
+                    price16_input = ""
+                    if use16:
+                        price16_input = st.text_input('16 oz Price (₱) *', placeholder='0.00', key='drink_val_16_text_final').strip()
+                        price16 = parse_and_format_price(price16_input) if use16 else 0.00
+    
+                st.divider()
+                st.markdown("##### Other / Custom Sizing Configuration")
+    
+                if "custom_sizes_count" not in st.session_state:
+                    st.session_state.custom_sizes_count = 1
+    
+                custom_size_inputs_list = []
+                
+                for i in range(st.session_state.custom_sizes_count):
+                    if st.session_state.custom_sizes_count > 1:
+                        st.markdown(f"**Custom Size Option #{i + 1}**")
+                    
+                    c_size_col, c_price_col = st.columns(2)
+                    with c_size_col:
+                        lbl_val = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key=f'drink_lbl_custom_reactive_field_{i}').strip()
+                    with c_price_col:
+                        prc_val = st.text_input('Custom Size Price (₱) *', placeholder='0.00', key=f'drink_val_custom_text_reactive_{i}').strip()
+                    
+                    custom_size_inputs_list.append({"label": lbl_val, "price_raw": prc_val})
+    
+                if st.button(" Add another custom size", key="add_another_custom_size_btn"):
+                    st.session_state.custom_sizes_count += 1
+                    st.rerun()
 
-            price8 = 0.00
-            price12 = 0.00
-            price16 = 0.00
-            # Render options inside a clean horizontal 3-column sub-grid matrix
-            col8, col12, col16 = st.columns(3)    
-            with col8:
-                use8 = st.checkbox('Offer 8 oz', value=False, key='drink_use_8_final')
-                price8_input = ""
-                if use8:
-                    price8_input = st.text_input('8 oz Price (₱) *', placeholder='0.00', key='drink_val_8_text_final', ).strip()
-                    price8 = parse_and_format_price(price8_input) if use8 else 0.00
-                        
-            with col12:
-                use12 = st.checkbox('Offer 12 oz', value=True, key='drink_use_12_final')
-                price12_input = ""
-                if use12:
-                    price12_input = st.text_input('12 oz Price (₱) *', placeholder='0.00', key='drink_val_12_text_final' ).strip()
-                    price12 = parse_and_format_price(price12_input) if use12 else 0.00
-                        
-            with col16:
-                use16 = st.checkbox('Offer 16 oz', value=True, key='drink_use_16_final')
-                price16_input = ""
-                if use16:
-                    price16_input = st.text_input('16 oz Price (₱) *', placeholder='0.00', key='drink_val_16_text_final').strip()
-                    price16 = parse_and_format_price(price16_input) if use16 else 0.00
-
-            st.divider()
-            st.markdown("##### Other / Custom Sizing Configuration")
-
-            if "custom_sizes_count" not in st.session_state:
-                st.session_state.custom_sizes_count = 1
-
-            custom_size_inputs_list = []
+                try:    
+                    size_prices = {} # 
+                    
+                    if use8:
+                        price8 = read_drink_price(price8_input, "8 oz")
+                        size_prices[8] = cents_from_peso(price8)
             
-            for i in range(st.session_state.custom_sizes_count):
-                if st.session_state.custom_sizes_count > 1:
-                    st.markdown(f"**Custom Size Option #{i + 1}**")
-                
-                c_size_col, c_price_col = st.columns(2)
-                with c_size_col:
-                    lbl_val = st.text_input('Custom Size Description Label', placeholder='e.g., 22oz, 1-Liter', key=f'drink_lbl_custom_reactive_field_{i}').strip()
-                with c_price_col:
-                    prc_val = st.text_input('Custom Size Price (₱) *', placeholder='0.00', key=f'drink_val_custom_text_reactive_{i}').strip()
-                
-                custom_size_inputs_list.append({"label": lbl_val, "price_raw": prc_val})
-
-            if st.button(" Add another custom size", key="add_another_custom_size_btn"):
-                st.session_state.custom_sizes_count += 1
-                st.rerun()
-
-            try:    
-                size_prices = {} # 
-                
-                if use8:
-                    price8 = read_drink_price(price8_input, "8 oz")
-                    size_prices[8] = cents_from_peso(price8)
-        
-                if use12:
-                    price12 = read_drink_price(price12_input, "12 oz")
-                    size_prices[12] = cents_from_peso(price12)
-        
-                if use16:
-                    price16 = read_drink_price(price16_input, "16 oz")
-                    size_prices[16] = cents_from_peso(price16)
-        
-                custom_labels_compiled = []
-                custom_database_key_id = 99  
-                
-                for idx, entry in enumerate(custom_size_inputs_list):
-                    c_label = entry["label"]
-                    c_price_raw = entry["price_raw"]
+                    if use12:
+                        price12 = read_drink_price(price12_input, "12 oz")
+                        size_prices[12] = cents_from_peso(price12)
+            
+                    if use16:
+                        price16 = read_drink_price(price16_input, "16 oz")
+                        size_prices[16] = cents_from_peso(price16)
+            
+                    custom_labels_compiled = []
+                    custom_database_key_id = 99  
                     
-                    if c_label or c_price_raw:
-                        if not c_label:
-                            raise ValueError(f"Please enter a description label for Custom Size #{idx + 1}.")
+                    for idx, entry in enumerate(custom_size_inputs_list):
+                        c_label = entry["label"]
+                        c_price_raw = entry["price_raw"]
                         
-                        parsed_c_price = read_drink_price(c_price_raw, f"custom size '{c_label}'")
-                        
-                        size_prices[custom_database_key_id] = cents_from_peso(parsed_c_price)
-                        custom_labels_compiled.append(c_label)
-                        
-                        custom_database_key_id += 1  
-                
-                if custom_labels_compiled:
-                    drink_category_suffix = f" | Custom:{', '.join(custom_labels_compiled)}"
+                        if c_label or c_price_raw:
+                            if not c_label:
+                                raise ValueError(f"Please enter a description label for Custom Size #{idx + 1}.")
+                            
+                            parsed_c_price = read_drink_price(c_price_raw, f"custom size '{c_label}'")
+                            
+                            size_prices[custom_database_key_id] = cents_from_peso(parsed_c_price)
+                            custom_labels_compiled.append(c_label)
+                            
+                            custom_database_key_id += 1  
                     
-            except ValueError as exc:
-                drink_config_error = str(exc)
-
-            st.divider()
-
-        # STEP 3: FOOD AND COMBO PRICING
-        if classification in ['Foods (Grubs)','Others (Combo/Meal Plan)']:
-            st.markdown("####  Product Pricing")
-            price_input = st.text_input('Product Price (₱) *',placeholder='0.00',key=f'f_price_{classification}').strip()
-            price = parse_and_format_price(price_input)
+                    if custom_labels_compiled:
+                        drink_category_suffix = f" | Custom:{', '.join(custom_labels_compiled)}"
+                        
+                except ValueError as exc:
+                    drink_config_error = str(exc)
+    
+                st.divider()
+    
+            # STEP 3: FOOD AND COMBO PRICING
+            if classification in ['Foods (Grubs)','Others (Combo/Meal Plan)']:
+                st.markdown("####  Product Pricing")
+                price_input = st.text_input('Product Price (₱) *',placeholder='0.00',key=f'f_price_{classification}').strip()
+                price = parse_and_format_price(price_input)
         
-        # STEP 4: INVENTORY ALERT SETTINGS
-        st.markdown("#### Inventory Settings")
-        low_stock_threshold = st.number_input('Low-stock alert boundary count',min_value=0,value=5,step=1)
-        high_stock_threshold = st.number_input('High-stock alert boundary count',min_value=0,value=50,step=1)
-        st.divider()
-        
-        # STEP 5: SUBMIT PRODUCT
-        submit_form_btn = st.button('Add product to Catalog',type='primary',use_container_width=True,key=f'add_product_button_{classification}')
+           submit_form_btn = st.button('Add product to Catalog', type='primary', use_container_width=True, key=f'add_product_button_{classification}')
 
         # --- OUTSIDE FORM CONTAINER: Form data routing checks execute safely downstream ---
         if submit_form_btn:
