@@ -675,57 +675,58 @@ elif active_pm_view == 'Edit / Delete':
                                         edit_custom_inputs.append({"label": lbl_val, "price": prc_val})
 
 
-                                if st.button("+ Add custom size", key=f"edit_add_more_sizes_btn_{p['id']}"):
-                                    st.session_state[f"edit_custom_count_{p['id']}"] += 1
-                                    st.rerun()
-                                updated_sizes = {int(sz): cents_from_peso(pr_val) for sz, pr_val in size_inputs.items() if float(pr_val) > 0.0}
-                                compiled_edit_labels = []
-                                edit_db_key_id = 99
-                                for entry in edit_custom_inputs:
-                                    if entry["label"] and entry["price"] > 0:
-                                        updated_sizes[edit_db_key_id] = cents_from_peso(entry["price"])
-                                        compiled_edit_labels.append(entry["label"])
-                                        edit_db_key_id += 1
-                                new_cat = f"{new_base_cat} | Custom:{', '.join(compiled_edit_labels)}" if compiled_edit_labels else new_base_cat
-                                new_base_price_cents = next(iter(updated_sizes.values())) if updated_sizes else p['price_cents']
-                            else:
-                                new_cat = new_base_cat
-                                new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents'] / 100), step=5.0, format='%.2f', key=f"edit_price_food_{p['id']}")
-                                new_base_price_cents = cents_from_peso(new_price_val)
-                                updated_sizes = None
-    
-                    if save_changes:
-                        if not new_name or not new_cat:
-                            st.error("Product name and category definitions cannot be left blank.")
-                        else:
-                            success_trigger = False
-                            try:
-                                with db.connection() as save_conn:
-                                    save_conn.execute("""
-                                        UPDATE products
-                                        SET name = ?, category = ?, price_cents = ?, low_stock_threshold = ?, updated_at = ?
-                                        WHERE id = ?
-                                    """, (new_name, new_cat, int(new_base_price_cents), int(new_threshold), datetime.now().isoformat(), p['id']))
-                                if is_a_drink:
-                                    with db.connection() as clear_conn:
-                                        clear_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
-                                        if updated_sizes:
-                                            for size_key, cents_val in updated_sizes.items():
-                                                clear_conn.execute("INSERT INTO product_sizes (product_id, size_oz, price_cents) VALUES (?, ?, ?)", (p['id'], int(size_key), int(cents_val)))
-                                else:
-                                    with db.connection() as clean_conn:
-                                        clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
-                                st.session_state.global_toast = {
-                                    "msg": f"UPDATE SUCCESS: Product details for '{p['code']}' have been updated.",
-                                    "bg": "#1565c0",
-                                    "icon": "[UPDATED]"
-                                }
-                                db.log_activity('Admin', 'Product Updated', f"{p['code']} · {new_name}")
-                                success_trigger = True
-                            except Exception as e:
-                                safe_error(e)
-                            if success_trigger:
+                            if st.button("+ Add custom size", key=f"edit_add_more_sizes_btn_{p['id']}"):
+                                st.session_state[f"edit_custom_count_{p['id']}"] += 1
                                 st.rerun()
+                            updated_sizes = {int(sz): cents_from_peso(pr_val) for sz, pr_val in size_inputs.items() if float(pr_val) > 0.0}
+                            compiled_edit_labels = []
+                            edit_db_key_id = 99
+                            for entry in edit_custom_inputs:
+                                if entry["label"] and entry["price"] > 0:
+                                    updated_sizes.update({edit_db_key_id: cents_from_peso(entry["price"])})
+                                    compiled_edit_labels.append(entry["label"])
+                                    edit_db_key_id += 1
+                            new_cat = f"{new_base_cat} | Custom:{', '.join(compiled_edit_labels)}" if compiled_edit_labels else new_base_cat
+                            new_base_price_cents = next(iter(updated_sizes.values())) if updated_sizes else p['price_cents']
+                        else:
+                            new_cat = new_base_cat
+                            new_price_val = st.number_input('Price (₱)', min_value=0.0, value=float(p['price_cents'] / 100), step=5.0, format='%.2f', key=f"edit_price_food_{p['id']}")
+                            new_base_price_cents = cents_from_peso(new_price_val)
+                            updated_sizes = None
+
+                if save_changes:
+                    if not new_name or not new_cat:
+                        st.error("Product name and category definitions cannot be left blank.")
+                    else:
+                        success_trigger = False
+                        try:
+                            with db.connection() as save_conn:
+                                save_conn.execute("""
+                                    UPDATE products
+                                    SET name = ?, category = ?, price_cents = ?, low_stock_threshold = ?, updated_at = ?
+                                    WHERE id = ?
+                                """, (new_name, new_cat, int(new_base_price_cents), int(new_threshold), datetime.now().isoformat(), p['id']))
+                            if is_a_drink:
+                                with db.connection() as clear_conn:
+                                    clear_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
+                                    if updated_sizes:
+                                        for size_key, cents_val in updated_sizes.items():
+                                            clear_conn.execute("INSERT INTO product_sizes (product_id, size_oz, price_cents) VALUES (?, ?, ?)", (p['id'], int(size_key), int(cents_val)))
+                            else:
+                                with db.connection() as clean_conn:
+                                    clean_conn.execute("DELETE FROM product_sizes WHERE product_id = ?", (p['id'],))
+                            st.session_state.global_toast = {
+                                "msg": f"UPDATE SUCCESS: Product details for '{p['code']}' have been updated.",
+                                "bg": "#1565c0",
+                                "icon": "[UPDATED]"
+                            }
+                            db.log_activity('Admin', 'Product Updated', f"{p['code']} · {new_name}")
+                            success_trigger = True
+                        except Exception as e:
+                            safe_error(e)
+                        if success_trigger:
+                            st.rerun()
+
     elif active_pm_view == 'View Catalog':
             with st.container(key='bento_catalog_card'):
                 all_products = db.list_products(active_only=False)
