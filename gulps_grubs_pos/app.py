@@ -541,21 +541,23 @@ elif mode == 'Admin' and page == 'Product Management':
                 )
                 edit_left, edit_right = st.columns([1, 1.15], gap="medium")
                 # LEFT CARD: Product Details & Threshold
-                with edit_left:
+                                with edit_left:
                     with st.container(key='bento_edit_left'):
                         st.markdown("**1. Product Details**")
-                        ec1, ec2 = st.columns([1, 1.6], gap="small")
+                        ec1, ec2 = st.columns((1, 1.6), gap="small")
                         ec1.text_input('Code', value=p['code'], disabled=True)
                         new_name = ec2.text_input('Product name', value=p['name'], key=f"edit_name_field_{p['id']}").strip()
 
-                        cat_col, thresh_col = st.columns([1.6, 1], gap="small")
+                        cat_col, low_col, high_col = st.columns((1.4, 1, 1), gap="small")
                         with cat_col:
                             if is_a_drink:
                                 new_base_cat = st.text_input('Category Name *', value=base_cat_name, key=f"edit_base_cat_field_{p['id']}").strip()
                             else:
                                 new_base_cat = st.text_input('Category Name *', value=p['category'], key=f"edit_cat_food_{p['id']}").strip()
-                        with thresh_col:
+                        with low_col:
                             new_threshold = st.number_input('Low-stock alert', min_value=0, max_value=1000000, value=int(p.get('low_stock_threshold', 5)), step=1, key=f"edit_thresh_{p['id']}")
+                        with high_col:
+                            new_high_threshold = st.number_input('High-stock alert', min_value=0, max_value=1000000, value=int(p.get('high_stock_threshold', 50)), step=1, key=f"edit_high_thresh_{p['id']}")
 
                         # Save Button & Danger Zone moved inside Left Card
                         save_changes = st.button('Save All Product Details', type='primary', use_container_width=True, key=f"unified_save_btn_{p['id']}")
