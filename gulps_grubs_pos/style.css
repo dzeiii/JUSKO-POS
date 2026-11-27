@@ -349,6 +349,49 @@ h2{margin-top:.4rem}
   filter: brightness(1.1);
 }
 
+/* =========================================================
+   INVENTORY MANAGER BENTO CARDS & ACTION PILLS
+   ========================================================= */
+
+.st-key-bento_inv_table,
+.st-key-bento_inv_adjust,
+div[class*="bento_inv_table"],
+div[class*="bento_inv_adjust"] {
+  background: var(--paper) !important;
+  border: 1px solid var(--line) !important;
+  border-top: 4px solid var(--orange) !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  min-height: 395px !important;
+  box-shadow: 0 5px 15px rgba(75, 17, 23, 0.06) !important;
+}
+
+.st-key-inv_adj_mode_pills [data-baseweb="button-group"] {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 6px !important;
+}
+
+.st-key-inv_adj_mode_pills button {
+  width: 100% !important;
+  min-height: 36px !important;
+  border-radius: 10px !important;
+  border: 1.5px solid var(--line, #e2d4c3) !important;
+  background-color: var(--paper, #fffdf9) !important;
+  color: var(--burgundy, #4b1117) !important;
+  font-weight: 700 !important;
+  font-size: 0.85rem !important;
+}
+
+.st-key-inv_adj_mode_pills button[aria-checked="true"],
+.st-key-inv_adj_mode_pills button[kind="segmented_controlActive"] {
+  background-color: var(--orange, #f58220) !important;
+  color: #ffffff !important;
+  border-color: var(--orange, #f58220) !important;
+}
+
+
 
 
 
