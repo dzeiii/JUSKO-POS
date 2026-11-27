@@ -1389,12 +1389,22 @@ elif mode == 'Cashier' and page == 'New Sale':
 
                         if 'cart' in params:
                             sale = db.record_sale(ll_cart, c_label) if len(params) >= 2 else db.record_sale(cart=ll_cart)
-                        elif 'items' in params:
-                            sale = db.record_sale(items=st.session_state.cart, cashier_label=c_label) if 'cashier_label' in params else db.record_sale(st.session_state.cart, c_label)
+                                                # Handle sale whether db.record_sale returns an int ID or a dict
+                        if isinstance(sale, int):
+                            sale_ref = sale
+                            st.session_state.last_sale = {
+                                'transaction_id': sale,
+                                'id': sale,
+                                'created_at': ph_datetime_string(),
+                                'total_cents': total_cents,
+                                'cashier_label': c_label
+                            }
+                        elif isinstance(sale, dict):
+                            sale_ref = sale.get('id') or sale.get('sale_id') or sale.get('transaction_id') or ''
+                            st.session_state.last_sale = sale
                         else:
-                            sale = db.record_sale(ll_cart, c_label)
-
-                        st.session_state.last_sale = sale
+                            sale_ref = ''
+                            st.session_state.last_sale = None
 
                         order_details_list = []
                         for item in st.session_state.cart:
@@ -1408,7 +1418,6 @@ elif mode == 'Cashier' and page == 'New Sale':
                             priority=int(priority_level)
                         )
 
-                        sale_ref = sale.get('id') or sale.get('sale_id') or sale.get('transaction_id') or '' if isinstance(sale, dict) else ''
                         sale_label = f"Sale #{sale_ref} · " if sale_ref else ""
                         db.log_activity('Cashier', 'Sale Completed', f"{sale_label}{customer_name.strip()} · {money(total_cents)}")
 
@@ -1419,8 +1428,6 @@ elif mode == 'Cashier' and page == 'New Sale':
                             "icon": "[OK]"
                         }
                         st.rerun()
-                    except Exception as e:
-                        st.error(f"Checkout error: {type(e).__name__}: {e}")
 
 
 
