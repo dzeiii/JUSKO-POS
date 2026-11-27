@@ -1499,14 +1499,15 @@ elif mode == 'Cashier' and page == 'Pickup Queue Priority':
                     hide_index=True,
                     height=330,
                     column_config={
-                        "Order #": st.column_config.NumberColumn("Order #", width="small", format="%d"),
-                        "Customer": st.column_config.TextColumn("Customer", width="small"),
-                        "Details": st.column_config.TextColumn("Details", width="large"),
-                        "Priority": st.column_config.NumberColumn("Priority", width="small", format="%d"),
-                        "Status": st.column_config.TextColumn("Status", width="small"),
-                        "Created": st.column_config.TextColumn("Created", width="small"),
+                        "Order #": st.column_config.NumberColumn("Order #", width=65, format="%d"),
+                        "Customer": st.column_config.TextColumn("Customer", width=110),
+                        "Details": st.column_config.TextColumn("Details", width=250),
+                        "Priority": st.column_config.NumberColumn("Priority", width=65, format="%d"),
+                        "Status": st.column_config.TextColumn("Status", width=85),
+                        "Created": st.column_config.TextColumn("Created", width=120),
                     }
                 )
+
             else:
                 st.info("No pending pickup orders right now.")
 
