@@ -969,7 +969,7 @@ elif mode == 'Admin' and page == 'Activity History':
 
         logs = db.activity_history() if hasattr(db, 'activity_history') else []
         filtered_logs = []
-                for row in logs:
+        for row in logs:
             r = dict(row)
             r_mode = (
                 r.get('actor')
