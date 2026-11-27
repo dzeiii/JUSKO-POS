@@ -206,7 +206,7 @@ if mode == 'Admin' and page == 'Dashboard':
 
 elif mode == 'Admin' and page == 'Product Management':
 
-    st.subheader('Product Catalog Management')
+    st.markdown('#### Product Catalog Management')
     tab1, tab2, tab3 = st.tabs(['Add product','Edit / Delete','View Catalog'])
     with tab1:
         classification = st.radio(
@@ -792,6 +792,7 @@ elif mode == 'Admin' and page == 'Product Management':
                     st.info("No products match your current filter.")
 
 elif mode == 'Admin' and page == 'Sales History':
+    st.markdown ('#### Sales History')
     today = ph_today()
     t_dates, t_kpi, t_export = st.columns([2.1, 1.35, 0.32], vertical_alignment='center', gap='small')
 
