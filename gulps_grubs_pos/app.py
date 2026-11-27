@@ -870,7 +870,7 @@ elif mode == 'Admin' and page == 'Sales History':
                     }
                 )
 
-                with right_detail:
+        with right_detail:
             with st.container(key='bento_sales_detail'):
                 st.markdown('**Inspect receipt**')
                 sale_options = {
