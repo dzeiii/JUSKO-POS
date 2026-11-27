@@ -390,6 +390,16 @@ div[class*="bento_inv_adjust"] {
   color: #ffffff !important;
   border-color: var(--orange, #f58220) !important;
 }
+.st-key-bento_stock_history_card,
+div[class*="bento_stock_history_card"] {
+  background: var(--paper) !important;
+  border: 1px solid var(--line) !important;
+  border-top: 4px solid var(--orange) !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  box-shadow: 0 5px 15px rgba(75, 17, 23, 0.06) !important;
+}
+
 
 
 
