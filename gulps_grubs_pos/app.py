@@ -107,7 +107,7 @@ if 'global_toast' in st.session_state and st.session_state.global_toast:
     st.session_state.global_toast = None
     
 with st.container(key='site_header'):
-    logo_col, brand_col, mode_col, page_col = st.columns([1.05, 1.8, 1.55, 5.2], vertical_alignment='center', gap='small')
+    logo_col, brand_col, mode_col, page_col = st.columns([0.85, 1.65, 2.35, 4.75], vertical_alignment='center', gap='small')
     with logo_col:
         st.image(str(APP_DIR / 'brand_logo.jpg'), width=118)
     with brand_col:
@@ -138,53 +138,71 @@ except Exception as e:
 # 👑 ADMIN WORKSPACE MODULES
 # =========================================================================
 if mode == 'Admin' and page == 'Dashboard':
-    from datetime import datetime, time, timedelta
     today = ph_today()
     start_time = datetime.combine(today, time.min).isoformat()
     end_time = datetime.combine(today + timedelta(days=1), time.min).isoformat()
-    
-    st.subheader('Business overview')
+
+    st.markdown("##### Business overview")
     summary = db.sales_summary(start_time, end_time)
     all_products = db.list_products(active_only=True)
     low = [p for p in all_products if p['stock'] <= p['low_stock_threshold']]
     high = [p for p in all_products if p['stock'] >= p['high_stock_threshold']]
-    
-    a, b, c, d, e = st.columns(5)
-    a.metric('Today’s revenue', money(summary['revenue_cents']))
+
+    # ROW 1: 5 Compact KPI Cards
+    a, b, c, d, e = st.columns(5, gap="small")
+    a.metric('Today’s revenue', money(summary['revenue_cents']), help='Total value of recorded sales, not profit.')
     b.metric('Completed sales', summary['transactions'])
     c.metric('Active products', len(all_products))
     d.metric('Low-stock alerts', len(low), delta='Needs attention' if low else 'Stock looks good', delta_color='inverse' if low else 'normal')
-    e.metric('High-stock alerts', len(high), delta='Overstocked' if high else 'Stock looks good', delta_color='off' if high else 'normal', help='Products at or above their Admin-defined high-stock threshold.')
+    e.metric('High-stock alerts', len(high), delta='Overstocked' if high else 'Stock looks good', delta_color='off' if high else 'normal', help='Products at or above their high-stock threshold.')
 
-    st.caption('Revenue is the total value of recorded sales, not profit. Product costs and operating expenses are not tracked.')
-    
-    left, right = st.columns([1.15, 1])
-    with left:
-        st.markdown('#### Low-stock watch')
-        if low:
-            st.dataframe(pd.DataFrame([{'Code': p['code'], 'Product': p['name'], 'Stock': p['stock'], 'Alert at': p['low_stock_threshold']} for p in low]), use_container_width=True, hide_index=True)
-        else: st.success('No active products are at or below their low-stock threshold.')
+    # ROW 2: 3-Column Bento Grid (50% | 25% | 25%)
+    col_chart, col_recent, col_stock = st.columns([2, 1, 1], gap="small")
 
-        st.markdown('#### High-stock watch')
-        if high:
-            st.dataframe(pd.DataFrame([{'Code': p['code'], 'Product': p['name'], 'Stock': p['stock'], 'Limit': p.get('high_stock_threshold', 0)} for p in high]), use_container_width=True, hide_index=True)
-        else: st.success('No active products are at or above their high-stock threshold.')
-    
-    with right:
-        st.markdown('#### Recent transactions')
-        recent = db.transaction_history()[:6]
-        if recent: st.dataframe(pd.DataFrame([{'Sale #': r['id'], 'Date': r['created_at'].replace('T', ' ')[:16], 'Total': money(r['total_cents'])} for r in recent]), use_container_width=True, hide_index=True)
-        else: st.info('Completed sales will appear here.')
-        
-    st.markdown('#### Sales over the last 7 days')
-    daily = []
-    for i in range(6, -1, -1):
-        day = today - timedelta(days=i)
-        s = datetime.combine(day, time.min).isoformat()
-        e = datetime.combine(day + timedelta(days=1), time.min).isoformat()
-        sm = db.sales_summary(s, e)
-        daily.append({'Date': day.strftime('%b %d'), 'Revenue (₱)': sm['revenue_cents'] / 100})
-    st.bar_chart(pd.DataFrame(daily).set_index('Date'))
+    with col_chart:
+        with st.container(key='bento_chart_card'):
+            st.markdown('**Sales over the last 7 days**')
+            daily = []
+            for i in range(6, -1, -1):
+                day = today - timedelta(days=i)
+                s = datetime.combine(day, time.min).isoformat()
+                e = datetime.combine(day + timedelta(days=1), time.min).isoformat()
+                sm = db.sales_summary(s, e)
+                daily.append({'Date': day.strftime('%b %d'), 'Revenue (₱)': sm['revenue_cents'] / 100})
+            st.bar_chart(pd.DataFrame(daily).set_index('Date'), height=245)
+
+    with col_recent:
+        with st.container(key='bento_recent_card'):
+            st.markdown('**Recent transactions**')
+            recent = db.transaction_history()[:6]
+            if recent:
+                st.dataframe(
+                    pd.DataFrame([{'Sale #': r['id'], 'Date': r['created_at'].replace('T', ' ')[:16], 'Total': money(r['total_cents'])} for r in recent]),
+                    use_container_width=True, hide_index=True, height=245
+                )
+            else:
+                st.info('Completed sales will appear here.')
+
+    with col_stock:
+        with st.container(key='bento_stock_card'):
+            st.markdown('**Stock watch**')
+            tab_low, tab_high = st.tabs([f"Low Stock ({len(low)})", f"High Stock ({len(high)})"])
+            with tab_low:
+                if low:
+                    st.dataframe(
+                        pd.DataFrame([{'Code': p['code'], 'Product': p['name'], 'Stock': p['stock'], 'Min': p['low_stock_threshold']} for p in low]),
+                        use_container_width=True, hide_index=True, height=195
+                    )
+                else:
+                    st.success('No products at or below low-stock threshold.')
+            with tab_high:
+                if high:
+                    st.dataframe(
+                        pd.DataFrame([{'Code': p['code'], 'Product': p['name'], 'Stock': p['stock'], 'Max': p.get('high_stock_threshold', 0)} for p in high]),
+                        use_container_width=True, hide_index=True, height=195
+                    )
+                else:
+                    st.success('No products at or above high-stock threshold.')
 
 elif mode == 'Admin' and page == 'Product Management':
 
