@@ -1493,142 +1493,133 @@ elif mode == 'Cashier' and page == 'Pickup Queue Priority':
                 st.info("No pending pickup orders right now.")
 
 elif mode == 'Cashier' and page == 'Sales History':
-    # Single compact top toolbar: Heading | Search | History Type Filter
-    hdr_c, search_c, type_c = st.columns((1.1, 1.5, 1.1), vertical_alignment='center', gap='small')
+    # Single compact top toolbar: Heading | Search Receipts
+    hdr_c, search_c = st.columns((1.2, 2.2), vertical_alignment='center', gap='small')
     with hdr_c:
-        st.markdown("##### Sales & Activity History")
+        st.markdown("##### Recent Shift Receipts")
     with search_c:
         cashier_q = st.text_input(
             "Search",
-            placeholder="Search sale #, product, customer...",
+            placeholder="Quick lookup by Sale # (e.g. #12), item name, or cashier...",
             key="cashier_hist_search",
             label_visibility="collapsed"
         ).strip().lower()
-    with type_c:
-        hist_type = st.selectbox(
-            "Filter",
-            ("All cashier activity", "Completed sales only", "Queue & pickup actions"),
-            key="cashier_hist_type",
-            label_visibility="collapsed"
-        )
 
-    left_sales, right_panel = st.columns((1.35, 1), gap='medium')
+    left_sales, right_receipt = st.columns((1.35, 1), gap='medium')
 
     # =========================================================
-    # LEFT BENTO CARD: COMPLETED SALES TABLE
+    # LEFT BENTO CARD: RECENT SHIFT RECEIPT CARDS (2-COLUMN GRID)
     # =========================================================
     with left_sales:
         with st.container(key='bento_cashier_sales', border=True):
-            st.markdown("**Completed Sales**")
-            if hist_type == "Queue & pickup actions":
-                st.info("Switch filter to 'All cashier activity' or 'Completed sales only' to view sales.")
+            tx_list = db.transaction_history()[:40]  # Fast lookup of most recent 40 shift receipts
+            matched_txs = []
+            for tx in tx_list:
+                tx_id = int(tx['id'])
+                items = db.transaction_items(tx_id)
+                items_summary = ", ".join(
+                    f"{i['quantity']}x {i['product_name']}" + (f" ({i['size_oz']}oz)" if i.get('size_oz') and int(i['size_oz']) < 99 else "")
+                    for i in items
+                )
+                dt_str = str(tx['created_at']).replace('T', ' ')[:16]
+                tot_str = money(int(tx['total_cents']))
+                row_text = f"sale #{tx_id} #{tx_id} {tx_id} {dt_str} {tx.get('cashier_label', '')} {items_summary} {tot_str}".lower()
+                if cashier_q and cashier_q not in row_text:
+                    continue
+                matched_txs.append((tx, dt_str, tot_str, items_summary))
+
+            hdr_l, cnt_l = st.columns((2, 1), vertical_alignment='center')
+            with hdr_l:
+                st.markdown("**Completed Shift Receipts**")
+            with cnt_l:
+                st.markdown(
+                    f"<div style='text-align:right; font-size:0.82rem; font-weight:700; color:#6b5255;'>{len(matched_txs)} Receipts</div>",
+                    unsafe_allow_html=True
+                )
+
+            if not matched_txs:
+                st.info("No shift receipts match your search.")
             else:
-                tx_list = db.transaction_history()
-                sales_rows = []
-                for tx in tx_list:
-                    tx_id = int(tx['id'])
-                    items = db.transaction_items(tx_id)
-                    items_summary = ", ".join(
-                        f"{i['quantity']}x {i['product_name']}" + (f" ({i['size_oz']}oz)" if i.get('size_oz') and int(i['size_oz']) < 99 else "")
-                        for i in items
-                    )
-                    row_text = f"{tx_id} {tx.get('cashier_label', '')} {items_summary}".lower()
-                    if cashier_q and cashier_q not in row_text:
-                        continue
-
-                    sales_rows.append({
-                        "Sale #": tx_id,
-                        "Date/time": str(tx['created_at']).replace('T', ' ')[:16],
-                        "Cashier": tx.get('cashier_label', 'Cashier'),
-                        "Items": items_summary,
-                        "Total": money(int(tx['total_cents']))
-                    })
-
-                if sales_rows:
-                    st.dataframe(
-                        pd.DataFrame(sales_rows),
-                        use_container_width=True,
-                        hide_index=True,
-                        height=355,
-                        column_config={
-                            "Sale #": st.column_config.NumberColumn("Sale #", width="small", format="%d"),
-                            "Date/time": st.column_config.TextColumn("Date/time", width="small"),
-                            "Cashier": st.column_config.TextColumn("Cashier", width="small"),
-                            "Items": st.column_config.TextColumn("Items", width="large"),
-                            "Total": st.column_config.TextColumn("Total", width="small"),
-                        }
-                    )
-                else:
-                    st.info("No completed sales match your search.")
+                # Fixed-height internal scroll container (height=360) so page NEVER scrolls
+                with st.container(height=360, border=False):
+                    cols_cards = st.columns(2, gap='small')
+                    for idx, (tx, dt_str, tot_str, items_summary) in enumerate(matched_txs):
+                        with cols_cards[idx % 2]:
+                            st.markdown(
+                                f"""
+                                <div style="background:#fffcf7; border:1px solid #e2d4c3; border-top:4px solid #f58220; border-radius:12px; padding:10px 12px; margin-bottom:8px; box-shadow:0 3px 8px rgba(75,17,23,0.04);">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span style="font-size:0.78rem; font-weight:700; color:#6b5255;">Sale #{int(tx['id'])} · {tx.get('cashier_label', 'Cashier')}</span>
+                                        <span style="font-size:0.72rem; color:#8c6d70;">{dt_str[5:]}</span>
+                                    </div>
+                                    <div style="font-size:1.25rem; font-weight:800; color:#4b1117; margin:2px 0 4px 0;">{tot_str}</div>
+                                    <div style="font-size:0.78rem; color:#2e7d32; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{items_summary or 'Completed Sale'}</div>
+                                </div>
+                                """,
+                                unsafe_allow_html=True
+                            )
 
     # =========================================================
-    # RIGHT BENTO COLUMN: LAST CHECKOUT RECEIPT + CASHIER LOGS
+    # RIGHT BENTO CARD: LAST CHECKOUT & QUICK RECEIPT INSPECTOR
     # =========================================================
-    with right_panel:
-        # Top Right Card: Compact Last Checkout Receipt (Collapsed by default or sleek mini-card)
+    with right_receipt:
         with st.container(key='bento_cashier_receipt', border=True):
-            last_tx = st.session_state.get('last_sale')
-            if last_tx and isinstance(last_tx, dict) and last_tx.get('transaction_id'):
-                l_id = int(last_tx['transaction_id'])
-                l_time = str(last_tx.get('created_at', '')).replace('T', ' ')[:16]
-                l_tot = money(int(last_tx.get('total_cents', 0)))
+            st.markdown("**Receipt Details & Counter Lookup**")
 
-                r_hdr, r_tot = st.columns((1.6, 1), vertical_alignment='center')
-                with r_hdr:
-                    st.markdown(f"**Last Receipt: Sale #{l_id}**")
-                    st.caption(f"Recorded {l_time}")
-                with r_tot:
-                    st.markdown(
-                        f"<div style='background:#f8f3eb; border:1px solid #e2d4c3; border-radius:8px; padding:4px 10px; text-align:right; font-weight:800; color:#4b1117;'>{l_tot}</div>",
-                        unsafe_allow_html=True
-                    )
+            if matched_txs:
+                # Default to most recent receipt (or filtered match) for instant counter verification
+                receipt_options = {
+                    f"Sale #{int(tx['id'])} — {tot_str} ({dt_str[5:]})": tx
+                    for tx, dt_str, tot_str, _ in matched_txs
+                }
+                selected_rec_lbl = st.selectbox(
+                    "Select Receipt to Inspect",
+                    list(receipt_options.keys()),
+                    key="cashier_inspect_receipt_sel",
+                    label_visibility="collapsed"
+                )
+                sel_tx = receipt_options[selected_rec_lbl]
+                sel_id = int(sel_tx['id'])
+                sel_time = str(sel_tx['created_at']).replace('T', ' ')[:16]
+                sel_tot = money(int(sel_tx['total_cents']))
+                sel_cashier = sel_tx.get('cashier_label', 'Cashier')
 
-                l_items = db.transaction_items(l_id)
-                if l_items:
-                    mini_rows = [
+                st.markdown(
+                    f"""
+                    <div style="background:#f8f3eb; border:1px solid #e2d4c3; border-radius:10px; padding:10px 12px; margin:6px 0 10px 0; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="font-size:0.78rem; color:#6b5255; font-weight:700;">Sale #{sel_id} · {sel_cashier}</div>
+                            <div style="font-size:0.72rem; color:#8c6d70;">{sel_time}</div>
+                        </div>
+                        <div style="font-size:1.3rem; font-weight:800; color:#4b1117;">{sel_tot}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                rec_items = db.transaction_items(sel_id)
+                if rec_items:
+                    item_rows = [
                         {
                             "Item": f"{i['quantity']}x {i['product_name']}" + (f" ({i['size_oz']}oz)" if i.get('size_oz') and int(i['size_oz']) < 99 else ""),
-                            "Notes": i.get('customizations') or "—",
+                            "Customizations": i.get('customizations') or "—",
                             "Subtotal": money(int(i['subtotal_cents']))
                         }
-                        for i in l_items
-                    ]
-                    st.dataframe(pd.DataFrame(mini_rows), use_container_width=True, hide_index=True, height=105)
-            else:
-                st.markdown("**Last Checkout Receipt**")
-                st.caption("Complete a checkout in 'New Sale' to preview the receipt here.")
-
-        # Bottom Right Card: Cashier Actions & Queue History
-        with st.container(key='bento_cashier_logs', border=True):
-            st.markdown("**Cashier Actions & Queue History**")
-            if hist_type == "Completed sales only":
-                st.info("Switch filter to view queue & pickup actions.")
-            else:
-                c_logs = db.activity_history(actor_mode='Cashier', search_text=cashier_q, limit=200)
-                if c_logs:
-                    log_rows = [
-                        {
-                            "Time": str(r['created_at']).replace('T', ' ')[5:16],
-                            "Action": r['action'],
-                            "Details": r['details']
-                        }
-                        for r in c_logs
+                        for i in rec_items
                     ]
                     st.dataframe(
-                        pd.DataFrame(log_rows),
+                        pd.DataFrame(item_rows),
                         use_container_width=True,
                         hide_index=True,
-                        height=175,
+                        height=230,
                         column_config={
-                            "Time": st.column_config.TextColumn("Time", width="small"),
-                            "Action": st.column_config.TextColumn("Action", width="small"),
-                            "Details": st.column_config.TextColumn("Details", width="medium"),
+                            "Item": st.column_config.TextColumn("Item", width="medium"),
+                            "Customizations": st.column_config.TextColumn("Notes / Sinkers", width="medium"),
+                            "Subtotal": st.column_config.TextColumn("Subtotal", width="small"),
                         }
                     )
-                else:
-                    st.info("No cashier actions recorded yet.")
-
-
+            else:
+                st.info("No receipts available to inspect.")
 
 # =========================================================================
 # INVENTORY MANAGER WORKSPACE MODULES
