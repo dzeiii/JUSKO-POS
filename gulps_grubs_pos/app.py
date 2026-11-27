@@ -1403,39 +1403,94 @@ elif mode == 'Cashier' and page == 'New Sale':
 
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
-    st.subheader('Cashier - Order Priority & Pickup Queue')
-    st.caption('Orders are automatically added to this priority queue upon finalizing sales at checkout.')
     heap = rebuild_heap()
     next_order = heap.peek()
-    if next_order:
-        st.markdown("#### Next Priority Order in Queue")
-        st.info(f"Order #{next_order.order_id} — {next_order.payload['customer_name']} | Priority Level: {next_order.priority} | Details: {next_order.payload['details']}")
-        if st.button('Mark Next Order Completed', type='primary'):
-            try:
-                db.update_order_status(next_order.order_id, 'Completed')
-                st.session_state.global_toast = {
-                    "msg": f"QUEUE ACTION: Order #{next_order.order_id} for '{next_order.payload['customer_name']}' has been marked as COMPLETED and cleared from active lane.",
-                    "bg": "#1565c0",
-                    "icon": "[OK]"
-                }
-                
-                db.log_activity('Cashier', 'Order Picked Up', f"Order #{next_order.order_id} · {next_order.payload['customer_name']}")
-                logging.info(f"Order #{next_order.order_id} marked complete.")
-                st.rerun()
-            except Exception as e: 
-                st.exception(e)
+    pending_orders = db.list_orders(pending_only=True)
 
-    else:
-        st.success('No pending pickup orders in queue.')
-    st.markdown("#### All Pending Pickup Orders")
-    all_orders = db.list_orders()
-    if all_orders:
-        st.dataframe(
-            pd.DataFrame([
-                {'Order #': o['id'],'Customer': o['customer_name'],'Details': o['details'],'Priority': o['priority'],'Status': o['status'],'Created': o['created_at'].replace('T', ' ')[:16]}
-                for o in all_orders]),use_container_width=True,hide_index=True)
-    else:
-        st.info('No pickup orders found in the database.')
+    q_left, q_right = st.columns((1, 1.45), gap='medium')
+
+    # =========================================================
+    # LEFT BENTO CARD: NEXT PRIORITY ORDER TO SERVE
+    # =========================================================
+    with q_left:
+        with st.container(key='bento_queue_next', border=True):
+            st.markdown("##### Next Priority Order")
+            st.caption("Highest-priority ticket in the active pickup lane.")
+
+            if next_order:
+                p_map = {1: "1 - Urgent", 2: "2 - High", 3: "3 - Normal", 4: "4 - Low", 5: "5 - Lowest"}
+                prio_label = p_map.get(int(next_order.priority), f"Level {next_order.priority}")
+
+                st.markdown(
+                    f"""
+                    <div style="background:#fffcf7; border:1.5px solid #e2d4c3; border-left:5px solid #f58220; border-radius:12px; padding:14px 16px; margin:8px 0 14px 0;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-size:1.1rem; font-weight:800; color:#4b1117;">Order #{next_order.order_id} — {next_order.payload['customer_name']}</span>
+                            <span style="background:#f58220; color:#fff; font-size:0.75rem; font-weight:700; padding:3px 10px; border-radius:999px;">{prio_label}</span>
+                        </div>
+                        <div style="font-size:0.95rem; color:#3d2427; font-weight:600;">{next_order.payload['details']}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                if st.button('Mark Next Order Completed', type='primary', use_container_width=True, key='btn_complete_next_order'):
+                    try:
+                        db.update_order_status(next_order.order_id, 'Completed')
+                        st.session_state.global_toast = {
+                            "msg": f"QUEUE ACTION: Order #{next_order.order_id} for '{next_order.payload['customer_name']}' marked COMPLETED.",
+                            "bg": "#1565c0",
+                            "icon": "[OK]"
+                        }
+                        logging.info(f"Order #{next_order.order_id} marked complete.")
+                        st.rerun()
+                    except Exception as e:
+                        st.warning(str(e))
+            else:
+                st.info("All caught up! No pending orders in the pickup queue.")
+
+    # =========================================================
+    # RIGHT BENTO CARD: ACTIVE PENDING PICKUP QUEUE
+    # =========================================================
+    with q_right:
+        with st.container(key='bento_queue_list', border=True):
+            hdr_q, cnt_q = st.columns((2.5, 1), vertical_alignment='center')
+            with hdr_q:
+                st.markdown("##### All Pending Pickup Orders")
+            with cnt_q:
+                st.markdown(
+                    f"<div style='text-align:right; font-weight:700; color:#4b1117;'>{len(pending_orders)} Waiting</div>",
+                    unsafe_allow_html=True
+                )
+
+            if pending_orders:
+                queue_rows = [
+                    {
+                        "Order #": int(o['id']),
+                        "Customer": o['customer_name'],
+                        "Details": o['details'],
+                        "Priority": int(o['priority']),
+                        "Status": o['status'],
+                        "Created": str(o['created_at']).replace('T', ' ')[:16]
+                    }
+                    for o in pending_orders
+                ]
+                st.dataframe(
+                    pd.DataFrame(queue_rows),
+                    use_container_width=True,
+                    hide_index=True,
+                    height=330,
+                    column_config={
+                        "Order #": st.column_config.NumberColumn("Order #", width="small", format="%d"),
+                        "Customer": st.column_config.TextColumn("Customer", width="small"),
+                        "Details": st.column_config.TextColumn("Details", width="large"),
+                        "Priority": st.column_config.NumberColumn("Priority", width="small", format="%d"),
+                        "Status": st.column_config.TextColumn("Status", width="small"),
+                        "Created": st.column_config.TextColumn("Created", width="small"),
+                    }
+                )
+            else:
+                st.info("No pending pickup orders right now.")
 
 elif mode == 'Cashier' and page == 'Sales History':
     st.subheader(' Sales Transaction History')
