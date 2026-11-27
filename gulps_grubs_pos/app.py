@@ -1428,9 +1428,8 @@ elif mode == 'Cashier' and page == 'New Sale':
                             "icon": "[OK]"
                         }
                         st.rerun()
-
-
-
+                    except Exception as e:
+                        st.error(f"Checkout error: {type(e).__name__}: {e}")
 
 elif mode == 'Cashier' and page == 'Pickup Queue Priority':
     st.subheader('Cashier - Order Priority & Pickup Queue')
