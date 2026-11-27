@@ -1352,32 +1352,40 @@ elif mode == 'Cashier' and page == 'New Sale':
                 else:
                     try:
                         import inspect
-
-                        # Build a LinkedListCart in case db.record_sale expects it
                         ll_cart = LinkedListCart()
+                        add_params = list(inspect.signature(ll_cart.add).parameters.keys())
+                        prod_lookup = {p['id']: p for p in all_products}
+
                         for item in st.session_state.cart:
-                            ll_cart.add(
-                                product_id=item['product_id'],
-                                code=item['code'],
-                                name=item['name'],
-                                unit_price_cents=int(item['unit_price_cents']),
-                                quantity=int(item['quantity']),
-                                size_oz=item.get('size_oz'),
-                                customizations=item.get('customizations', '')
-                            )
+                            p_row = dict(prod_lookup.get(item['product_id'], {}))
+                            p_row['price_cents'] = int(item['unit_price_cents'])
 
-                        # Match db.record_sale's exact parameter names automatically
-                        sig = inspect.signature(db.record_sale)
-                        params = list(sig.parameters.keys())
-                        c_label = cashier_name.strip() or "Cashier"
-
-                        if 'cart' in params:
-                            sale = db.record_sale(ll_cart, c_label) if len(params) >= 2 else db.record_sale(cart=ll_cart)
-                        elif 'items' in params:
-                            sale = db.record_sale(items=st.session_state.cart, cashier_label=c_label) if 'cashier_label' in params else db.record_sale(st.session_state.cart, c_label)
-                        else:
-                            sale = db.record_sale(ll_cart, c_label)
-
+                            if add_params and add_params[0] in ('product', 'item', 'prod'):
+                                # Signature like add(product, quantity=1, size_oz=None, customizations='')
+                                kwargs = {}
+                                if 'quantity' in add_params:
+                                    kwargs['quantity'] = int(item['quantity'])
+                                elif 'qty' in add_params:
+                                    kwargs['qty'] = int(item['quantity'])
+                                if 'size_oz' in add_params:
+                                    kwargs['size_oz'] = item.get('size_oz')
+                                if 'customizations' in add_params:
+                                    kwargs['customizations'] = item.get('customizations', '')
+                                if 'unit_price_cents' in add_params:
+                                    kwargs['unit_price_cents'] = int(item['unit_price_cents'])
+                                ll_cart.add(p_row, **kwargs)
+                            else:
+                                # Positional signature like add(product_id, code, name, unit_price_cents, quantity, size_oz, customizations)
+                                args = [
+                                    item['product_id'],
+                                    item['code'],
+                                    item['name'],
+                                    int(item['unit_price_cents']),
+                                    int(item['quantity']),
+                                    item.get('size_oz'),
+                                    item.get('customizations', '')
+                                ]
+                                ll_cart.add(*args[:len(add_params)])
                         st.session_state.last_sale = sale
 
                         order_details_list = []
