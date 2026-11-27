@@ -343,9 +343,16 @@ elif mode == 'Admin' and page == 'Product Management':
 
                     try:    
                         size_prices = {}
-                        if use8: size_prices = cents_from_peso(read_drink_price(price8_input, "8 oz"))
-                        if use12: size_prices = cents_from_peso(read_drink_price(price12_input, "12 oz"))
-                        if use16: size_prices = cents_from_peso(read_drink_price(price16_input, "16 oz"))
+                        if use8:
+                            price8 = read_drink_price(price8_input, "8 oz")
+                            size_prices.update({8: cents_from_peso(price8)})
+                        if use12:
+                            price12 = read_drink_price(price12_input, "12 oz")
+                            size_prices.update({12: cents_from_peso(price12)})
+                        if use16:
+                            price16 = read_drink_price(price16_input, "16 oz")
+                            size_prices.update({16: cents_from_peso(price16)})
+
                 
                         custom_labels_compiled = []
                         custom_database_key_id = 99  
